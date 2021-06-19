@@ -18,7 +18,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.annotations.Nullable;
 import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
@@ -34,7 +34,6 @@ import com.strobel.decompiler.languages.java.analysis.ControlFlowNode;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowNodeType;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
-import com.strobel.decompiler.semantics.ResolveResult;
 
 import javax.lang.model.element.Modifier;
 import java.util.*;
@@ -43,6 +42,8 @@ import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
 
 public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode> {
+    private final static Statement[] EMPTY_STATEMENTS = new Statement[0];
+
     public ConvertLoopsTransform(final DecompilerContext context) {
         super(context);
     }
@@ -70,7 +71,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
         final AstNode n = super.visitExpressionStatement(node, data);
 
-        if (!context.getSettings().getDisableForEachTransforms() && n instanceof ExpressionStatement) {
+        if (context.isSupported(LanguageFeature.FOR_EACH_LOOPS) &&
+            !context.getSettings().getDisableForEachTransforms() &&
+            n instanceof ExpressionStatement) {
+
             final AstNode result = transformForEach((ExpressionStatement) n);
 
             if (result != null) {
@@ -161,11 +165,8 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         }
 
         final Set<Statement> incoming = new LinkedHashSet<>();
-        final Set<ControlFlowEdge> visited = new HashSet<>();
-        final ArrayDeque<ControlFlowEdge> agenda = new ArrayDeque<>();
-
-        agenda.addAll(conditionNode.getIncoming());
-        visited.addAll(conditionNode.getIncoming());
+        final ArrayDeque<ControlFlowEdge> agenda = new ArrayDeque<>(conditionNode.getIncoming());
+        final Set<ControlFlowEdge> visited = new HashSet<>(conditionNode.getIncoming());
 
         while (!agenda.isEmpty()) {
             final ControlFlowEdge edge = agenda.removeFirst();
@@ -215,7 +216,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             return null;
         }
 
-        final Statement[] iteratorSites = incoming.toArray(new Statement[incoming.size()]);
+        final Statement[] iteratorSites = incoming.toArray(EMPTY_STATEMENTS);
         final List<Statement> iterators = new ArrayList<>();
         final Set<Statement> iteratorCopies = new HashSet<>();
 
@@ -427,7 +428,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         final BlockStatement tempOuter = new BlockStatement();
         final BlockStatement temp = new BlockStatement();
-        final Statement[] initializers = forLoop.getInitializers().toArray(new Statement[forLoop.getInitializers().size()]);
+        final Statement[] initializers = forLoop.getInitializers().toArray(EMPTY_STATEMENTS);
         final Set<String> variableNames = new HashSet<>();
 
         Statement firstInlinableInitializer = null;
@@ -1306,7 +1307,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             first(m.<Statement>get("breakStatement")).remove();
         }
         else {
-            condition = firstOrDefault(m.<Expression>get("breakCondition"));
+            condition = first(m.<Expression>get("breakCondition"));
             condition.remove();
 
             if (condition instanceof UnaryOperatorExpression &&
@@ -1323,12 +1324,14 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         doWhile.setCondition(condition);
 
         final BlockStatement block = (BlockStatement) loop.getEmbeddedStatement();
+        final Statement lastStatement = lastOrDefault(block.getStatements());
 
-        lastOrDefault(block.getStatements()).remove();
+        if (lastStatement != null) {
+            lastStatement.remove();
+        }
+
         block.remove();
-
         doWhile.setEmbeddedStatement(block);
-
         loop.replaceWith(doWhile);
 
         //
@@ -1340,6 +1343,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             if (statement instanceof VariableDeclarationStatement) {
                 final VariableDeclarationStatement declaration = (VariableDeclarationStatement) statement;
                 final VariableInitializer v = firstOrDefault(declaration.getVariables());
+
+                if (v == null) {
+                    continue;
+                }
 
                 for (final AstNode node : condition.getDescendantsAndSelf()) {
                     if (node instanceof IdentifierExpression &&
@@ -1493,7 +1500,6 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         final BlockStatement parent = (BlockStatement) declaration.getParent();
 
-        //noinspection AssertWithSideEffects
         assert CollectionUtilities.contains(targetStatement.getAncestors(), parent);
 
         //

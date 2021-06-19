@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
-@SuppressWarnings("ConstantConditions")
+@SuppressWarnings({ "ConstantConditions", "UnusedReturnValue" })
 public final class AstOptimizer {
     private final static Logger LOG = Logger.getLogger(AstOptimizer.class.getSimpleName());
 
@@ -3485,6 +3485,10 @@ public final class AstOptimizer {
 
         @Override
         public boolean run(final List<Node> body, final Expression head, final int position) {
+            if (!context.isSupported(LanguageFeature.LAMBDA_EXPRESSIONS)) {
+                return false;
+            }
+
             final StrongBox<DynamicCallSite> c = new StrongBox<>();
             final List<Expression> a = new ArrayList<>();
 
@@ -3552,7 +3556,7 @@ public final class AstOptimizer {
 
                 final MethodBody methodBody = resolvedMethod.getBody();
                 final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
-                final Variable[] parameterMap = new Variable[methodBody.getMaxLocals()];
+//                final Variable[] parameterMap = new Variable[methodBody.getMaxLocals()];
 
                 final List<Node> nodes = new ArrayList<>();
                 final Block body = new Block();
@@ -3570,7 +3574,7 @@ public final class AstOptimizer {
                     variable.setType(context.getCurrentMethod().getDeclaringType());
                     variable.setOriginalParameter(context.getCurrentMethod().getBody().getThisParameter());
 
-                    parameterMap[0] = variable;
+//                    parameterMap[0] = variable;
 
                     lambdaParameters.add(variable);
                 }
@@ -3583,7 +3587,7 @@ public final class AstOptimizer {
                     variable.setOriginalParameter(p);
                     variable.setLambdaParameter(true);
 
-                    parameterMap[p.getSlot()] = variable;
+//                    parameterMap[p.getSlot()] = variable;
 
                     lambdaParameters.add(variable);
                 }
@@ -3808,6 +3812,7 @@ public final class AstOptimizer {
     private static abstract class AbstractBasicBlockOptimization implements BasicBlockOptimization {
         protected final static BasicBlock EMPTY_BLOCK = new BasicBlock();
 
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(MutableInteger.SUPPLIER);
         protected final Map<Label, BasicBlock> labelToBasicBlock = new DefaultMap<>(Suppliers.forValue(EMPTY_BLOCK));
 

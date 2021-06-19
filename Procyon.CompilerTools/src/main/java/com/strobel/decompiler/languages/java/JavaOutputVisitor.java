@@ -32,8 +32,8 @@ import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
-import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.ast.WildcardType;
+import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
 
@@ -57,6 +57,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     final Stack<AstNode> positionStack = new Stack<>();
     final ITextOutput output;
 
+    private TypeDefinition currentType;
     private LastWritten lastWritten;
 
     public JavaOutputVisitor(final ITextOutput output, final DecompilerSettings settings) {
@@ -1706,136 +1707,144 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     @SuppressWarnings("DuplicatedCode")
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void ignored) {
-        startNode(node);
-
         final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+        final TypeDefinition previousType = this.currentType;
 
-        final boolean isTrulyAnonymous = type != null &&
-                                         type.isAnonymous() &&
-                                         node.getParent() instanceof AnonymousObjectCreationExpression;
+        this.currentType = type;
 
-        final ClassType classType = node.getClassType();
+        try {
+            startNode(node);
 
-        if (!isTrulyAnonymous) {
-            writeAnnotations(node.getAnnotations(), true);
-            writeModifiers(node.getModifiers());
+            final boolean isTrulyAnonymous = type != null &&
+                                             type.isAnonymous() &&
+                                             node.getParent() instanceof AnonymousObjectCreationExpression;
+
+            final ClassType classType = node.getClassType();
+
+            if (!isTrulyAnonymous) {
+                writeAnnotations(node.getAnnotations(), true);
+                writeModifiers(node.getModifiers());
+
+                switch (classType) {
+                    case ENUM:
+                        writeKeyword(Roles.ENUM_KEYWORD);
+                        break;
+                    case RECORD:
+                        writeKeyword(Roles.RECORD_KEYWORD);
+                        break;
+                    case INTERFACE:
+                        writeKeyword(Roles.INTERFACE_KEYWORD);
+                        break;
+                    case ANNOTATION:
+                        writeKeyword(Roles.ANNOTATION_KEYWORD);
+                        break;
+                    default:
+                        writeKeyword(Roles.CLASS_KEYWORD);
+                        break;
+                }
+
+                node.getNameToken().acceptVisitor(this, ignored);
+                writeTypeParameters(node.getTypeParameters());
+
+                if (classType == ClassType.RECORD) {
+                    writeCommaSeparatedListInParenthesis(node.getChildrenByRole(EntityDeclaration.RECORD_COMPONENT),
+                                                         policy.SpaceWithinRecordDeclarationParentheses);
+                }
+
+                if (!node.getBaseType().isNull()) {
+                    space();
+                    writeKeyword(Roles.EXTENDS_KEYWORD);
+                    space();
+                    node.getBaseType().acceptVisitor(this, ignored);
+                }
+
+                if (any(node.getInterfaces())) {
+                    final Collection<AstType> interfaceTypes;
+
+                    if (classType == ClassType.ANNOTATION) {
+                        interfaceTypes = new ArrayList<>();
+
+                        for (final AstType t : node.getInterfaces()) {
+                            final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
+
+                            if (r != null && CommonTypeReferences.Annotation.isEquivalentTo(r)) {
+                                continue;
+                            }
+
+                            interfaceTypes.add(t);
+                        }
+                    }
+                    else {
+                        interfaceTypes = node.getInterfaces();
+                    }
+
+                    if (any(interfaceTypes)) {
+                        space();
+
+                        if (classType == ClassType.INTERFACE || classType == ClassType.ANNOTATION) {
+                            writeKeyword(Roles.EXTENDS_KEYWORD);
+                        }
+                        else {
+                            writeKeyword(Roles.IMPLEMENTS_KEYWORD);
+                        }
+
+                        space();
+                        writeCommaSeparatedList(node.getInterfaces());
+                    }
+                }
+            }
+
+            if (classType == ClassType.RECORD && node.getMembers().isEmpty()) {
+                openBrace(BraceStyle.BannerStyle);
+                closeBrace(BraceStyle.BannerStyle);
+                endNode(node);
+                newLine();
+                return null;
+            }
+
+            final BraceStyle braceStyle;
+            final AstNodeCollection<EntityDeclaration> members = node.getMembers();
 
             switch (classType) {
                 case ENUM:
-                    writeKeyword(Roles.ENUM_KEYWORD);
+                    braceStyle = policy.EnumBraceStyle;
                     break;
                 case RECORD:
-                    writeKeyword(Roles.RECORD_KEYWORD);
+                    braceStyle = policy.RecordBraceStyle;
                     break;
                 case INTERFACE:
-                    writeKeyword(Roles.INTERFACE_KEYWORD);
+                    braceStyle = policy.InterfaceBraceStyle;
                     break;
                 case ANNOTATION:
-                    writeKeyword(Roles.ANNOTATION_KEYWORD);
+                    braceStyle = policy.AnnotationBraceStyle;
                     break;
                 default:
-                    writeKeyword(Roles.CLASS_KEYWORD);
+                    if (type != null && type.isAnonymous()) {
+                        braceStyle = members.isEmpty() ? BraceStyle.BannerStyle : policy.AnonymousClassBraceStyle;
+                    }
+                    else {
+                        braceStyle = policy.ClassBraceStyle;
+                    }
                     break;
             }
 
-            node.getNameToken().acceptVisitor(this, ignored);
-            writeTypeParameters(node.getTypeParameters());
+            openBrace(braceStyle);
 
-            if (classType == ClassType.RECORD) {
-                writeCommaSeparatedListInParenthesis(node.getChildrenByRole(EntityDeclaration.RECORD_COMPONENT),
-                                                     policy.SpaceWithinRecordDeclarationParentheses);
+            writeMembers(members);
+
+            closeBrace(braceStyle);
+
+            if (type == null || !type.isAnonymous()) {
+                optionalSemicolon();
+                newLine();
             }
 
-            if (!node.getBaseType().isNull()) {
-                space();
-                writeKeyword(Roles.EXTENDS_KEYWORD);
-                space();
-                node.getBaseType().acceptVisitor(this, ignored);
-            }
-
-            if (any(node.getInterfaces())) {
-                final Collection<AstType> interfaceTypes;
-
-                if (classType == ClassType.ANNOTATION) {
-                    interfaceTypes = new ArrayList<>();
-
-                    for (final AstType t : node.getInterfaces()) {
-                        final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
-
-                        if (r != null && CommonTypeReferences.Annotation.isEquivalentTo(r)) {
-                            continue;
-                        }
-
-                        interfaceTypes.add(t);
-                    }
-                }
-                else {
-                    interfaceTypes = node.getInterfaces();
-                }
-
-                if (any(interfaceTypes)) {
-                    space();
-
-                    if (classType == ClassType.INTERFACE || classType == ClassType.ANNOTATION) {
-                        writeKeyword(Roles.EXTENDS_KEYWORD);
-                    }
-                    else {
-                        writeKeyword(Roles.IMPLEMENTS_KEYWORD);
-                    }
-
-                    space();
-                    writeCommaSeparatedList(node.getInterfaces());
-                }
-            }
-        }
-
-        if (classType == ClassType.RECORD && node.getMembers().isEmpty()) {
-            openBrace(BraceStyle.BannerStyle);
-            closeBrace(BraceStyle.BannerStyle);
             endNode(node);
-            newLine();
             return null;
         }
-
-        final BraceStyle braceStyle;
-        final AstNodeCollection<EntityDeclaration> members = node.getMembers();
-
-        switch (classType) {
-            case ENUM:
-                braceStyle = policy.EnumBraceStyle;
-                break;
-            case RECORD:
-                braceStyle = policy.RecordBraceStyle;
-                break;
-            case INTERFACE:
-                braceStyle = policy.InterfaceBraceStyle;
-                break;
-            case ANNOTATION:
-                braceStyle = policy.AnnotationBraceStyle;
-                break;
-            default:
-                if (type != null && type.isAnonymous()) {
-                    braceStyle = members.isEmpty() ? BraceStyle.BannerStyle : policy.AnonymousClassBraceStyle;
-                }
-                else {
-                    braceStyle = policy.ClassBraceStyle;
-                }
-                break;
+        finally {
+            this.currentType = previousType;
         }
-
-        openBrace(braceStyle);
-
-        writeMembers(members);
-
-        closeBrace(braceStyle);
-
-        if (type == null || !type.isAnonymous()) {
-            optionalSemicolon();
-            newLine();
-        }
-
-        endNode(node);
-        return null;
     }
 
     private void writeMembers(final AstNodeCollection<EntityDeclaration> members) {
@@ -2110,7 +2119,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (val instanceof String) {
-            formatter.writeTextLiteral(StringUtilities.escape(val.toString(), true, settings.isUnicodeOutputEnabled()));
+            final String s = val.toString();
+            if (canWriteTextBlock(s)) {
+                formatter.writeTextBlock(s);
+            }
+            else {
+                formatter.writeTextLiteral(StringUtilities.escape(s, true, settings.isUnicodeOutputEnabled()));
+            }
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
@@ -2208,6 +2223,54 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
+    private CompilerTarget currentCompilerTarget() {
+        CompilerTarget target = settings.getForcedCompilerTarget();
+
+        if (target != null) {
+            return target;
+        }
+
+        final TypeDefinition type = currentType;
+
+        target = type != null ? type.getCompilerTarget() : null;
+
+        if (target != null) {
+            return target;
+        }
+
+        return CompilerTarget.DEFAULT;
+    }
+
+    private boolean canWriteTextBlock(final String s) {
+        final int minLines = settings.getTextBlockLineMinimum();
+
+        return minLines > 0 &&
+               LanguageFeature.TEXT_BLOCKS.isAvailable(currentCompilerTarget(), settings.arePreviewFeaturesEnabled()) &&
+               countLines(s, minLines) >= minLines;
+    }
+
+    private static int countLines(final String s, final int stopAfter) {
+        return countLines(s, 0, s.length(), stopAfter);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static int countLines(final String s, final int from, final int end, final int stopAfter) {
+        int count = 1;
+        int index = from;
+
+        while ((index = s.indexOf('\n', index)) > 0) {
+            if (index >= end) {
+                break;
+            }
+            if (++count >= stopAfter) {
+                return count;
+            }
+            ++index;
+        }
+
+        return count;
+    }
+
     @Override
     public Void visitCastExpression(final CastExpression node, final Void ignored) {
         startNode(node);
@@ -2278,10 +2341,24 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitInstanceOfExpression(final InstanceOfExpression node, final Void ignored) {
         startNode(node);
+
         node.getExpression().acceptVisitor(this, ignored);
         space();
         writeKeyword(InstanceOfExpression.INSTANCE_OF_KEYWORD_ROLE);
+
+        final Identifier identifier = node.getIdentifier();
+        final boolean isPattern = identifier != null && !identifier.isNull();
+
+        if (isPattern) {
+            writeModifiers(node.getModifiers());
+        }
+
         node.getType().acceptVisitor(this, ignored);
+
+        if (isPattern) {
+            identifier.acceptVisitor(this, ignored);
+        }
+
         endNode(node);
         return null;
     }

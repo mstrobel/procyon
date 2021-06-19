@@ -106,4 +106,22 @@ public final class DecompilerContext extends UserDataStoreBase {
 
         return feature.isAvailable(target, allowPreview);
     }
+
+    public CompilerTarget target() {
+        return target(_currentType);
+    }
+
+    public CompilerTarget target(final TypeDefinition versionSource) {
+        CompilerTarget target = _settings.getForcedCompilerTarget();
+
+        if (target == null && versionSource != null) {
+            target = versionSource.getCompilerTarget();
+        }
+
+        if (target == null) {
+            target = CompilerTarget.DEFAULT;
+        }
+
+        return target;
+    }
 }

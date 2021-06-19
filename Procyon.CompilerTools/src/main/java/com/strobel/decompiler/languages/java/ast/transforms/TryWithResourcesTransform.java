@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
@@ -162,7 +163,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
     @Override
     public void run(final AstNode compilationUnit) {
-        if (_tryPattern == null) {
+        if (_tryPattern == null || !context.isSupported(LanguageFeature.TRY_WITH_RESOURCES)) {
             return;
         }
 

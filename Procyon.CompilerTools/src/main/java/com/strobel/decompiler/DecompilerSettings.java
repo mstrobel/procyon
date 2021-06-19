@@ -23,6 +23,7 @@ import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
+@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class DecompilerSettings {
     private ITypeLoader _typeLoader;
     private boolean _includeLineNumbersInBytecode = true;
@@ -46,7 +47,7 @@ public class DecompilerSettings {
     private String _outputDirectory;
     private boolean _showDebugLineNumbers;
     private boolean _simplifyMemberReferences;
-    private int _minLinesForTextBlocks = 3;
+    private int _textBlockLineMinimum = 3;
     private CompilerTarget _forcedCompilerTarget;
     private boolean _arePreviewFeaturesEnabled;
 
@@ -225,12 +226,12 @@ public class DecompilerSettings {
         _forceFullyQualifiedReferences = forceFullyQualifiedReferences;
     }
 
-    public final int getMinLinesForTextBlocks() {
-        return _minLinesForTextBlocks;
+    public final int getTextBlockLineMinimum() {
+        return _textBlockLineMinimum;
     }
 
-    public final void setMinLinesForTextBlocks(final int minLinesForTextBlocks) {
-        _minLinesForTextBlocks = minLinesForTextBlocks;
+    public final void setTextBlockLineMinimum(final int textBlockLineMinimum) {
+        _textBlockLineMinimum = textBlockLineMinimum;
     }
 
     public final CompilerTarget getForcedCompilerTarget() {

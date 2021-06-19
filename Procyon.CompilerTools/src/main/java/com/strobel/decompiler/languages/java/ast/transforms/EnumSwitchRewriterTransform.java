@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -36,15 +37,17 @@ import java.util.List;
 import java.util.Map;
 
 public class EnumSwitchRewriterTransform implements IAstTransform {
-    private final DecompilerContext _context;
-
     public EnumSwitchRewriterTransform(final DecompilerContext context) {
         _context = VerifyArgument.notNull(context, "context");
     }
 
+    private final DecompilerContext _context;
+
     @Override
     public void run(final AstNode compilationUnit) {
-        compilationUnit.acceptVisitor(new Visitor(_context), null);
+        if (_context.isSupported(LanguageFeature.ENUM_CLASSES)) {
+            compilationUnit.acceptVisitor(new Visitor(_context), null);
+        }
     }
 
     private final static class Visitor extends ContextTrackingVisitor<Void> {

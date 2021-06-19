@@ -16,7 +16,6 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.EntityType;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.Match;

@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.first;
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class EnumRewriterTransform implements IAstTransform {
     private final DecompilerContext _context;
@@ -40,7 +39,9 @@ public class EnumRewriterTransform implements IAstTransform {
 
     @Override
     public void run(final AstNode compilationUnit) {
-        compilationUnit.acceptVisitor(new Visitor(_context), null);
+        if (_context.isSupported(LanguageFeature.ENUM_CLASSES)) {
+            compilationUnit.acceptVisitor(new Visitor(_context), null);
+        }
     }
 
     private final static class Visitor extends ContextTrackingVisitor<Void> {
@@ -138,7 +139,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     final Match match = pattern.match(d);
 
                     if (match.success()) {
-                        final MemberReferenceExpression reference = firstOrDefault(match.<MemberReferenceExpression>get("valuesField"));
+                        final MemberReferenceExpression reference = first(match.<MemberReferenceExpression>get("valuesField"));
                         return reference.getUserData(Keys.MEMBER_REFERENCE);
                     }
                 }

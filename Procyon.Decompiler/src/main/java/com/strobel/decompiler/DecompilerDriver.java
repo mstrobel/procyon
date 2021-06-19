@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -95,6 +96,8 @@ public class DecompilerDriver {
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
         settings.setForceFullyQualifiedReferences(options.getForceFullyQualifiedReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
+        settings.setForcedCompilerTarget(options.getCompilerTargetOverride());
+        settings.setTextBlockLineMinimum(options.getTextBlockLineMinimum());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (!options.getSuppressBanner()) {
@@ -366,7 +369,7 @@ public class DecompilerDriver {
         if (StringUtilities.isNullOrWhitespace(outputDirectory)) {
             return new OutputStreamWriter(
                 System.out,
-                settings.isUnicodeOutputEnabled() ? Charset.forName("UTF-8")
+                settings.isUnicodeOutputEnabled() ? StandardCharsets.UTF_8
                                                   : Charset.defaultCharset()
             );
         }
@@ -417,7 +420,7 @@ final class FileOutputWriter extends OutputStreamWriter {
     FileOutputWriter(final File file, final DecompilerSettings settings) throws IOException {
         super(
             new FileOutputStream(file),
-            settings.isUnicodeOutputEnabled() ? Charset.forName("UTF-8")
+            settings.isUnicodeOutputEnabled() ? StandardCharsets.UTF_8
                                               : Charset.defaultCharset()
         );
         this.file = file;
@@ -458,10 +461,6 @@ final class NoRetryMetadataSystem extends MetadataSystem {
 
     NoRetryMetadataSystem() {
     }
-
-//    NoRetryMetadataSystem(final String classPath) {
-//        super(classPath);
-//    }
 
     NoRetryMetadataSystem(final ITypeLoader typeLoader) {
         super(typeLoader);

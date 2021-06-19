@@ -1,10 +1,12 @@
 package com.strobel.assembler.metadata;
 
-import com.strobel.core.Closeables;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 
 public enum LanguageFeature {
+    ENUM_CLASSES(CompilerTarget.JDK1_5),
+    FOR_EACH_LOOPS(CompilerTarget.JDK1_5),
+    TRY_WITH_RESOURCES(CompilerTarget.JDK1_7),
     DEFAULT_INTERFACE_METHODS(CompilerTarget.JDK1_8),
     STATIC_INTERFACE_METHODS(CompilerTarget.JDK1_8),
     LAMBDA_EXPRESSIONS(CompilerTarget.JDK1_8),

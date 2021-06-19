@@ -529,6 +529,7 @@ public final class StringUtilities {
         return escapeCharacter(ch, false);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static String escapeCharacter(final char ch, final boolean isUnicodeSupported) {
         if (ch == '\'') {
             return "\\'";
@@ -597,7 +598,6 @@ public final class StringUtilities {
         return escape(value, quote, false);
     }
 
-    @SuppressWarnings("ConstantConditions")
     public static String escape(final String value, final boolean quote, final boolean isUnicodeSupported) {
         if (value == null) {
             return null;
@@ -752,6 +752,9 @@ public final class StringUtilities {
     }
 
     public static String repeat(final char ch, final int length) {
+        if (length == 0) {
+            return "";
+        }
         VerifyArgument.isNonNegative(length, "length");
         final char[] c = new char[length];
         Arrays.fill(c, 0, length, ch);

@@ -373,7 +373,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     @NotNull
     @SuppressWarnings("unchecked")
-    public final <T extends AstNode> T getChildByRole(final Role<T> role) {
+    public final <T extends AstNode> T getChildByRole(final Role<? extends T> role) {
         VerifyArgument.notNull(role, "role");
 
         final int roleIndex = role.getIndex();
@@ -388,11 +388,13 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @NotNull
-    public final <T extends AstNode> AstNodeCollection<T> getChildrenByRole(final Role<T> role) {
-        return new AstNodeCollection<>(this, role);
+    public final <T extends AstNode> AstNodeCollection<T> getChildrenByRole(final Role<? extends T> role) {
+        @SuppressWarnings("unchecked")
+        final Role<T> r = (Role<T>) role;
+        return new AstNodeCollection<>(this, r);
     }
 
-    protected final <T extends AstNode> void setChildByRole(final Role<T> role, final T newChild) {
+    protected final <T extends AstNode> void setChildByRole(final Role<? extends T> role, final T newChild) {
         final T oldChild = getChildByRole(role);
 
         if (oldChild.isNull()) {
@@ -449,7 +451,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SafeVarargs
-    public final <T extends AstNode> void insertChildrenBefore(final AstNode nextSibling, final Role<T> role, final T... children) {
+    public final <T extends AstNode> void insertChildrenBefore(final AstNode nextSibling, final Role<? extends T> role, final T... children) {
         VerifyArgument.notNull(children, "children");
 
         for (final T child : children) {
@@ -457,7 +459,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final <T extends AstNode> void insertChildBefore(final AstNode nextSibling, final T child, final Role<T> role) {
+    public final <T extends AstNode> void insertChildBefore(final AstNode nextSibling, final T child, final Role<? extends T> role) {
         VerifyArgument.notNull(role, "role");
 
         if (nextSibling == null || nextSibling.isNull()) {
@@ -487,7 +489,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SafeVarargs
-    public final <T extends AstNode> void insertChildrenAfter(final AstNode nextSibling, final Role<T> role, final T... children) {
+    public final <T extends AstNode> void insertChildrenAfter(final AstNode nextSibling, final Role<? extends T> role, final T... children) {
         VerifyArgument.notNull(children, "children");
 
         for (final T child : children) {
@@ -495,7 +497,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final <T extends AstNode> void insertChildAfter(final AstNode previousSibling, final T child, final Role<T> role) {
+    public final <T extends AstNode> void insertChildAfter(final AstNode previousSibling, final T child, final Role<? extends T> role) {
         insertChildBefore(
             previousSibling == null || previousSibling.isNull() ? _firstChild : previousSibling._nextSibling,
             child,

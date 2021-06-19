@@ -20,18 +20,27 @@ import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.utilities.TreeTraversal;
 
-import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class SubtreeMatch extends Pattern {
+    private final String _groupName;
     private final boolean _matchMultiple;
     private final INode _target;
 
     public SubtreeMatch(final INode target) {
-        this(target, false);
+        this(target, null, false);
     }
 
     public SubtreeMatch(final INode target, final boolean matchMultiple) {
+        this(target, null, matchMultiple);
+    }
+    public SubtreeMatch(final INode target, final String groupName) {
+        this(target, groupName, false);
+    }
+
+    public SubtreeMatch(final INode target, final String groupName, final boolean matchMultiple) {
         _matchMultiple = matchMultiple;
+        _groupName = groupName;
         _target = VerifyArgument.notNull(target, "target");
     }
 
@@ -46,6 +55,9 @@ public final class SubtreeMatch extends Pattern {
 
             for (final INode n : TreeTraversal.preOrder(other, INode.CHILD_ITERATOR)) {
                 if (_target.matches(n, match)) {
+                    if (_groupName != null) {
+                        match.add(_groupName, n);
+                    }
                     result = true;
                 }
             }
@@ -53,7 +65,7 @@ public final class SubtreeMatch extends Pattern {
             return result;
         }
         else {
-            return any(
+            final INode n = firstOrDefault(
                 TreeTraversal.preOrder(other, INode.CHILD_ITERATOR),
                 new Predicate<INode>() {
                     @Override
@@ -62,6 +74,15 @@ public final class SubtreeMatch extends Pattern {
                     }
                 }
             );
+
+            if (n == null)
+                return false;
+
+            if (_groupName != null) {
+                match.add(_groupName, n);
+            }
+
+            return true;
         }
     }
 }

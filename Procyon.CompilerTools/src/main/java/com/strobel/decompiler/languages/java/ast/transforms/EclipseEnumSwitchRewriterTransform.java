@@ -40,9 +40,11 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
 
     @Override
     public void run(final AstNode compilationUnit) {
-        final Visitor visitor = new Visitor(_context);
-        compilationUnit.acceptVisitor(visitor, null);
-        visitor.rewrite();
+        if (_context.isSupported(LanguageFeature.ENUM_CLASSES)) {
+            final Visitor visitor = new Visitor(_context);
+            compilationUnit.acceptVisitor(visitor, null);
+            visitor.rewrite();
+        }
     }
 
     private final static class Visitor extends ContextTrackingVisitor<Void> {

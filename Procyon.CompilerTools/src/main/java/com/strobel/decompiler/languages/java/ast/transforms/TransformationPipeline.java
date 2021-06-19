@@ -69,6 +69,7 @@ public final class TransformationPipeline {
             new InsertConstantReferencesTransform(context),
             new SimplifyArithmeticExpressionsTransform(context),
             new DeclareLocalClassesTransform(context),
+            new IntroducePatternMatchingTransform(context),
             new AddStandardAnnotationsTransform(context),
             new AddReferenceQualifiersTransform(context),
             new RemoveHiddenMembersTransform(context),

@@ -837,6 +837,13 @@ public final class JavaNameResolver {
 
         @Override
         public Set<Object> visitInstanceOfExpression(final InstanceOfExpression node, final String name) {
+            if (_mode == NameResolveMode.EXPRESSION && StringUtilities.equals(node.getIdentifier().getName(), name)) {
+                final Variable variable = node.getUserData(Keys.VARIABLE);
+
+                if (variable != null) {
+                    return Collections.<Object>singleton(variable);
+                }
+            }
             return Collections.emptySet();
         }
 

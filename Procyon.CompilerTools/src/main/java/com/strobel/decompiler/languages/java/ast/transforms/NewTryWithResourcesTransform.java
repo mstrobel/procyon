@@ -177,7 +177,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
     @Override
     public void run(final AstNode compilationUnit) {
-        if (_tryPattern == null) {
+        if (_tryPattern == null || !context.isSupported(LanguageFeature.TRY_WITH_RESOURCES)) {
             return;
         }
 

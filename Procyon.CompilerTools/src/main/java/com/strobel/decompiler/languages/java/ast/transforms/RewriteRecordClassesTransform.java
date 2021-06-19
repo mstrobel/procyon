@@ -7,6 +7,7 @@ import com.strobel.assembler.ir.attributes.RecordComponentInfo;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.DynamicCallSite;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
@@ -109,6 +110,13 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
 
     public RewriteRecordClassesTransform(final DecompilerContext context) {
         super(context);
+    }
+
+    @Override
+    public void run(final AstNode compilationUnit) {
+        if (context.isSupported(LanguageFeature.RECORD_CLASSES)) {
+            super.run(compilationUnit);
+        }
     }
 
     @Override

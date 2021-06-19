@@ -22,6 +22,7 @@ import com.strobel.assembler.metadata.ModuleReference;
 import com.strobel.assembler.metadata.PackageReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.Variable;
@@ -63,12 +64,12 @@ public class TextOutputFormatter implements IOutputFormatter {
     /**
      * maps original line numbers to decompiler-emitted line numbers and columns
      */
-    private final List<LineNumberPosition> lineNumberPositions = new ArrayList<LineNumberPosition>();
+    private final List<LineNumberPosition> lineNumberPositions = new ArrayList<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Stack<TextLocation> startLocations = new Stack<>();
 
-    public TextOutputFormatter(final ITextOutput output, LineNumberMode lineNumberMode) {
+    public TextOutputFormatter(final ITextOutput output, final LineNumberMode lineNumberMode) {
         this.output = VerifyArgument.notNull(output, "output");
         this.lineNumberMode = lineNumberMode;
     }
@@ -101,17 +102,17 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
         if (offset != Expression.MYSTERY_OFFSET) {
             // Convert to a line number.
-            int lineNumber = offset2LineNumber.getLineForOffset(offset);
+            final int lineNumber = offset2LineNumber.getLineForOffset(offset);
             if (lineNumber > lastObservedLineNumber) {
                 // Record a data structure mapping original to actual line numbers.
-                int lineOfComment = output.getRow();
-                int columnOfComment = output.getColumn();
-                LineNumberPosition pos = new LineNumberPosition(lineNumber, lineOfComment, columnOfComment);
+                final int lineOfComment = output.getRow();
+                final int columnOfComment = output.getColumn();
+                final LineNumberPosition pos = new LineNumberPosition(lineNumber, lineOfComment, columnOfComment);
                 lineNumberPositions.add(pos);
                 lastObservedLineNumber = lineNumber;
                 if (lineNumberMode == LineNumberMode.WITH_DEBUG_LINE_NUMBERS) {
                     // Emit a comment showing the original line number.
-                    String commentStr = prefix + lineNumber + "*/";
+                    final String commentStr = prefix + lineNumber + "*/";
                     output.writeComment(commentStr);
                 }
             }
@@ -241,6 +242,50 @@ public class TextOutputFormatter implements IOutputFormatter {
     @Override
     public void writeTextLiteral(final String value) {
         output.writeTextLiteral(value);
+    }
+
+    @Override
+    public void writeTextBlock(final String value) {
+        final int columnStart = output.getColumn();
+        final List<String> lines = StringUtilities.split(value, false, '\n');
+        final boolean endsWithNewline = value.endsWith("\n");
+
+        output.writeTextLiteral("\"\"\"");
+        output.writeLine();
+
+        final int columnEnd = output.getColumn();
+        final int paddingSize = Math.max(0, columnStart - columnEnd);
+        final String padding = StringUtilities.repeat(' ', paddingSize);
+
+        final int n = lines.size();
+
+        for (int i = 0; i < n - 1; i++) {
+            String line = lines.get(i);
+
+            if (line.indexOf('\r') >= 0) {
+                line = line.replace("\r", "\\r");
+            }
+
+            if (line.contains("\"\"\"")) {
+                line = line.replace("\"\"\"", "\\\"\"\"");
+            }
+
+            output.write(padding);
+            output.writeTextLiteral(line);
+            output.writeLine();
+        }
+
+        final String lastLine = lines.get(n - 1);
+
+        output.write(padding);
+        output.writeTextLiteral(lastLine);
+
+        if (endsWithNewline && !StringUtilities.isNullOrWhitespace(lastLine)) {
+            output.writeLine();
+            output.write(padding);
+        }
+
+        output.writeTextLiteral("\"\"\"");
     }
 
     @Override
@@ -620,7 +665,7 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     @Override
-    public void resetLineNumberOffsets(OffsetToLineNumberConverter offset2LineNumber) {
+    public void resetLineNumberOffsets(final OffsetToLineNumberConverter offset2LineNumber) {
         // Forget what we used to know about the stream of line number offsets and start from
         // scratch.  Also capture the new converter.,
         lastObservedLineNumber = OffsetToLineNumberConverter.UNKNOWN_LINE_NUMBER;

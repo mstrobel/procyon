@@ -29,7 +29,6 @@ import com.strobel.decompiler.ast.PatternMatching;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -80,15 +79,9 @@ public class NameVariables {
         METHOD_NAME_MAPPINGS = methodNameMappings;
     }
 
-    private final ArrayList<String> _fieldNamesInCurrentType;
     private final Map<String, Integer> _typeNames = new HashMap<>();
 
     public NameVariables(final DecompilerContext context) {
-        _fieldNamesInCurrentType = new ArrayList<>();
-
-        for (final FieldDefinition field : context.getCurrentType().getDeclaredFields()) {
-            _fieldNamesInCurrentType.add(field.getName());
-        }
     }
 
     public final void addExistingName(final String name) {
@@ -161,13 +154,6 @@ public class NameVariables {
                 final VariableDefinition originalVariable = v.getOriginalVariable();
 
                 if (originalVariable != null) {
-/*
-                    if (originalVariable.isFromMetadata() && originalVariable.hasName()) {
-                        v.setName(originalVariable.getName());
-                        continue;
-                    }
-*/
-
                     final String varName = originalVariable.getName();
 
                     if (StringUtilities.isNullOrEmpty(varName) || varName.startsWith("V_") || !isValidName(varName)) {
@@ -184,7 +170,8 @@ public class NameVariables {
         }
 
         for (final Variable p : parameters) {
-            if (!p.getOriginalParameter().hasName()) {
+            final ParameterDefinition op = p.getOriginalParameter();
+            if (op != null && !op.hasName()) {
                 p.setName(nv.generateNameForVariable(p, methodBody));
             }
         }
@@ -259,7 +246,6 @@ public class NameVariables {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private String generateNameForVariable(final Variable variable, final Block methodBody) {
         String proposedName = null;
 
@@ -359,19 +345,10 @@ public class NameVariables {
         }
 
         if (StringUtilities.isNullOrEmpty(proposedName)) {
-            proposedName = getNameForType(variable.getType());
+            proposedName = getNameForType0(variable.getType());
         }
 
         return this.getAlternativeName(proposedName);
-/*
-        while (true) {
-            proposedName = this.getAlternativeName(proposedName);
-
-            if (!_fieldNamesInCurrentType.contains(proposedName)) {
-                return proposedName;
-            }
-        }
-*/
     }
 
     private static String cleanUpVariableName(final String s) {
@@ -533,6 +510,11 @@ public class NameVariables {
     }
 
     public String getNameForType(final TypeReference type) {
+        final String baseName = getNameForType0(type);
+        return getAlternativeName(baseName);
+    }
+
+    private String getNameForType0(final TypeReference type) {
 
         TypeReference nameSource = type;
 
