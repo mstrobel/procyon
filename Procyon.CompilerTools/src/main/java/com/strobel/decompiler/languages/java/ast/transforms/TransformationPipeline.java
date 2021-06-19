@@ -55,6 +55,7 @@ public final class TransformationPipeline {
             new RewriteInnerClassConstructorCalls(context),
             new RemoveRedundantInitializersTransform(context),
             new FlattenElseIfStatementsTransform(context),
+            new RewriteSwitchExpressionsTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new IntroduceInitializersTransform(context),
             new MarkReferencedSyntheticsTransform(context),

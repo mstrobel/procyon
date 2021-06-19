@@ -483,6 +483,16 @@ public final class JavaNameResolver {
         }
 
         @Override
+        public Set<Object> visitSwitchExpression(final SwitchExpression node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitSwitchExpressionArm(final SwitchExpressionArm node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
         public Set<Object> visitCaseLabel(final CaseLabel node, final String name) {
             return Collections.emptySet();
         }

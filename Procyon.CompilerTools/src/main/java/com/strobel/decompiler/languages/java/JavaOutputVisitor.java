@@ -36,7 +36,6 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
-import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,6 +48,8 @@ import static java.lang.String.format;
 
 @SuppressWarnings("ConstantConditions")
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
+    private final static int MAX_SWITCH_EXPRESSION_ARM_VALUES_LENGTH = 40;
+
     final TextOutputFormatter formatter;
     final DecompilerSettings settings;
     final JavaFormattingOptions policy;
@@ -215,7 +216,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         formatter.closeBrace(style);
         lastWritten = LastWritten.Other;
     }
-    
+
     void writeIdentifier(final Identifier identifier, final String text) {
         // for now, set the start location to *here*
         identifier.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
@@ -236,7 +237,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(identifierRole != null ? identifierRole : Roles.IDENTIFIER);
 
         boolean wroteSpace = false;
-        
+
         if (isKeyword(identifier, containerStack.peek())) {
             if (lastWritten == LastWritten.KeywordOrIdentifier) {
                 space();
@@ -259,7 +260,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         lastWritten = LastWritten.KeywordOrIdentifier;
-        
+
         return wroteSpace;
     }
 
@@ -646,7 +647,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
         else if (childNode instanceof AstTypeMatch) {
             visitAstTypeMatch((AstTypeMatch) childNode);
-
         }
         else {
             writePrimitiveValue(childNode);
@@ -813,7 +813,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             endNode(modifierToken);
         }
         else {
-            throw ContractUtils.unsupported();
+            startNode(node);
+            writeKeyword(node.getText());
+            endNode(node);
         }
         return null;
     }
@@ -974,12 +976,32 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitBreakStatement(final BreakStatement node, final Void ignored) {
         startNode(node);
-        writeKeyword("break");
 
-        final String label = node.getLabel();
+        JavaTokenNode yt = node.getYieldToken();
 
-        if (!StringUtilities.isNullOrEmpty(label)) {
-            writeIdentifier(label, Roles.LABEL);
+        if (yt.isNull()) {
+            yt = node.getBreakToken();
+        }
+
+        if (yt.isNull()) {
+            writeKeyword("break");
+        }
+        else {
+            yt.acceptVisitor(this, ignored);
+        }
+
+        final Expression value = node.getValue();
+
+        if (value.isNull()) {
+            final String label = node.getLabel();
+
+            if (!StringUtilities.isNullOrEmpty(label)) {
+                writeIdentifier(label, Roles.LABEL);
+            }
+        }
+        else {
+            space();
+            value.acceptVisitor(this, ignored);
         }
 
         semicolon();
@@ -1165,8 +1187,109 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             first = false;
         }
 
-        final boolean isBlock = node.getStatements().size() == 1 &&
-                                firstOrDefault(node.getStatements()) instanceof BlockStatement;
+        writeSwitchSectionStatements(node.getStatements(), false);
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchExpression(final SwitchExpression node, final Void ignored) {
+        startNode(node);
+        writeKeyword(SwitchStatement.SWITCH_KEYWORD_ROLE);
+        space(policy.SpaceBeforeSwitchParentheses);
+        leftParenthesis();
+        space(policy.SpacesWithinSwitchParentheses);
+        node.getGoverningExpression().acceptVisitor(this, ignored);
+        space(policy.SpacesWithinSwitchParentheses);
+        rightParenthesis();
+        openBrace(policy.StatementBraceStyle);
+
+        if (policy.IndentSwitchBody) {
+            formatter.indent();
+        }
+
+        for (final SwitchExpressionArm section : node.getArms()) {
+            section.acceptVisitor(this, ignored);
+        }
+
+        if (policy.IndentSwitchBody) {
+            formatter.unindent();
+        }
+
+        closeBrace(policy.StatementBraceStyle);
+        endNode(node);
+
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchExpressionArm(final SwitchExpressionArm node, final Void ignored) {
+        startNode(node);
+
+        final AstNodeCollection<Expression> values = node.getValues();
+        final boolean isDefault = values.isEmpty();
+
+        writeKeyword(isDefault ? SwitchExpressionArm.DEFAULT_KEYWORD_ROLE
+                               : SwitchExpressionArm.CASE_KEYWORD_ROLE);
+
+        if (!isDefault) {
+            final int startColumn = output.getIndentToken().length() * output.indentDepth();
+            final int endColumn = output.getColumn();
+
+            String padding = null;
+            boolean comma = false;
+
+            for (final Expression value : values) {
+                if (comma) {
+                    comma(value);
+                }
+
+                space();
+
+                if (output.getColumn() - endColumn >= MAX_SWITCH_EXPRESSION_ARM_VALUES_LENGTH) {
+                    newLine();
+                    if (padding == null) {
+                        padding = StringUtilities.repeat(' ', endColumn - startColumn);
+                    }
+                    output.write(padding);
+                }
+
+                value.acceptVisitor(this, ignored);
+                comma = true;
+            }
+        }
+
+        if (node.isClassicStyle()) {
+            writeToken(SwitchExpressionArm.COLON_ROLE);
+        }
+        else {
+            space();
+            writeToken(SwitchExpressionArm.ARROW_ROLE);
+        }
+
+        space();
+
+        final Statement first;
+        final AstNodeCollection<Statement> statements = node.getStatements();
+
+        if (statements.size() == 1 && !((first = statements.firstOrNullObject()) instanceof BlockStatement)) {
+            first.acceptVisitor(this, ignored);
+        }
+        else {
+            writeSwitchSectionStatements(statements, true);
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    private void writeSwitchSectionStatements(final AstNodeCollection<Statement> statements, final boolean forceBraces) {
+        final boolean isBlock = statements.size() == 1 &&
+                                firstOrDefault(statements) instanceof BlockStatement;
+
+        if (forceBraces && !isBlock) {
+            openBrace(BraceStyle.EndOfLine);
+        }
 
         if (policy.IndentCaseBody && !isBlock) {
             formatter.indent();
@@ -1176,16 +1299,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             newLine();
         }
 
-        for (final Statement statement : node.getStatements()) {
-            statement.acceptVisitor(this, ignored);
+        for (final Statement statement : statements) {
+            statement.acceptVisitor(this, null);
         }
 
         if (policy.IndentCaseBody && !isBlock) {
             formatter.unindent();
         }
 
-        endNode(node);
-        return null;
+        if (forceBraces && !isBlock) {
+            closeBrace(BraceStyle.EndOfLine);
+        }
     }
 
     @Override

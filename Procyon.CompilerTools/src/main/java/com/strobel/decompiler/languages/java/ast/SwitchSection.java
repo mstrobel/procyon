@@ -21,14 +21,14 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class SwitchSection extends AstNode {
-    public final static Role<CaseLabel> CaseLabelRole = new Role<>("CaseLabel", CaseLabel.class);
+    public final static Role<CaseLabel> CASE_LABEL_ROLE = new Role<>("CaseLabel", CaseLabel.class);
 
     public final AstNodeCollection<Statement> getStatements() {
         return getChildrenByRole(Roles.EMBEDDED_STATEMENT);
     }
 
     public final AstNodeCollection<CaseLabel> getCaseLabels() {
-        return getChildrenByRole(CaseLabelRole);
+        return getChildrenByRole(CASE_LABEL_ROLE);
     }
 
     @Override

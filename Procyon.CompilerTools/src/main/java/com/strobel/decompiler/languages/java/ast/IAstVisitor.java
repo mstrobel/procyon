@@ -42,6 +42,8 @@ public interface IAstVisitor<T, R> {
     R visitReturnStatement(ReturnStatement node, T data);
     R visitSwitchStatement(SwitchStatement node, T data);
     R visitSwitchSection(SwitchSection node, T data);
+    R visitSwitchExpression(SwitchExpression node, T data);
+    R visitSwitchExpressionArm(SwitchExpressionArm node, T data);
     R visitCaseLabel(CaseLabel node, T data);
     R visitThrowStatement(ThrowStatement node, T data);
     R visitCatchClause(CatchClause node, T data);

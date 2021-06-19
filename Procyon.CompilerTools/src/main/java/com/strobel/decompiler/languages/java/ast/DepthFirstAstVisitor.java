@@ -160,6 +160,16 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
+    public S visitSwitchExpression(final SwitchExpression node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitSwitchExpressionArm(final SwitchExpressionArm node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
     public S visitCaseLabel(final CaseLabel node, final T data) {
         return visitChildren(node, data);
     }
