@@ -658,4 +658,27 @@ public class ThirdPartyTests extends DecompilerTest {
             "}"
         );
     }
+
+    @Test
+    public void testGitHubIssue2() throws Exception {
+        verifyOutput(
+            Class.forName("GitHubIssue2"),
+            defaultSettings(),
+            "class GitHubIssue2 {\n" +
+            "    void lambdaHell() {\n" +
+            "        this.stream().flatMap(string -> {\n" +
+            "            final Consumer consumer = foo -> {};\n" +
+            "            return this.stream().map(list -> new EvilClass(\"\", consumer));\n" +
+            "        });\n" +
+            "    }\n" +
+            "    <T> Stream<T> stream() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    static class EvilClass {\n" +
+            "        EvilClass(final String id, final Consumer consumer) {\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
+        );
+    }
 }

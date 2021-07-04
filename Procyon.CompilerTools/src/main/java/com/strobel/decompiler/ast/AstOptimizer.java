@@ -3260,13 +3260,15 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="FlattenBasicBlocks Step">
 
-    private static void flattenBasicBlocks(final Node node) {
+    private static boolean flattenBasicBlocks(final Node node) {
         if (node instanceof Block) {
             final Block block = (Block) node;
             final List<Node> flatBody = new ArrayList<>();
 
+            boolean rerunChildren = false;
+
             for (final Node child : block.getChildren()) {
-                flattenBasicBlocks(child);
+                rerunChildren |= flattenBasicBlocks(child);
 
                 if (child instanceof BasicBlock) {
                     final BasicBlock childBasicBlock = (BasicBlock) child;
@@ -3291,12 +3293,21 @@ public final class AstOptimizer {
             block.setEntryGoto(null);
             block.getBody().clear();
             block.getBody().addAll(flatBody);
+
+            if (rerunChildren) {
+                flattenBasicBlocks(block);
+            }
+
+            return false;
         }
         else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
             }
+            return node instanceof BasicBlock;
         }
+
+        return false;
     }
 
     // </editor-fold>

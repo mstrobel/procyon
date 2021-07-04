@@ -110,7 +110,7 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
         final List<ThrowStatement> throwStatements = new ArrayList<>();
         final List<ControlFlowNode> possibleFallThroughNodes = new ArrayList<>();
 
-    outer:
+        outer:
         for (final ControlFlowNode node : endNodes) {
             final Statement ps = node.getPreviousStatement();
 
@@ -141,6 +141,10 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
                 possibleFallThroughNodes.add(node);
                 info.needClassicStyle = true;
             }
+        }
+
+        if (breaks.isEmpty()) {
+            return null;
         }
 
         IdentifierExpression firstAssignment = null;
@@ -185,6 +189,10 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
 
             caseInfo.isDefault = ss.getCaseLabels().isEmpty() || ss.getCaseLabels().size() == 1 &&
                                                                  ss.getCaseLabels().firstOrNullObject().getExpression().isNull();
+        }
+
+        if (info.resultIdentifier == null) {
+            return null;
         }
 
         for (final ThrowStatement ts : throwStatements) {

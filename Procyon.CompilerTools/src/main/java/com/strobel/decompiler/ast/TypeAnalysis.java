@@ -263,7 +263,7 @@ public final class TypeAnalysis {
                 final StrongBox<Variable> variable = new StrongBox<>();
 
                 if (matchLoadOrRet(argument, variable) &&
-                    shouldInferVariableType(variable.value)) {
+                    !isThisParameter(variable.value)) {
 
                     parent.dependencies.add(variable.value);
                     _allVariables.add(variable.value);
@@ -298,6 +298,13 @@ public final class TypeAnalysis {
             for (final Variable variable : expressionToInfer.dependencies) {
                 groupedExpressions.get(variable).add(expressionToInfer);
             }
+            if (expressionToInfer.expression.getCode() == AstCode.Store) {
+                final Object v = expressionToInfer.expression.getOperand();
+                // Ensure empty collection
+                if (v instanceof Variable) {
+                    groupedExpressions.get((Variable) v);
+                }
+            }
         }
 
         for (final Variable variable : groupedExpressions.keySet()) {
@@ -328,7 +335,8 @@ public final class TypeAnalysis {
         }
 
         for (final Variable variable : _assignmentExpressions.keySet()) {
-            if (_assignmentExpressions.get(variable).size() == 1) {
+            final int references = _assignmentExpressions.get(variable).size();
+            if (references == 1) {
                 _singleStoreVariables.add(variable);
             }
         }
@@ -588,6 +596,11 @@ public final class TypeAnalysis {
                 }
             }
         }
+    }
+
+    private boolean isThisParameter(final Variable variable) {
+        final ParameterDefinition parameter = variable.getOriginalParameter();
+        return parameter != null && parameter== _context.getCurrentMethod().getBody().getThisParameter();
     }
 
     private boolean shouldInferVariableType(final Variable variable) {
@@ -869,7 +882,6 @@ public final class TypeAnalysis {
                     if (matchBooleanConstant(expression.getArguments().get(0)) != null &&
                         shouldInferVariableType(v) &&
                         isBoolean(inferTypeForVariable(v, expectedType != null ? expectedType : BuiltinTypes.Boolean, true, flags))) {
-
                         return BuiltinTypes.Boolean;
                     }
 
@@ -1709,7 +1721,14 @@ public final class TypeAnalysis {
                             invalidateDependentExpressions(expression, lambdaParameters.get(i));
                         }
 
-                        for (final Expression e : lambda.getChildrenAndSelfRecursive(Expression.class)) {
+                        final Predicate<Node> nonLambda = new Predicate<Node>() {
+                            @Override
+                            public boolean test(final Node n) {
+                                return n == lambda || !(n instanceof Lambda);
+                            }
+                        };
+
+                        for (final Expression e : ofType(lambda.getChildrenAndSelfRecursive(nonLambda, true), Expression.class)) {
                             if (match(e, AstCode.Return)) {
                                 runInference(e);
 

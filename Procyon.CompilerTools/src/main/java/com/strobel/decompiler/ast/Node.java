@@ -99,6 +99,12 @@ public abstract class Node {
         return results;
     }
 
+    public final List<Node> getChildrenAndSelfRecursive(final Predicate<Node> predicate, final boolean skipChildrenOfFilteredNodes) {
+        final ArrayList<Node> results = new ArrayList<>();
+        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, true, skipChildrenOfFilteredNodes);
+        return results;
+    }
+
     public final <T extends Node> List<T> getChildrenAndSelfRecursive(final Class<T> type) {
         final ArrayList<T> results = new ArrayList<>();
         accumulateSelfAndChildrenRecursive(results, type, null, true, false);

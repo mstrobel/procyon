@@ -504,6 +504,14 @@ public class AstMethodBodyBuilder {
             return tryCatch;
         }
 
+        if (node instanceof BasicBlock) {
+            final BasicBlock b = (BasicBlock) node;
+            if (b.getChildren().size() == 1 && b.getChildren().get(0) instanceof Label) {
+                final Label label = (Label) b.getChildren().get(0);
+                return new LabelStatement(Expression.MYSTERY_OFFSET, label.getName());
+            }
+        }
+
         throw new IllegalArgumentException("Unknown node type: " + node);
     }
 
