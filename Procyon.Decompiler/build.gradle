@@ -1,32 +1,24 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-
-    dependencies {
-        classpath 'eu.appsatori:gradle-fatjar-plugin:0.3'
-    }
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
 }
 
 jar.enabled = false
-uploadArchives.enabled = false
 
-apply plugin: 'eu.appsatori.fatjar'
-
-fatJar {
-    from rootProject.allprojects.collect({ it.sourceSets.main.allSource })
-
-    manifest {
-        attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
-    }
+jar.manifest {
+    attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
 }
 
 dependencies {
-    compile 'com.beust:jcommander:1.81'
-    compile project(':Procyon.Core')
-    compile project(':Procyon.CompilerTools')
+    implementation 'com.beust:jcommander:1.30'
+    implementation project(':Procyon.Core')
+    implementation project(':Procyon.CompilerTools')
 }
 
-artifacts {
-    archives fatJar
+publishing {
+    publications {
+        shadow(MavenPublication) { publication ->
+            publication.from components.java
+            publication.artifact shadowJar
+        }
+    }
 }

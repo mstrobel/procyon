@@ -1,9 +1,12 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'signing'
+}
+
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-apply plugin: 'java'
-apply plugin: 'maven'
-apply plugin: 'idea'
 
 archivesBaseName = 'procyon'
 
@@ -34,8 +37,7 @@ final def procyonVersion = getProcyonVersion()
 
 allprojects {
     apply plugin: 'java'
-    apply plugin: 'idea'
-    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
 
     buildDir = rootDir.canonicalPath + "/build/" + rootProject.relativePath(projectDir.canonicalPath)
 
@@ -49,7 +51,7 @@ allprojects {
     }
 
     dependencies {
-        testCompile 'junit:junit:4.11'
+        testImplementation 'junit:junit:4.11'
     }
 }
 
@@ -58,10 +60,8 @@ allprojects {
 //
 rootProject.tasks.each { it.enabled = false }
 rootProject.tasks.withType(DefaultTask).each { it.enabled = true }
-rootProject.uploadArchives.enabled = false
 
 subprojects {
-    apply plugin: 'maven'
     apply plugin: 'signing'
 
     final boolean shouldSign = "true".equalsIgnoreCase(System.properties.getProperty("procyon.signing.enabled"))
@@ -77,7 +77,7 @@ subprojects {
 
     task javadocJar(type: Jar, dependsOn: javadoc) {
         classifier = 'javadoc'
-        from 'build/docs/javadoc'
+        from javadoc.destinationDir
     }
 
     task sourcesJar(type: Jar, dependsOn: classes) {
@@ -132,83 +132,65 @@ subprojects {
             archives sourcesJar
         }
 
-        if (shouldSign) {
-            signing {
-                sign configurations.archives
-            }
-        }
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                        groupId = project.group
+                        version = project.version
+                        artifactId = project.archivesBaseName
 
-        uploadArchives {
-            repositories.mavenDeployer {
-                if (shouldSign) {
-                    beforeDeployment { MavenDeployment deployment ->
-                        signing.signPom(deployment)
-                    }
-                }
+                        pom {
+                            name = project.archivesBaseName
+                            packaging = 'jar'
+                            description = 'Procyon'
+                            url = 'https://bitbucket.org/mstrobel/procyon'
 
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: project.properties.get("procyon.sonatype.username"),
-                                   password: project.properties.get("procyon.sonatype.password"))
-                }
-
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: project.properties.get("procyon.sonatype.username"),
-                                   password: project.properties.get("procyon.sonatype.password"))
-                }
-
-                pom {
-                    groupId = project.group
-                    version = project.version
-                    artifactId = project.archivesBaseName
-
-                    project {
-                        name project.archivesBaseName
-                        packaging 'jar'
-                        description 'Procyon'
-                        url 'https://bitbucket.org/mstrobel/procyon'
-
-                        scm {
-                            url 'https://bitbucket.org/mstrobel/procyon'
-                            connection 'scm:hg:https://hg@bitbucket.org/mstrobel/procyon'
-                            developerConnection 'scm:hg:https://mstrobel@bitbucket.org/mstrobel/procyon'
-                        }
-
-                        issueManagement {
-                            system 'jira'
-                            url 'https://bitbucket.org/mstrobel/procyon/issues'
-                        }
-
-                        licenses {
-                            license {
-                                name 'The Apache Software License, Version 2.0'
-                                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                                distribution 'repo'
+                            scm {
+                                url = 'https://bitbucket.org/mstrobel/procyon'
+                                connection = 'scm:hg:https://hg@bitbucket.org/mstrobel/procyon'
+                                developerConnection = 'scm:hg:https://mstrobel@bitbucket.org/mstrobel/procyon'
                             }
-                        }
 
-                        developers {
-                            developer {
-                                id 'mstrobel'
-                                name 'Mike Strobel'
-                                roles {
-                                    role 'owner'
-                                    role 'packager'
-                                    role 'developer'
+                            issueManagement {
+                                system = 'jira'
+                                url = 'https://bitbucket.org/mstrobel/procyon/issues'
+                            }
+
+                            licenses {
+                                license {
+                                    name = 'The Apache Software License, Version 2.0'
+                                    url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                                    distribution = 'repo'
+                                }
+                            }
+
+                            developers {
+                                developer {
+                                    id = 'mstrobel'
+                                    name = 'Mike Strobel'
+                                    roles = ['owner', 'package', 'developer'] as Set
                                 }
                             }
                         }
+                }
+            }
 
-                        dependencies {
-                            dependency {
-                                groupId 'junit'
-                                artifactId 'junit'
-                                version '4.11'
-                                scope 'test'
-//                                optional = true
-                            }
-                        }
+            repositories {
+                maven {
+                    def mainUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+                    def snapshotUrl = "https://oss.sonatype.org/content/repositories/snapshots"
+                    url snapshotUrl // todo change this later upon need
+                    credentials {
+                        username project.properties.get("procyon.sonatype.username")
+                        password project.properties.get("procyon.sonatype.password")
                     }
                 }
+            }
+        }
+
+        if (shouldSign) {
+            signing {
+                sign publishing.publications.maven
             }
         }
     }
