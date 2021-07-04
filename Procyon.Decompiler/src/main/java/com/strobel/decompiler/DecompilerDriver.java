@@ -65,7 +65,7 @@ public class DecompilerDriver {
         final boolean decompileJar = !StringUtilities.isNullOrWhitespace(jarFile);
 
         if (options.getPrintVersion()) {
-            JCommander.getConsole().println(Procyon.version());
+            JCommander.newBuilder().build().getConsole().println(Procyon.version());
             if (options.getPrintUsage()) {
                 jCommander.usage();
             }

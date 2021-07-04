@@ -21,26 +21,28 @@ For more information, see the [Reflection Framework](https://github.com/mstrobel
 
 #### Example
 
-	:::java
-    final Type<Map> map = Type.of(Map.class);
-    final Type<?> rawMap = map.getErasedType();
-    final Type<Map<String, Integer>> boundMap = map.makeGenericType(Types.String, Types.Integer);
-    
-    System.out.println(map.getDeclaredMethods().get(1));
-    System.out.println(rawMap.getDeclaredMethods().get(1));
-    System.out.println(boundMap.getDeclaredMethods().get(1));
-    
-    System.out.println(boundMap.getGenericTypeParameters());
-    System.out.println(boundMap.getTypeArguments());
+```java
+final Type<Map> map = Type.of(Map.class);
+final Type<?> rawMap = map.getErasedType();
+final Type<Map<String, Integer>> boundMap = map.makeGenericType(Types.String, Types.Integer);
+
+System.out.println(map.getDeclaredMethods().get(1));
+System.out.println(rawMap.getDeclaredMethods().get(1));
+System.out.println(boundMap.getDeclaredMethods().get(1));
+
+System.out.println(boundMap.getGenericTypeParameters());
+System.out.println(boundMap.getTypeArguments());
+```
 
 #### Output
 
-    :::text
-    public abstract V put(K, V)
-    public abstract Object put(Object, Object)
-    public abstract Integer put(String, Integer)
-    [K, V]
-    [java.lang.String, java.lang.Integer]
+```text
+public abstract V put(K, V)
+public abstract Object put(Object, Object)
+public abstract Integer put(String, Integer)
+[K, V]
+[java.lang.String, java.lang.Integer]
+```
 
 ### Expressions Framework
 
@@ -53,56 +55,58 @@ almost a direct port of `System.Linq.Expressions` from .NET's Dynamic Language R
 minus the dynamic callsite support (and with more relaxed rules regarding type conversions).
 
 #### Example
-    :::java    
-    //
-    // This lambda closes over a complex constant (a String array).
-    //
-    
-    final ConstantExpression items = constant(
-        new String[] { "one", "two", "three", "four", "five" }
-    );
+```java   
+//
+// This lambda closes over a complex constant (a String array).
+//
 
-    //
-    // If written in Java, the constructed expression would look something like this:
-    // 
-    // () -> {
-    //     for (String item : <closure>items)
-    //         System.out.printf("Got item: %s\n", item);
-    // }
-    //
+final ConstantExpression items = constant(
+    new String[] { "one", "two", "three", "four", "five" }
+);
 
-    final ParameterExpression item = variable(Types.String, "item");
-    
-    final LambdaExpression<Runnable> runnable = lambda(
-        Type.of(Runnable.class),
-        forEach(
-            item,
-            items,
-            call(
-                field(null, Types.System.getField("out")),
-                "printf",
-                constant("Got item: %s\n"),
-                item
-            )
+//
+// If written in Java, the constructed expression would look something like this:
+// 
+// () -> {
+//     for (String item : <closure>items)
+//         System.out.printf("Got item: %s\n", item);
+// }
+//
+
+final ParameterExpression item = variable(Types.String, "item");
+
+final LambdaExpression<Runnable> runnable = lambda(
+    Type.of(Runnable.class),
+    forEach(
+        item,
+        items,
+        call(
+            field(null, Types.System.getField("out")),
+            "printf",
+            constant("Got item: %s\n"),
+            item
         )
-    );
-    
-    System.out.println(runnable);
-    
-    final Runnable delegate = runnable.compile();
+    )
+);
 
-    delegate.run();
+System.out.println(runnable);
+
+final Runnable delegate = runnable.compile();
+
+delegate.run();
+```
 
 #### Output
-    :::text
-    () => for (String item : [one, two, three, four, five])
-        System.out.printf("Got item: %s\n", new Object[] { item })
-    
-    Got item: one
-    Got item: two
-    Got item: three
-    Got item: four
-    Got item: five
+```text
+() => for (String item : [one, two, three, four, five])
+    System.out.printf("Got item: %s\n", new Object[] { item })
+
+Got item: one
+Got item: two
+Got item: three
+Got item: four
+Got item: five
+```
 
 ### Compiler Toolset
 

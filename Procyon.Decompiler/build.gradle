@@ -14,7 +14,7 @@ uploadArchives.enabled = false
 apply plugin: 'eu.appsatori.fatjar'
 
 fatJar {
-//    from rootProject.allprojects.collect({ it.sourceSets.main.allSource })
+    from rootProject.allprojects.collect({ it.sourceSets.main.allSource })
 
     manifest {
         attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
@@ -22,7 +22,11 @@ fatJar {
 }
 
 dependencies {
-    compile 'com.beust:jcommander:1.30'
+    compile 'com.beust:jcommander:1.81'
     compile project(':Procyon.Core')
     compile project(':Procyon.CompilerTools')
+}
+
+artifacts {
+    archives fatJar
 }
