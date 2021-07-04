@@ -84,7 +84,6 @@ public class BlockExpression extends Expression {
         throw ContractUtils.unreachable();
     }
 
-    @SuppressWarnings("unchecked")
     static ExpressionList<? extends Expression> returnReadOnlyExpressions(
         final BlockExpression provider,
         final Object expressionOrCollection) {
@@ -123,7 +122,6 @@ final class Block2 extends BlockExpression {
         return 2;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
@@ -168,7 +166,6 @@ final class Block3 extends BlockExpression {
         return 3;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
@@ -217,7 +214,6 @@ final class Block4 extends BlockExpression {
         return 4;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
@@ -270,7 +266,6 @@ final class Block5 extends BlockExpression {
         return 5;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
@@ -369,7 +364,6 @@ final class Scope1 extends ScopeExpression {
         return 1;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_body = returnReadOnlyExpressions(this, _body));
@@ -415,9 +409,9 @@ class ScopeN extends ScopeExpression {
 }
 
 final class ScopeWithType extends ScopeN {
-    private final Type _type;
+    private final Type<?> _type;
 
-    ScopeWithType(final ParameterExpressionList variables, final ExpressionList<? extends Expression> expressions, final Type type) {
+    ScopeWithType(final ParameterExpressionList variables, final ExpressionList<? extends Expression> expressions, final Type<?> type) {
         super(variables, expressions);
         _type = type;
     }

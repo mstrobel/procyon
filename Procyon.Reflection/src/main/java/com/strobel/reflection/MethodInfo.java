@@ -30,6 +30,12 @@ import java.lang.reflect.TypeVariable;
  * @author Mike Strobel
  */
 public abstract class MethodInfo extends MethodBase {
+    private static final MethodInfo[] EMPTY_METHODS = new MethodInfo[0];
+
+    public static MethodInfo[] emptyMethods() {
+        return EMPTY_METHODS;
+    }
+
     protected MethodInfo _erasedMethodDefinition;
 
     public final boolean isAbstract() {
@@ -150,14 +156,33 @@ public abstract class MethodInfo extends MethodBase {
         );
     }
 
+    protected void appendModifiers(final StringBuilder s, final int modifiers) {
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(MemberType.Method, modifiers)) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        if (Flags.testAny(modifiers, Flags.BRIDGE | Flags.ACC_BRIDGE | Flags.VARARGS | Flags.ACC_VARARGS)) {
+            s.append("/* ");
+
+            if (Flags.testAny(modifiers, Flags.BRIDGE | Flags.ACC_BRIDGE)) {
+                s.append("bridge ");
+            }
+            if (Flags.testAny(modifiers, Flags.VARARGS | Flags.ACC_VARARGS)) {
+                s.append("varargs ");
+            }
+
+            s.append("*/ ");
+        }
+    }
+
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
+        final int modifiers = getModifiers();
+
+        appendModifiers(s, modifiers);
 
         if (isGenericMethodDefinition()) {
             final TypeList genericParameters = getGenericMethodParameters();
@@ -235,10 +260,7 @@ public abstract class MethodInfo extends MethodBase {
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
+        appendModifiers(s, getModifiers());
 
         if (isGenericMethodDefinition()) {
             final TypeList genericParameters = getGenericMethodParameters();
@@ -366,10 +388,7 @@ public abstract class MethodInfo extends MethodBase {
             return getGenericMethodDefinition().appendErasedDescription(sb);
         }
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            sb.append(modifier.toString());
-            sb.append(' ');
-        }
+        appendModifiers(sb, getModifiers());
 
         final TypeList parameterTypes = getParameters().getParameterTypes();
 

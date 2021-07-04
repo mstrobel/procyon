@@ -57,7 +57,7 @@ public final class ConcatExpression extends Expression {
         return concat(operands);
     }
 
-    final ConcatExpression rewrite(final ExpressionList<? extends Expression> operands) {
+    final Expression rewrite(final ExpressionList<? extends Expression> operands) {
         assert operands == null || operands.size() == _operands.size();
         return concat(operands);
     }
@@ -72,6 +72,17 @@ public final class ConcatExpression extends Expression {
         return true;
     }
 
+    protected void flattenOperands(final ListBuffer<Expression> operands) {
+        for (final Expression operand : _operands) {
+            if (operand instanceof ConcatExpression) {
+                ((ConcatExpression) operand).flattenOperands(operands);
+            }
+            else {
+                operands.add(operand);
+            }
+        }
+    }
+
     @Override
     public Expression reduce() {
         final ExpressionList<? extends Expression> originalOperands = _operands;
@@ -80,11 +91,16 @@ public final class ConcatExpression extends Expression {
         for (int i = 0, n = originalOperands.size(); i < n; i++) {
             final Expression operand = originalOperands.get(i);
             
+            if (operand instanceof ConcatExpression) {
+                ((ConcatExpression) operand).flattenOperands(reducedOperands);
+                continue;
+            }
+
             if (!ConstantCheck.isStringLiteral(operand)) {
                 reducedOperands.add(operand);
                 continue;
             }
-            
+
             StringBuilder sb = null; 
             
             for (int j = i + 1; j < n; j++) {
@@ -117,10 +133,7 @@ public final class ConcatExpression extends Expression {
 
             if (result == null) {
                 if (o.head.getType() == Types.String) {
-                    result = makeNew(
-                        Types.StringBuilder.getConstructor(Types.String),
-                        o.head
-                    );
+                    result = makeNew(Types.StringBuilder.getConstructor(Types.String), o.head);
                     continue;
                 }
                 else {
