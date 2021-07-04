@@ -575,6 +575,11 @@ public final class JavaNameResolver {
         }
 
         @Override
+        public Set<Object> visitUnionType(final UnionType node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
         public Set<Object> visitMethodDeclaration(final MethodDeclaration node, final String name) {
             Set<Object> results = null;
 

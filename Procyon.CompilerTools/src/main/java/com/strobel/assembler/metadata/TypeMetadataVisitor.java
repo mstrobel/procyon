@@ -32,4 +32,5 @@ public interface TypeMetadataVisitor<P, R> {
     R visitNullType(final TypeReference t, final P p);
     R visitBottomType(final TypeReference t, final P p);
     R visitRawType(final RawType t, final P p);
+    <U extends TypeReference & IUnionType> R visitUnionType(final U t, final P p);
 }

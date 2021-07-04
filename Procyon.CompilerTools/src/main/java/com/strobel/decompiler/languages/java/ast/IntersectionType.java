@@ -51,11 +51,12 @@ public class IntersectionType extends AstType {
         final TypeReference t = getUserData(Keys.TYPE_REFERENCE);
 
         if (t != null) {
-
-            if (t instanceof ICompoundType)
+            if (t instanceof ICompoundType) {
                 resolver = ((ICompoundType) t).getResolver();
-            if (resolver == null && (resolved = t.resolve()) != null)
+            }
+            if (resolver == null && (resolved = t.resolve()) != null) {
                 resolver = resolved.getResolver();
+            }
         }
 
         return new CompoundTypeReference(baseType, interfaceTypes, resolver);

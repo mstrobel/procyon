@@ -56,30 +56,38 @@ public class DeclareVariablesTransform implements IAstTransform {
             final AssignmentExpression replacedAssignment = v.getReplacedAssignment();
 
             if (replacedAssignment == null) {
-                final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
+                final BlockStatement block = v.isCatchVariable() ? v.getCatchClause().getBody() : (BlockStatement) v.getInsertionPoint().getParent();
                 final AnalysisResult analysisResult = analyze(v, block);
-                final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName(), Expression.MYSTERY_OFFSET);
 
-                if (variable != null) {
-                    declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
+                if (v.isCatchVariable()) {
+                    if (!analysisResult.isAssigned) {
+                        v.getCatchClause().addVariableModifier(Modifier.FINAL);
+                    }
                 }
+                else {
+                    final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName());
 
-                if (analysisResult.isSingleAssignment) {
-                    declaration.addModifier(Modifier.FINAL);
+                    if (variable != null) {
+                        declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
+                    }
+
+                    if (analysisResult.isSingleAssignment) {
+                        declaration.addModifier(Modifier.FINAL);
+                    }
+                    else if (analysisResult.needsInitializer && variable != null) {
+                        declaration.getVariables().firstOrNullObject().setInitializer(
+                            AstBuilder.makeDefaultValue(variable.getType())
+                        );
+                    }
+
+                    Statement insertionPoint = v.getInsertionPoint();
+
+                    while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
+                        insertionPoint = (Statement) insertionPoint.getPreviousSibling();
+                    }
+
+                    block.getStatements().insertBefore(insertionPoint, declaration);
                 }
-                else if (analysisResult.needsInitializer && variable != null) {
-                    declaration.getVariables().firstOrNullObject().setInitializer(
-                        AstBuilder.makeDefaultValue(variable.getType())
-                    );
-                }
-
-                Statement insertionPoint = v.getInsertionPoint();
-
-                while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
-                    insertionPoint = (Statement) insertionPoint.getPreviousSibling();
-                }
-
-                block.getStatements().insertBefore(insertionPoint, declaration);
             }
         }
 
@@ -144,6 +152,9 @@ public class DeclareVariablesTransform implements IAstTransform {
             final Statement parentStatement = v.getInsertionPoint();
             analysis.setAnalyzedRange(parentStatement, block);
         }
+        else if (v.isCatchVariable()) {
+            analysis.setAnalyzedRange(block, block);
+        }
         else {
             final ExpressionStatement parentStatement = (ExpressionStatement) v.getReplacedAssignment().getParent();
             analysis.setAnalyzedRange(parentStatement, block);
@@ -156,15 +167,17 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         scope.acceptVisitor(isSingleAssignmentVisitor, null);
 
-        return new AnalysisResult(isSingleAssignmentVisitor.isSingleAssignment(), needsInitializer);
+        return new AnalysisResult(isSingleAssignmentVisitor.isAssigned(), isSingleAssignmentVisitor.isSingleAssignment(), needsInitializer);
     }
 
     private final static class AnalysisResult {
+        final boolean isAssigned;
         final boolean isSingleAssignment;
         final boolean needsInitializer;
 
-        private AnalysisResult(final boolean singleAssignment, final boolean needsInitializer) {
-            isSingleAssignment = singleAssignment;
+        private AnalysisResult(final boolean isAssigned, final boolean singleAssignment, final boolean needsInitializer) {
+            this.isAssigned = isAssigned;
+            this.isSingleAssignment = singleAssignment;
             this.needsInitializer = needsInitializer;
         }
     }
@@ -232,6 +245,18 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 if (declaration != null && !declaration.hasModifier(Modifier.FINAL)) {
                     declaration.addChild(new JavaModifierToken(Modifier.FINAL), EntityDeclaration.MODIFIER_ROLE);
+                }
+            }
+        }
+
+        if (node instanceof CatchClause) {
+            final Variable v = node.getUserData(Keys.VARIABLE);
+
+            if (v != null) {
+                final AstBuilder builder = context.getUserData(Keys.AST_BUILDER);
+
+                if (builder != null) {
+                    variablesToDeclare.add(new VariableToDeclare(builder.convertType(v.getType()), v.getName(), v, (CatchClause) node));
                 }
             }
         }
@@ -796,6 +821,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         private final Statement _insertionPoint;
         private final AssignmentExpression _replacedAssignment;
         private final BlockStatement _block;
+        private final CatchClause _catchClause;
 
         public VariableToDeclare(
             final AstType type,
@@ -810,6 +836,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             _insertionPoint = insertionPoint;
             _replacedAssignment = null;
             _block = block;
+            _catchClause = CatchClause.NULL;
         }
 
         public VariableToDeclare(
@@ -825,10 +852,37 @@ public class DeclareVariablesTransform implements IAstTransform {
             _insertionPoint = null;
             _replacedAssignment = replacedAssignment;
             _block = block;
+            _catchClause = CatchClause.NULL;
+        }
+
+        public VariableToDeclare(
+            final AstType type,
+            final String name,
+            final Variable variable,
+            final CatchClause catchClause) {
+
+            _type = type;
+            _name = name;
+            _variable = variable;
+            _insertionPoint = null;
+            _replacedAssignment = null;
+            _block = null;
+            _catchClause = catchClause != null ? catchClause : CatchClause.NULL;
+        }
+
+        public boolean isCatchVariable() {
+            return !_catchClause.isNull();
+        }
+
+        public CatchClause getCatchClause() {
+            return _catchClause;
         }
 
         public BlockStatement getBlock() {
-            return _block;
+            if (_catchClause.isNull()) {
+                return _block;
+            }
+            return _catchClause.getBody();
         }
 
         public AstType getType() {

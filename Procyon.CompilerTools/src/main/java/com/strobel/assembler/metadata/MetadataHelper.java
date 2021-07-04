@@ -31,6 +31,7 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.core.Comparer.*;
 
+@SuppressWarnings({ "PointlessNullCheck", "ConstantConditions" })
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
         return t != null && t.getCompilerMajorVersion() >= 49;
@@ -98,6 +99,7 @@ public final class MetadataHelper {
                innerResolved != null && isEnclosedBy(innerResolved.getBaseType(), outer);
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean canReferenceTypeVariablesOf(final TypeReference declaringType, final TypeReference referenceSite) {
         if (declaringType == null || referenceSite == null) {
             return false;
@@ -502,8 +504,8 @@ public final class MetadataHelper {
                 if (sourceJvmType == JvmType.Character) {
                     return ConversionType.EXPLICIT;
                 }
-                // fall through
             }
+            // fall through
 
             case Integer:
             case Long: {
@@ -625,9 +627,7 @@ public final class MetadataHelper {
         }
         else if (!isRawType(s)) {
             final TypeReference t2 = asSuper(s, t);
-            if (t2 != null && isRawType(t2)) {
-                return true;
-            }
+            return t2 != null && isRawType(t2);
         }
 
         return false;
@@ -1073,7 +1073,7 @@ public final class MetadataHelper {
             return typeArguments;
         }
 
-        final TypeReference[] adjustedTypeArguments = typeArguments.toArray(new TypeReference[typeArguments.size()]);
+        final TypeReference[] adjustedTypeArguments = typeArguments.toArray(TypeReference.EMPTY_REFERENCES);
 
         for (int i = 0; i < adjustedTypeArguments.length; i++) {
             final TypeReference t = adjustedTypeArguments[i];
@@ -1892,6 +1892,19 @@ public final class MetadataHelper {
 
             return t;
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Void ignored) {
+            final List<TypeReference> alternatives = t.getAlternatives();
+
+            TypeReference u = alternatives.get(0);
+
+            for (int i = 1, n = alternatives.size(); i < n; i++) {
+                u = asSuper(u, alternatives.get(i));
+            }
+
+            return u;
+        }
     };
 
     private final static TypeMapper<Void> LOWER_BOUND_VISITOR = new TypeMapper<Void>() {
@@ -1985,6 +1998,16 @@ public final class MetadataHelper {
                 }
             }
 
+            return false;
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                if (isSubTypeNoCapture(alternative, s)) {
+                    return true;
+                }
+            }
             return false;
         }
 
@@ -2108,6 +2131,16 @@ public final class MetadataHelper {
                    (t.hasExtendsBound() || isSubTypeNoCapture(L(t), getLowerBound(s))) &&
                    (t.hasSuperBound() || isSubTypeNoCapture(getUpperBound(s), U(t)));
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                if (isSameType(alternative, s)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     };
 
     private final static TypeMapper<TypeReference> AS_SUPER_VISITOR = new TypeMapper<TypeReference>() {
@@ -2154,6 +2187,19 @@ public final class MetadataHelper {
 
             return null;
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                final TypeReference asSuper = asSuper(alternative, s);
+
+                if (asSuper != null) {
+                    return asSuper;
+                }
+            }
+            return null;
+        }
+
 
         @Override
         public TypeReference visitGenericParameter(final GenericParameter t, final TypeReference s) {
@@ -2226,6 +2272,19 @@ public final class MetadataHelper {
             }
 
             return t;
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Void ignored) {
+            final List<TypeReference> alternatives = t.getAlternatives();
+
+            TypeReference u = alternatives.get(0);
+
+            for (int i = 1, n = alternatives.size(); i < n; i++) {
+                u = asSuper(u, alternatives.get(i));
+            }
+
+            return u;
         }
 
         @Override
@@ -2515,13 +2574,26 @@ public final class MetadataHelper {
                 return false;
             }
 
-            final HashSet<TypeReference> set = new HashSet<>();
-
-            for (final TypeReference i : getInterfaces(t)) {
-                set.add(i);
-            }
+            final HashSet<TypeReference> set = new HashSet<>(getInterfaces(t));
 
             for (final TypeReference i : getInterfaces(s)) {
+                if (!set.remove(i)) {
+                    return false;
+                }
+            }
+
+            return set.isEmpty();
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            if (!(s instanceof UnionType)) {
+                return false;
+            }
+
+            final HashSet<TypeReference> set = new HashSet<>(t.getAlternatives());
+
+            for (final TypeReference i : ((UnionType) s).getAlternatives()) {
                 if (!set.remove(i)) {
                     return false;
                 }
@@ -2950,6 +3022,7 @@ public final class MetadataHelper {
         }
     };
 
+    @SuppressWarnings("unused")
     private static final DefaultTypeVisitor<Void, Boolean> IS_DECLARED_TYPE = new DefaultTypeVisitor<Void, Boolean>() {
         @Override
         public Boolean visitWildcard(final WildcardType t, final Void ignored) {

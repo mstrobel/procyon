@@ -76,6 +76,11 @@ public abstract class DefaultTypeVisitor<P, R> implements TypeMetadataVisitor<P,
     }
 
     @Override
+    public <U extends TypeReference & IUnionType> R visitUnionType(final U t, final P p) {
+        return visitType(t, p);
+    }
+
+    @Override
     public R visitWildcard(final WildcardType t, final P p) {
         return visitType(t, p);
     }

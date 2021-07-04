@@ -22,6 +22,7 @@ import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
 import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.UnionType;
 import com.strobel.assembler.metadata.annotations.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Closeables;
@@ -44,6 +45,8 @@ import javax.lang.model.element.Modifier;
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.*;
+
+import static com.strobel.core.CollectionUtilities.first;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
@@ -254,6 +257,25 @@ public final class AstBuilder {
             }
 
             return convertType(cType.getBaseType(), typeIndex, options).makeArrayType();
+        }
+
+        if (type instanceof UnionType) {
+            final UnionType uType = (UnionType) type;
+
+            if (options.getIncludeUnionTypes()) {
+                final List<TypeReference> alternatives = uType.getAlternatives();
+                final AstType[] astAlternatives = new AstType[alternatives.size()];
+
+                for (int i = 0; i < alternatives.size(); i++) {
+                    astAlternatives[i] = convertType(alternatives.get(i), typeIndex, options);
+                }
+
+                final com.strobel.decompiler.languages.java.ast.UnionType isType = new com.strobel.decompiler.languages.java.ast.UnionType(astAlternatives);
+                isType.putUserData(Keys.TYPE_REFERENCE, type);
+                return isType;
+            }
+
+            return convertType(first(uType.getAlternatives()), typeIndex, options).makeArrayType();
         }
 
         if (type.isArray()) {

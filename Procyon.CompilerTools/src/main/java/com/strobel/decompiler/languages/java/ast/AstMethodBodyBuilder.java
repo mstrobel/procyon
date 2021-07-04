@@ -93,7 +93,7 @@ public class AstMethodBodyBuilder {
             final AstMethodBodyBuilder builder = new AstMethodBodyBuilder(astBuilder, method, context);
             return builder.createMethodBody(parameters);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             return createErrorBlock(astBuilder, context, method, t);
         }
         finally {
@@ -101,7 +101,6 @@ public class AstMethodBodyBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private static BlockStatement createErrorBlock(
         final AstBuilder astBuilder,
         final DecompilerContext context,
@@ -178,7 +177,7 @@ public class AstMethodBodyBuilder {
                 )
             );
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
             block.add(new EmptyStatement());
         }
 
@@ -192,7 +191,6 @@ public class AstMethodBodyBuilder {
         _parser = new MetadataParser(method.getDeclaringType());
     }
 
-    @SuppressWarnings("ConstantConditions")
     private BlockStatement createMethodBody(final Iterable<ParameterDeclaration> parameters) {
         final MethodBody body = _method.getBody();
 
@@ -483,9 +481,10 @@ public class AstMethodBodyBuilder {
 
             for (final CatchBlock catchBlock : catchBlocks) {
                 final CatchClause catchClause = new CatchClause(transformBlock(catchBlock));
+                final AstNodeCollection<AstType> exceptionTypes = catchClause.getExceptionTypes();
 
                 for (final TypeReference caughtType : catchBlock.getCaughtTypes()) {
-                    catchClause.getExceptionTypes().add(_astBuilder.convertType(caughtType));
+                    exceptionTypes.add(_astBuilder.convertType(caughtType));
                 }
 
                 final Variable exceptionVariable = catchBlock.getExceptionVariable();
@@ -1055,7 +1054,6 @@ public class AstMethodBodyBuilder {
         return inlinedAssembly;
     }
 
-    @SuppressWarnings("ConstantConditions")
     private Expression transformCall(
         final boolean isVirtual,
         final com.strobel.decompiler.ast.Expression byteCode,
@@ -1347,7 +1345,7 @@ public class AstMethodBodyBuilder {
         final MethodDefinition method;
         final VariableInfo<MethodDefinition> methodVariables;
         final Map<DynamicCallSite, Lambda> lambdas;
-        final Map<Lambda, VariableInfo<Lambda>> lambdaVariables;
+        final @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Map<Lambda, VariableInfo<Lambda>> lambdaVariables;
 
         private MethodVariables(final MethodDefinition method) {
             this.method = VerifyArgument.notNull(method, "method");
@@ -1358,7 +1356,7 @@ public class AstMethodBodyBuilder {
                 new Function<Lambda, VariableInfo<Lambda>>() {
                     @Override
                     public VariableInfo<Lambda> apply(final Lambda lambda) {
-                        return new VariableInfo<Lambda>(lambda, lambda.getMethod().getParameters());
+                        return new VariableInfo<>(lambda, lambda.getMethod().getParameters());
                     }
                 }
             );

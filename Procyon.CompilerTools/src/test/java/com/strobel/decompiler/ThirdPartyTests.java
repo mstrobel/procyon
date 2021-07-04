@@ -72,7 +72,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "                System.out.println(list = (ArrayList)(Object)array2);\n" +
             "                array = (String[])list.toArray(new String[0]);\n" +
             "            }\n" +
-            "            catch (ClassCastException ex) {\n" +
+            "            catch (final ClassCastException ex) {\n" +
             "                array = array;\n" +
             "            }\n" +
             "        }\n" +
@@ -173,7 +173,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        try {\n" +
             "            main(array[0]);\n" +
             "        }\n" +
-            "        catch (IllegalArgumentException ex) {}\n" +
+            "        catch (final IllegalArgumentException ex) {}\n" +
             "    }\n" +
             "    private static int foo() {\n" +
             "        --WhileLoops.i;\n" +
@@ -300,7 +300,7 @@ public class ThirdPartyTests extends DecompilerTest {
     }
 
     @Test
-    public void testLiteralAssignments() throws Throwable {
+    public void testLiteralAssignments() {
         verifyOutput(
             "LiteralAssignments",
             defaultSettings(),
@@ -489,7 +489,7 @@ public class ThirdPartyTests extends DecompilerTest {
     }
 
     @Test
-    public void testIssue216GotoWVulnerability() throws Throwable {
+    public void testIssue216GotoWVulnerability() {
         verifyOutput(
             "Issue216GotoWVulnerability",
             defaultSettings(),
@@ -500,14 +500,14 @@ public class ThirdPartyTests extends DecompilerTest {
             "            fileOutputStream.write(\"notch|2014-10-27 13:04:54 +0000|CONSOLE|Forever|hi\\n\".getBytes());\n" +
             "            fileOutputStream.close();\n" +
             "        }\n" +
-            "        catch (Exception ex) {}\n" +
+            "        catch (final Exception ex) {}\n" +
             "    }\n" +
             "}"
         );
     }
 
     @Test
-    public void testJsrWithoutRet() throws Throwable {
+    public void testJsrWithoutRet() {
         verifyOutput(
             "JsrWithoutRet",
             defaultSettings(),

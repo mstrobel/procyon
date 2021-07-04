@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("DuplicatedCode")
 public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeReference, TypeReference>, TypeReference>
     implements MethodMetadataVisitor<Map<TypeReference, TypeReference>, MethodReference>,
                FieldMetadataVisitor<Map<TypeReference, TypeReference>, FieldReference> {
@@ -93,7 +94,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
     }
 
     @Override
-    public TypeReference visitWildcard(final WildcardType t, final Map<TypeReference, TypeReference> map) {
+    public WildcardType visitWildcard(final WildcardType t, final Map<TypeReference, TypeReference> map) {
         if (t.isUnbounded()) {
             return t;
         }
@@ -109,7 +110,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         while (newBound.isWildcardType()) {
             if (newBound.isUnbounded()) {
-                return newBound;
+                return WildcardType.unbounded();
             }
             newBound = newBound.hasExtendsBound() ? newBound.getExtendsBound()
                                                   : newBound.getSuperBound();
@@ -157,6 +158,35 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
                 t.getResolver()
 
             );
+        }
+
+        return t;
+    }
+
+    @Override
+    public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Map<TypeReference, TypeReference> map) {
+        final List<TypeReference> oldAlternatives = t.getAlternatives();
+
+        boolean changed = false;
+        TypeReference[] newAlternatives = null;
+
+        for (int i = 0; i < oldAlternatives.size(); i++) {
+            final TypeReference oldAlternative = oldAlternatives.get(i);
+            final TypeReference newAlternative = visit(oldAlternative, map);
+
+            if (newAlternatives != null) {
+                newAlternatives[i] = newAlternative;
+            }
+            else if (oldAlternative != newAlternative) {
+                newAlternatives = new TypeReference[oldAlternatives.size()];
+                oldAlternatives.toArray(newAlternatives);
+                newAlternatives[i] = newAlternative;
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            return UnionType.of(newAlternatives);
         }
 
         return t;
@@ -304,17 +334,17 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         final TypeReference oldExtendsBound = t.getExtendsBound();
         final TypeReference oldSuperBound = t.getSuperBound();
-        final TypeReference oldWildcard = t.getWildcard();
+        final WildcardType oldWildcard = t.getWildcard();
 
         final TypeReference newExtendsBound = visit(oldExtendsBound, map);
         final TypeReference newSuperBound = visit(oldSuperBound, map);
-        final TypeReference newWildcard = visitWildcard((WildcardType) oldWildcard, map);
+        final WildcardType newWildcard = visitWildcard(oldWildcard, map);
 
         if (newExtendsBound != oldExtendsBound ||
             newSuperBound != oldSuperBound ||
             newWildcard != oldWildcard) {
 
-            return new CapturedType(newSuperBound, newExtendsBound, (WildcardType) newWildcard);
+            return new CapturedType(newSuperBound, newExtendsBound, newWildcard);
         }
 
         return t;

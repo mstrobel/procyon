@@ -23,6 +23,9 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
+import javax.lang.model.element.Modifier;
+import java.util.Collection;
+
 public class CatchClause extends AstNode {
     public final static CatchClause NULL = new NullCatchClause();
     public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch", TokenRole.FLAG_KEYWORD);
@@ -64,6 +67,22 @@ public class CatchClause extends AstNode {
 
     public final void setVariableNameToken(final Identifier value) {
         setChildByRole(Roles.IDENTIFIER, value);
+    }
+
+    public final AstNodeCollection<JavaModifierToken> getVariableModifiers() {
+        return getChildrenByRole(EntityDeclaration.MODIFIER_ROLE);
+    }
+
+    public final void addVariableModifier(final Modifier modifier) {
+        EntityDeclaration.addModifier(this, modifier);
+    }
+
+    public final void setVariableModifiers(final Collection<Modifier> modifiers) {
+        EntityDeclaration.setModifiers(this, modifiers);
+    }
+
+    public final void removeVariableModifier(final Modifier modifier) {
+        EntityDeclaration.removeModifier(this, modifier);
     }
 
     public final BlockStatement getBody() {

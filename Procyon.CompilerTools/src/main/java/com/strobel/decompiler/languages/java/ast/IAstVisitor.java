@@ -67,6 +67,7 @@ public interface IAstVisitor<T, R> {
     R visitArraySpecifier(ArraySpecifier node, T data);
     R visitComposedType(ComposedType node, T data);
     R visitIntersectionType(IntersectionType node, T data);
+    R visitUnionType(UnionType node, T data);
     R visitWhileStatement(WhileStatement node, T data);
     R visitPrimitiveExpression(PrimitiveExpression node, T data);
     R visitCastExpression(CastExpression node, T data);

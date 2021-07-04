@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("DuplicatedCode")
 public abstract class TypeReference extends MemberReference implements IGenericParameterProvider, IGenericContext {
     public final static TypeReference[] EMPTY_REFERENCES = new TypeReference[0];
 
@@ -138,7 +139,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         VerifyArgument.notNull(typeArguments, "typeArguments");
 
         return makeGenericType(
-            typeArguments.toArray(new TypeReference[typeArguments.size()])
+            typeArguments.toArray(EMPTY_REFERENCES)
         );
     }
 
@@ -180,6 +181,10 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public boolean isCompoundType() {
+        return false;
+    }
+
+    public boolean isUnionType() {
         return false;
     }
 
@@ -506,7 +511,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
             if (count > 0) {
                 s.append('<');
-                //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
                     s = typeArguments.get(i).appendGenericSignature(s);
                 }
@@ -564,7 +568,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
             if (count > 0) {
                 s.append('<');
-                //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
                     s = typeArguments.get(i).appendErasedClassSignature(s);
                 }
@@ -645,6 +648,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     // </editor-fold>
 
+    @SuppressWarnings("unused")
     protected final static class TypeFunctions {
         public final static Accumulator<TypeReference, StringBuilder> APPEND_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
             @Override

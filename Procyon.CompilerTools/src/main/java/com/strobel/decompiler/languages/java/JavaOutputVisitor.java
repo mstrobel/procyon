@@ -32,10 +32,12 @@ import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
-import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.ast.UnionType;
+import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
+import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1355,6 +1357,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             space(policy.SpaceBeforeCatchParentheses);
             leftParenthesis();
             space(policy.SpacesWithinCatchParentheses);
+
+            writeModifiers(node.getVariableModifiers());
             writePipeSeparatedList(node.getExceptionTypes());
 
             if (!StringUtilities.isNullOrEmpty(node.getVariableName())) {
@@ -1999,6 +2003,27 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             }
 
             ifType.acceptVisitor(this, data);
+            needToken = true;
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitUnionType(final UnionType node, final Void data) {
+        startNode(node);
+
+        boolean needToken = false;
+
+        for (final AstType alternative : node.getAlternatives()) {
+            if (needToken) {
+                space();
+                writeToken(UnionType.UNION_TOKEN);
+                space();
+            }
+
+            alternative.acceptVisitor(this, data);
             needToken = true;
         }
 
