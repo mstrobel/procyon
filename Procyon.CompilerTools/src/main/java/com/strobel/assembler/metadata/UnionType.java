@@ -14,6 +14,7 @@ public final class UnionType extends TypeReference implements IUnionType {
     private UnionType(final TypeReference... alternatives) {
         _alternatives = ArrayUtilities.asUnmodifiableList(VerifyArgument.noNullElementsAndNotEmpty(alternatives, "alternatives"));
         _simpleName = appendName(new StringBuilder(), false, false).toString();
+        setName(_simpleName);
     }
 
     public List<TypeReference> getAlternatives() {
