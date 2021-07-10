@@ -34,6 +34,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
@@ -1231,14 +1232,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _hasBeenCreated = true;
 
-            _generatedClass = (Class<T>) getUnsafeInstance().defineClass(
-                fullName,
-                classBytes,
-                0,
-                classBytes.length,
-                Thread.currentThread().getContextClassLoader(),
-                _protectionDomain
-            );
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+            MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(Class.forName(fullName), lookup);
+            _generatedClass = (Class<T>)privateLookup.defineClass(classBytes);
+
 
             RuntimeHelpers.ensureClassInitialized(_generatedClass);
 
