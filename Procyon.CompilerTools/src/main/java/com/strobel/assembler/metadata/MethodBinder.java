@@ -213,7 +213,7 @@ public final class MethodBinder {
 
         //
         // Find the most specific method based on the parameters.  On the first pass, prohibit
-        // auto-(un)boxing and variable arity (see JLS §15.12.2.2).
+        // auto-(un)boxing and variable arity (see JLS 15.12.2.2).
         //
         int result = findMostSpecific(
             m1.getParameters(),
@@ -229,7 +229,7 @@ public final class MethodBinder {
 
         //
         // If the first attempt produced an ambiguous result, try again with boxing conversions
-        // allowed (see JLS §15.12.2.3).
+        // allowed (see JLS 15.12.2.3).
         //
         if (result == 0) {
             result = findMostSpecific(
@@ -247,7 +247,7 @@ public final class MethodBinder {
 
         //
         // If the second attempt produced an ambiguous result, try again with both boxing
-        // conversions and variable arity allowed (see JLS §15.12.2.4).
+        // conversions and variable arity allowed (see JLS 15.12.2.4).
         //
         if (result == 0) {
             result = findMostSpecific(
