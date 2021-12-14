@@ -33,7 +33,6 @@ public class InputStreamTypeReader implements ITypeLoader {
         this._defaultTypeLoader = (ITypeLoader) VerifyArgument.notNull(defaultTypeLoader, "defaultTypeLoader");
         this._packageLocations = new LinkedHashMap();
         this._knownFiles = new LinkedHashMap();
-        this.fileInputStream = fileInputStream;
     }
 
     public void setFileInputStream(FileInputStream fileInputStream){
