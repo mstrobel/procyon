@@ -20,10 +20,13 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +40,16 @@ public final class TypeBuilderTests {
     @Retention(RetentionPolicy.RUNTIME)
     @interface TestAnnotation {
         int value();
+    }
+
+    @Before
+    public void setUp() {
+        LookupScope.push(MethodHandles.lookup());
+    }
+
+    @After
+    public void tearDown() {
+        LookupScope.current().pop();
     }
 
     @Test

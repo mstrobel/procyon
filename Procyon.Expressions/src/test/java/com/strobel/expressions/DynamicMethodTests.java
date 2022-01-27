@@ -17,6 +17,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.DynamicMethod;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -34,7 +35,7 @@ import static org.junit.Assert.assertTrue;
  * @author Mike Strobel
  */
 @SuppressWarnings("ALL")
-public final class DynamicMethodTests {
+public final class DynamicMethodTests extends AbstractExpressionTest {
     private final MethodHandles.Lookup lookup = MethodHandles.lookup();
     private final HashMap<String, Object> map = new HashMap<>();
 
@@ -42,6 +43,7 @@ public final class DynamicMethodTests {
 
     @Before
     public void setup() {
+        super.setUp();
         map.put(booleanProperty.name, true);
     }
 

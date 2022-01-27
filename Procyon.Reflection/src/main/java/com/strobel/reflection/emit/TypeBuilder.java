@@ -34,6 +34,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
@@ -79,6 +82,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private Map<Class<? extends Annotation>, AnnotationBuilder<? extends Annotation>> _annotationMap;
     private final ProtectionDomain _protectionDomain;
+    private MethodHandles.Lookup _lookup;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
 
@@ -172,6 +176,12 @@ public final class TypeBuilder<T> extends Type<T> {
         );
     }
 
+    public TypeBuilder<T> withLookup(final MethodHandles.Lookup lookup) {
+        VerifyArgument.notNull(lookup, "lookup");
+        _lookup = lookup;
+        return this;
+    }
+
     private void initializeAsGenericParameter(final String name, final int position) {
         _name = name;
         _fullName = name;
@@ -195,23 +205,24 @@ public final class TypeBuilder<T> extends Type<T> {
             throw Error.typeNameTooLong();
         }
 
-        _fullName = fullName;
-        _internalName = fullName.replace('.', '/');
-        _isGenericTypeDefinition = false;
-        _isGenericParameter = false;
-        _hasBeenCreated = false;
-        _declaringType = declaringType;
-
         final int lastDotIndex = fullName.lastIndexOf('.');
 
         if (lastDotIndex == -1 || lastDotIndex == 0) {
-            _package = Package.getPackage(StringUtilities.EMPTY);
-            _name = _fullName;
+            _package = CallerResolver.getCallerClass(1).getPackage(); // Package.getPackage(StringUtilities.EMPTY);
+            _fullName = _package.getName() + '.' + fullName;
+            _name = fullName;
         }
         else {
             _package = Package.getPackage(fullName.substring(0, lastDotIndex));
             _name = fullName.substring(lastDotIndex + 1);
+            _fullName = fullName;
         }
+
+        _internalName = _fullName.replace('.', '/');
+        _isGenericTypeDefinition = false;
+        _isGenericParameter = false;
+        _hasBeenCreated = false;
+        _declaringType = declaringType;
 
         if (Modifier.isInterface(modifiers)) {
             _modifiers = modifiers & (Modifier.interfaceModifiers() | Modifier.INTERFACE) | Modifier.ABSTRACT;
@@ -1150,6 +1161,16 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
 
+    private MethodHandles.Lookup lookup() {
+        final MethodHandles.Lookup lookup = _lookup;
+
+        if (lookup != null) {
+            return lookup;
+        }
+
+        return LookupScope.current().lookup();
+    }
+
     @SuppressWarnings("ConstantConditions")
     private Type<T> createTypeNoLock(final OutputStream writeTo) throws IOException {
         if (isCreated()) {
@@ -1231,14 +1252,19 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _hasBeenCreated = true;
 
-            _generatedClass = (Class<T>) getUnsafeInstance().defineClass(
-                fullName,
-                classBytes,
-                0,
-                classBytes.length,
-                Thread.currentThread().getContextClassLoader(),
-                _protectionDomain
-            );
+            final Unsafe unsafe = getUnsafeInstance();
+            final MethodHandles.Lookup lookup = lookup();
+
+            final MethodHandle defineClass = defineClass(unsafe, lookup);
+
+            _generatedClass = (Class<T>) defineClass.invokeExact((Object) unsafe,
+                                                                 (MethodHandles.Lookup) lookup,
+                                                                 (String) fullName,
+                                                                 (byte[]) classBytes,
+                                                                 (int) 0,
+                                                                 (int) classBytes.length,
+                                                                 (ClassLoader) Thread.currentThread().getContextClassLoader(),
+                                                                 (ProtectionDomain) _protectionDomain);
 
             RuntimeHelpers.ensureClassInitialized(_generatedClass);
 
@@ -1500,4 +1526,96 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     // </editor-fold>
+
+    private static MethodHandle _defineClass;
+
+    private static MethodHandle defineClass(final Object unsafe, final MethodHandles.Lookup lookup) {
+        MethodHandle defineClass = _defineClass;
+
+        if (defineClass == null) {
+            _defineClass = defineClass = defineClass0();
+        }
+
+        return defineClass;
+    }
+
+    private static MethodHandle defineClass0() {
+        try {
+            return unsafeDefineClass0();
+        }
+        catch (final ReflectiveOperationException ignored) {
+            return mhLookupDefineClass0();
+        }
+    }
+
+    private static MethodHandle mhLookupDefineClass0() {
+        try {
+            final MethodHandle d = MethodHandles.lookup()
+                                                .findVirtual(MethodHandles.Lookup.class,
+                                                             "defineClass",
+                                                             MethodType.methodType(Class.class, byte[].class));
+
+            final MethodHandle p = MethodHandles.permuteArguments(d,
+                                                                  MethodType.methodType(Class.class,
+                                                                                        Object.class,
+                                                                                        MethodHandles.Lookup.class,
+                                                                                        String.class,
+                                                                                        byte[].class,
+                                                                                        int.class,
+                                                                                        int.class,
+                                                                                        ClassLoader.class,
+                                                                                        ProtectionDomain.class),
+                                                                  1,
+                                                                  3);
+
+            return p;
+        }
+        catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not resolve `MethodHandles.Lookup.defineClass(byte[])`.", e);
+        }
+    }
+
+    private static MethodHandle unsafeDefineClass0() throws ReflectiveOperationException {
+        final Object unsafe = getUnsafeInstance();
+
+        @SuppressWarnings("JavaLangInvokeHandleSignature")
+        final MethodHandle d =
+            MethodHandles.lookup().findVirtual(unsafe.getClass(),
+                                               "defineClass",
+                                               MethodType.methodType(Class.class,
+                                                                     String.class,
+                                                                     byte[].class,
+                                                                     int.class,
+                                                                     int.class,
+                                                                     ClassLoader.class,
+                                                                     ProtectionDomain.class))
+                         .asType(MethodType.methodType(Class.class,
+                                                       Object.class,
+                                                       String.class,
+                                                       byte[].class,
+                                                       int.class,
+                                                       int.class,
+                                                       ClassLoader.class,
+                                                       ProtectionDomain.class));
+
+        final MethodHandle p = MethodHandles.permuteArguments(d,
+                                                              MethodType.methodType(Class.class,
+                                                                                    Object.class,
+                                                                                    MethodHandles.Lookup.class,
+                                                                                    String.class,
+                                                                                    byte[].class,
+                                                                                    int.class,
+                                                                                    int.class,
+                                                                                    ClassLoader.class,
+                                                                                    ProtectionDomain.class),
+                                                              0,
+                                                              2,
+                                                              3,
+                                                              4,
+                                                              5,
+                                                              6,
+                                                              7);
+
+        return p;
+    }
 }
