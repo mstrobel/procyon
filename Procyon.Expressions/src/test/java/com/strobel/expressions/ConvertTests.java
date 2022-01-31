@@ -19,6 +19,7 @@ import com.strobel.reflection.emit.TypeBuilder;
 import org.junit.Test;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 
 import static com.strobel.expressions.Expression.*;
 import static org.junit.Assert.*;
@@ -33,7 +34,8 @@ public class ConvertTests extends AbstractExpressionTest {
             BaseClass.class.getPackage().getName() + ".ConvertTestDerivedClass",
             BaseClass.class.getModifiers(),
             Type.of(BaseClass.class),
-            TypeList.empty()
+            TypeList.empty(),
+            MethodHandles.lookup()
         );
 
         final LambdaExpression lambda = lambda(

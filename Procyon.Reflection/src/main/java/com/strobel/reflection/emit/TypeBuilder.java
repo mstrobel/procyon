@@ -47,6 +47,10 @@ import java.util.*;
  */
 @SuppressWarnings({ "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
+    public static MethodHandles.Lookup defaultPackageAccess() {
+        return generated.PackageAccess.defaultPackage();
+    }
+
     private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
     private final static String VerifyGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.VerifyGeneratedClasses";
@@ -82,12 +86,16 @@ public final class TypeBuilder<T> extends Type<T> {
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private Map<Class<? extends Annotation>, AnnotationBuilder<? extends Annotation>> _annotationMap;
     private final ProtectionDomain _protectionDomain;
-    private MethodHandles.Lookup _lookup;
+    private MethodHandles.Lookup _packageAccess;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
 
     public TypeBuilder(final String name, final int modifiers) {
-        this(name, modifiers, Types.Object, TypeList.empty());
+        this(name, modifiers, Types.Object, TypeList.empty(), (MethodHandles.Lookup)null);
+    }
+
+    public TypeBuilder(final String name, final int modifiers, final MethodHandles.Lookup packageAccess) {
+        this(name, modifiers, Types.Object, TypeList.empty(), packageAccess);
     }
 
     public TypeBuilder(
@@ -96,6 +104,16 @@ public final class TypeBuilder<T> extends Type<T> {
         final Type baseType,
         final TypeList interfaces) {
 
+        this(name, modifiers, baseType, interfaces, (MethodHandles.Lookup) null);
+    }
+
+    public TypeBuilder(
+        final String name,
+        final int modifiers,
+        final Type baseType,
+        final TypeList interfaces,
+        final MethodHandles.Lookup packageAccess) {
+
         this();
 
         initialize(
@@ -103,7 +121,8 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             interfaces,
-            null
+            null,
+            packageAccess
         );
     }
 
@@ -127,6 +146,7 @@ public final class TypeBuilder<T> extends Type<T> {
         this();
 
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _packageAccess = declaringType._packageAccess;
 
         initializeAsGenericParameter(
             VerifyArgument.notNull(name, "name"),
@@ -139,6 +159,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _declaringType = _declaringMethod.getDeclaringType();
+        _packageAccess = declaringMethod.getDeclaringType()._packageAccess;
 
         initializeAsGenericParameter(
             VerifyArgument.notNull(name, "name"),
@@ -154,7 +175,8 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             TypeList.empty(),
-            declaringType
+            declaringType,
+            declaringType._packageAccess
         );
     }
 
@@ -165,6 +187,22 @@ public final class TypeBuilder<T> extends Type<T> {
         final TypeList interfaces,
         final TypeBuilder declaringType) {
 
+        this(name,
+             modifiers,
+             baseType,
+             interfaces,
+             declaringType,
+             declaringType._packageAccess);
+    }
+
+    TypeBuilder(
+        final String name,
+        final int modifiers,
+        final Type<? super T> baseType,
+        final TypeList interfaces,
+        final TypeBuilder declaringType,
+        final MethodHandles.Lookup packageAccess) {
+
         this();
 
         initialize(
@@ -172,14 +210,9 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             interfaces,
-            declaringType
+            declaringType,
+            packageAccess
         );
-    }
-
-    public TypeBuilder<T> withLookup(final MethodHandles.Lookup lookup) {
-        VerifyArgument.notNull(lookup, "lookup");
-        _lookup = lookup;
-        return this;
     }
 
     private void initializeAsGenericParameter(final String name, final int position) {
@@ -193,31 +226,37 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private void initialize(
-        final String fullName,
+        final String typeName,
         final int modifiers,
         final Type baseType,
         final TypeList interfaces,
-        final TypeBuilder declaringType) {
+        final TypeBuilder declaringType,
+        final MethodHandles.Lookup packageAccess) {
 
-        VerifyArgument.notNullOrWhitespace(fullName, "fullName");
+        VerifyArgument.notNullOrWhitespace(typeName, "typeName");
 
-        if (fullName.length() > 1023) {
+        if (typeName.length() > 1023) {
             throw Error.typeNameTooLong();
         }
 
-        final int lastDotIndex = fullName.lastIndexOf('.');
+        _packageAccess = packageAccess != null ? packageAccess : defaultPackageAccess();
+
+        if (_packageAccess == MethodHandles.publicLookup()) {
+            throw Error.packageAccessRequired();
+        }
+
+        _package = _packageAccess.lookupClass().getPackage();
+
+        final int lastDotIndex = typeName.lastIndexOf('.');
 
         if (lastDotIndex == -1 || lastDotIndex == 0) {
-            _package = CallerResolver.getCallerClass(1).getPackage(); // Package.getPackage(StringUtilities.EMPTY);
-            _fullName = _package.getName() + '.' + fullName;
-            _name = fullName;
+            _name = typeName;
         }
         else {
-            _package = Package.getPackage(fullName.substring(0, lastDotIndex));
-            _name = fullName.substring(lastDotIndex + 1);
-            _fullName = fullName;
+            _name = typeName.substring(lastDotIndex + 1);
         }
 
+        _fullName = _package.getName() + '.' + _name;
         _internalName = _fullName.replace('.', '/');
         _isGenericTypeDefinition = false;
         _isGenericParameter = false;
@@ -1161,16 +1200,6 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
 
-    private MethodHandles.Lookup lookup() {
-        final MethodHandles.Lookup lookup = _lookup;
-
-        if (lookup != null) {
-            return lookup;
-        }
-
-        return LookupScope.current().lookup();
-    }
-
     @SuppressWarnings("ConstantConditions")
     private Type<T> createTypeNoLock(final OutputStream writeTo) throws IOException {
         if (isCreated()) {
@@ -1253,12 +1282,11 @@ public final class TypeBuilder<T> extends Type<T> {
             _hasBeenCreated = true;
 
             final Unsafe unsafe = getUnsafeInstance();
-            final MethodHandles.Lookup lookup = lookup();
 
-            final MethodHandle defineClass = defineClass(unsafe, lookup);
+            final MethodHandle defineClass = defineClass();
 
             _generatedClass = (Class<T>) defineClass.invokeExact((Object) unsafe,
-                                                                 (MethodHandles.Lookup) lookup,
+                                                                 (MethodHandles.Lookup) _packageAccess,
                                                                  (String) fullName,
                                                                  (byte[]) classBytes,
                                                                  (int) 0,
@@ -1529,7 +1557,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     private static MethodHandle _defineClass;
 
-    private static MethodHandle defineClass(final Object unsafe, final MethodHandles.Lookup lookup) {
+    private static MethodHandle defineClass() {
         MethodHandle defineClass = _defineClass;
 
         if (defineClass == null) {

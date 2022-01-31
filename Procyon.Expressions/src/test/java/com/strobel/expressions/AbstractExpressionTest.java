@@ -14,13 +14,11 @@
 package com.strobel.expressions;
 
 import com.strobel.reflection.Type;
-import com.strobel.reflection.emit.LookupScope;
 import org.junit.After;
 import org.junit.Before;
 
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandles;
-import java.security.cert.PolicyQualifierInfo;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -88,7 +86,7 @@ public abstract class AbstractExpressionTest {
 
     @Before
     public void setUp() {
-        LookupScope.push(MethodHandles.lookup());
+        ExpressionContext.create(MethodHandles.lookup()).push();
         final OutputInfo outputInfo = THREAD_OUT.get();
         outputInfo.systemStream = System.out;
         System.setOut(outputInfo.recorderStream);
@@ -97,7 +95,7 @@ public abstract class AbstractExpressionTest {
 
     @After
     public void tearDown() {
-        LookupScope.current().pop();
+        ExpressionContext.current().pop();
         final OutputInfo outputInfo = THREAD_OUT.get();
         outputInfo.recorder.reset();
         System.setOut(outputInfo.systemStream);

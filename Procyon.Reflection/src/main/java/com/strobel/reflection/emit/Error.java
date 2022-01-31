@@ -219,6 +219,10 @@ final class Error {
         return new IllegalArgumentException("The specified name is too long.");
     }
 
+    public static RuntimeException packageAccessRequired() {
+        return new IllegalArgumentException("A `MethodHandles.Lookup` instance with package access is required to define a new type.");
+    }
+
     public static RuntimeException baseTypeCannotBeInterface() {
         return new IllegalArgumentException("Base type cannot be an interface.");
     }
