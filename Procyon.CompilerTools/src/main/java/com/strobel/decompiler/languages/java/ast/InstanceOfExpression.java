@@ -16,11 +16,11 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-import javax.lang.model.element.Modifier;
 import java.util.List;
 
 public class InstanceOfExpression extends PatternExpression {
@@ -85,15 +85,15 @@ public class InstanceOfExpression extends PatternExpression {
         return getChildrenByRole(MODIFIER_ROLE);
     }
 
-    public final void addModifier(final Modifier modifier) {
+    public final void addModifier(final Flags.Flag modifier) {
         EntityDeclaration.addModifier(this, modifier);
     }
 
-    public final void removeModifier(final Modifier modifier) {
+    public final void removeModifier(final Flags.Flag modifier) {
         EntityDeclaration.removeModifier(this, modifier);
     }
 
-    public final void setModifiers(final List<Modifier> modifiers) {
+    public final void setModifiers(final List<Flags.Flag> modifiers) {
         EntityDeclaration.setModifiers(this, modifiers);
     }
 

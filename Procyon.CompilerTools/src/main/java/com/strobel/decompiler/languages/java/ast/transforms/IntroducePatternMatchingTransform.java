@@ -1,5 +1,6 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
@@ -8,7 +9,6 @@ import com.strobel.decompiler.languages.java.analysis.Correlator;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.List;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -138,7 +138,7 @@ public class IntroducePatternMatchingTransform extends ContextTrackingVisitor<Vo
             }
 
             casts.get(0).replaceWith(new IdentifierExpression(casts.get(0).getOffset(), nameToken.clone()));
-            io.addModifier(Modifier.FINAL);
+            io.addModifier(Flags.Flag.FINAL);
         }
         else {
             return false;

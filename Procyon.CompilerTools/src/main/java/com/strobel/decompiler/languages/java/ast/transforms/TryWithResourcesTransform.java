@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -26,8 +27,6 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.semantics.ResolveResult;
-
-import javax.lang.model.element.Modifier;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.ast.transforms.ConvertLoopsTransform.*;
@@ -291,11 +290,11 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 analysis.analyze(resource.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
                 if (!analysis.isPotentiallyAssigned()) {
-                    newResourceDeclaration.addModifier(Modifier.FINAL);
+                    newResourceDeclaration.addModifier(Flags.Flag.FINAL);
                 }
             }
             else {
-                newResourceDeclaration.addModifier(Modifier.FINAL);
+                newResourceDeclaration.addModifier(Flags.Flag.FINAL);
             }
 
             node.setTryBlock(tryContent);

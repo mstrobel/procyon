@@ -1,5 +1,6 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
@@ -9,7 +10,6 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.Pattern;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +27,7 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
             new AnyNode().toExpression()
         );
 
-        rv.addModifier(Modifier.FINAL);
+        rv.addModifier(Flags.Flag.FINAL);
 
         final Expression rr = new DeclaredVariableBackReference("resourceDeclaration").toExpression();
 

@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
 import com.strobel.decompiler.patterns.INode;
@@ -23,7 +24,6 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
-import javax.lang.model.element.Modifier;
 import java.util.Collection;
 
 public class CatchClause extends AstNode {
@@ -73,15 +73,15 @@ public class CatchClause extends AstNode {
         return getChildrenByRole(EntityDeclaration.MODIFIER_ROLE);
     }
 
-    public final void addVariableModifier(final Modifier modifier) {
+    public final void addVariableModifier(final Flags.Flag modifier) {
         EntityDeclaration.addModifier(this, modifier);
     }
 
-    public final void setVariableModifiers(final Collection<Modifier> modifiers) {
+    public final void setVariableModifiers(final Collection<Flags.Flag> modifiers) {
         EntityDeclaration.setModifiers(this, modifiers);
     }
 
-    public final void removeVariableModifier(final Modifier modifier) {
+    public final void removeVariableModifier(final Flags.Flag modifier) {
         EntityDeclaration.removeModifier(this, modifier);
     }
 

@@ -22,8 +22,10 @@ import com.strobel.assembler.ir.MetadataReader;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.ExceptionUtilities;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
@@ -407,6 +409,23 @@ public final class ClassFileReader extends MetadataReader {
 
                 return new ModuleTargetAttribute(_scope.<String>lookupConstant(buffer.readUnsignedShort()));
             }
+
+            case AttributeNames.PermittedSubclasses: {
+                // PermittedSubclasses_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //     u2 number_of_classes;
+                //     u2 classes[number_of_classes];
+                // }
+
+                final TypeReference[] permittedSubclasses = new TypeReference[buffer.readUnsignedShort()];
+
+                for (int i = 0; i < permittedSubclasses.length; i++) {
+                    permittedSubclasses[i] = _scope.lookupType(buffer.readUnsignedShort());
+                }
+
+                return new PermittedSubclassesAttribute(permittedSubclasses);
+            }
         }
 
         return super.readAttributeCore(name, buffer, originalOffset, length);
@@ -516,6 +535,11 @@ public final class ClassFileReader extends MetadataReader {
                 }
 
                 case AttributeNames.InnerClasses: {
+                    attributes[i] = readAttributeCore(name, buffer, buffer.position(), length);
+                    continue;
+                }
+
+                case AttributeNames.PermittedSubclasses: {
                     attributes[i] = readAttributeCore(name, buffer, buffer.position(), length);
                     continue;
                 }
@@ -887,6 +911,34 @@ public final class ClassFileReader extends MetadataReader {
         }
 
         _typeDefinition.setBaseType(baseType);
+    }
+
+    private void populatePermittedSubclasses() {
+        final PermittedSubclassesAttribute permittedSubclassesAttribute = SourceAttribute.find(AttributeNames.PermittedSubclasses, _attributes);
+
+        if (permittedSubclassesAttribute != null) {
+            _typeDefinition.setFlags(_typeDefinition.getFlags() | Flags.SEALED);
+            _typeDefinition.getPermittedSubclassesInternal().addAll(permittedSubclassesAttribute.getPermittedSubclasses());
+        }
+        else if (!_typeDefinition.isFinal()) {
+            final boolean unsealed = checkSealed0(_typeDefinition.getBaseType()) ||
+                                     CollectionUtilities.any(_typeDefinition.getExplicitInterfaces(),
+                                                             new Predicate<TypeReference>() {
+                                                                 @Override
+                                                                 public boolean test(final TypeReference type) {
+                                                                     return checkSealed0(type);
+                                                                 }
+                                                             });
+            if (unsealed) {
+                _typeDefinition.setFlags(_typeDefinition.getFlags() | Flags.NON_SEALED);
+            }
+        }
+    }
+
+    private boolean checkSealed0(final TypeReference type) {
+        final TypeDefinition resolved = type != null ? type.resolve() : null;
+        final boolean isSealed = resolved != null && resolved.isSealed();
+        return isSealed;
     }
 
     private void populateNamedInnerTypes() {
@@ -1371,6 +1423,8 @@ public final class ClassFileReader extends MetadataReader {
                 Collections.addAll(annotations, invisibleAnnotations.getAnnotations());
             }
         }
+
+        populatePermittedSubclasses();
     }
 
     // </editor-fold>

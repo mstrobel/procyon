@@ -46,6 +46,7 @@ public final class AttributeNames {
     public static final String ModulePackages = "ModulePackages";
     public static final String ModuleMainClass = "ModuleMainClass";
     public static final String ModuleTarget = "ModuleTarget";
+    public static final String PermittedSubclasses = "PermittedSubclasses";
 
     private AttributeNames() {
         throw ContractUtils.unreachable();

@@ -7,6 +7,7 @@ import com.strobel.assembler.ir.attributes.RecordComponentInfo;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.DynamicCallSite;
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -20,7 +21,6 @@ import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -89,7 +89,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
         final MethodDeclaration accessor = new MethodDeclaration();
 
         accessor.setName(Pattern.ANY_STRING);
-        accessor.addModifier(Modifier.PUBLIC);
+        accessor.addModifier(Flags.Flag.PUBLIC);
         accessor.setReturnType(new AnyNode().toType());
 
         accessor.setBody(

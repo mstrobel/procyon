@@ -41,7 +41,6 @@ import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeline;
 import com.strobel.util.ContractUtils;
 
-import javax.lang.model.element.Modifier;
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.*;
@@ -225,7 +224,7 @@ public final class AstBuilder {
             declarations.add(d);
 
             if (p.isFinal()) {
-                EntityDeclaration.addModifier(d, Modifier.FINAL);
+                EntityDeclaration.addModifier(d, Flags.Flag.FINAL);
             }
         }
 
@@ -544,16 +543,19 @@ public final class AstBuilder {
 
         long flags = type.getFlags();
 
-        if (type.isInterface() || type.isEnum()) {
+        if (type.isInterface()) {
+            flags &= Flags.AccessFlags | Flags.ExtendedInterfaceFlags;
+        }
+        else if (type.isEnum()) {
             flags &= Flags.AccessFlags;
         }
         else {
-            flags &= (Flags.AccessFlags | Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+            flags &= (Flags.AccessFlags | Flags.ExtendedClassFlags | Flags.STATIC | Flags.FINAL);
         }
 
         EntityDeclaration.setModifiers(
             astType,
-            Flags.asModifierSet(scrubAccessModifiers(flags))
+            Flags.asFlagSet(scrubAccessModifiers(flags))
         );
 
         astType.setName(type.getSimpleName());
@@ -590,6 +592,10 @@ public final class AstBuilder {
                 continue;
             }
             astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);
+        }
+
+        for (final TypeReference permittedSubclass : type.getPermittedSubclasses()) {
+            astType.addChild(convertType(permittedSubclass), Roles.PERMITTED_SUBCLASSES);
         }
 
         for (final CustomAnnotation annotation : type.getAnnotations()) {
@@ -705,7 +711,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astField,
-            Flags.asModifierSet(scrubAccessModifiers(field.getFlags() & Flags.VarFlags))
+            Flags.asFlagSet(scrubAccessModifiers(field.getFlags() & Flags.VarFlags))
         );
 
         if (field.hasConstantValue()) {
@@ -724,16 +730,16 @@ public final class AstBuilder {
     public final MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
-        final Set<Modifier> modifiers;
+        final Set<Flags.Flag> modifiers;
 
         if (method.isTypeInitializer()) {
-            modifiers = Collections.singleton(Modifier.STATIC);
+            modifiers = Collections.singleton(Flags.Flag.STATIC);
         }
         else if (method.getDeclaringType().isInterface()) {
             modifiers = Collections.emptySet();
         }
         else {
-            modifiers = Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.MethodFlags));
+            modifiers = Flags.asFlagSet(scrubAccessModifiers(method.getFlags() & Flags.MethodFlags));
         }
 
         EntityDeclaration.setModifiers(astMethod, modifiers);
@@ -784,7 +790,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astMethod,
-            Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags))
+            Flags.asFlagSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags))
         );
 
         astMethod.setName(method.getDeclaringType().getName());

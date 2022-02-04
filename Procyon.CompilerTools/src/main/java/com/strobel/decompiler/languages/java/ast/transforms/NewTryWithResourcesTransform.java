@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -26,8 +27,6 @@ import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.decompiler.semantics.ResolveResult;
-
-import javax.lang.model.element.Modifier;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.core.Comparer.coalesce;
@@ -344,7 +343,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                     vd = new VariableDeclarationStatement(_builder.convertType(resourceType), identifier.getIdentifier(), initializer);
                 }
 
-                vd.addModifier(Modifier.FINAL);
+                vd.addModifier(Flags.Flag.FINAL);
                 declarationStatement.remove();
                 node.getDeclaredResources().add(vd);
             }
@@ -551,7 +550,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 }
 
                 vd.remove();
-                vd.addModifier(Modifier.FINAL);
+                vd.addModifier(Flags.Flag.FINAL);
                 tryCatch.getDeclaredResources().add(vd);
             }
 

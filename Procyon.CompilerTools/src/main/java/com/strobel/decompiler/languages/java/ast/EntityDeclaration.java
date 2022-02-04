@@ -16,12 +16,12 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.decompiler.languages.EntityType;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,7 +68,7 @@ public abstract class EntityDeclaration extends AstNode {
         return getChildrenByRole(ANNOTATION_ROLE);
     }
 
-    public final boolean hasModifier(final Modifier modifier) {
+    public final boolean hasModifier(final Flags.Flag modifier) {
         for (final JavaModifierToken modifierToken : getModifiers()) {
             if (modifierToken.getModifier() == modifier) {
                 return true;
@@ -119,20 +119,20 @@ public abstract class EntityDeclaration extends AstNode {
                getAnnotations().matches(other.getAnnotations(), match);
     }
 
-    public final void addModifier(final Modifier modifier) {
+    public final void addModifier(final Flags.Flag modifier) {
         EntityDeclaration.addModifier(this, modifier);
     }
 
-    public final void removeModifier(final Modifier modifier) {
+    public final void removeModifier(final Flags.Flag modifier) {
         EntityDeclaration.removeModifier(this, modifier);
     }
 
-    public final void setModifiers(final List<Modifier> modifiers) {
+    public final void setModifiers(final List<Flags.Flag> modifiers) {
         EntityDeclaration.setModifiers(this, modifiers);
     }
 
-    static List<Modifier> getModifiers(final AstNode node) {
-        List<Modifier> modifiers = null;
+    static List<Flags.Flag> getModifiers(final AstNode node) {
+        List<Flags.Flag> modifiers = null;
 
         for (final JavaModifierToken modifierToken : node.getChildrenByRole(MODIFIER_ROLE)) {
             if (modifiers == null) {
@@ -143,21 +143,21 @@ public abstract class EntityDeclaration extends AstNode {
         }
 
         return modifiers != null ? Collections.unmodifiableList(modifiers)
-                                 : Collections.<Modifier>emptyList();
+                                 : Collections.<Flags.Flag>emptyList();
     }
 
-    static void setModifiers(final AstNode node, final Collection<Modifier> modifiers) {
+    static void setModifiers(final AstNode node, final Collection<Flags.Flag> modifiers) {
         final AstNodeCollection<JavaModifierToken> modifierTokens = node.getChildrenByRole(MODIFIER_ROLE);
 
         modifierTokens.clear();
 
-        for (final Modifier modifier : modifiers) {
+        for (final Flags.Flag modifier : modifiers) {
             modifierTokens.add(new JavaModifierToken(TextLocation.EMPTY, modifier));
         }
     }
 
-    static void addModifier(final AstNode node, final Modifier modifier) {
-        final List<Modifier> modifiers = getModifiers(node);
+    static void addModifier(final AstNode node, final Flags.Flag modifier) {
+        final List<Flags.Flag> modifiers = getModifiers(node);
 
         if (modifiers.contains(modifier)) {
             return;
@@ -167,7 +167,7 @@ public abstract class EntityDeclaration extends AstNode {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    static boolean removeModifier(final AstNode node, final Modifier modifier) {
+    static boolean removeModifier(final AstNode node, final Flags.Flag modifier) {
         final AstNodeCollection<JavaModifierToken> modifierTokens = node.getChildrenByRole(MODIFIER_ROLE);
 
         for (final JavaModifierToken modifierToken : modifierTokens) {

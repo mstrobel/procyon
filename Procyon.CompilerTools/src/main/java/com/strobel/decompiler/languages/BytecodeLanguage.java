@@ -509,6 +509,26 @@ public class BytecodeLanguage extends Language {
                 break;
             }
 
+            case AttributeNames.PermittedSubclasses: {
+                assert attribute instanceof PermittedSubclassesAttribute;
+
+                final List<TypeReference> permittedSubclasses = ((PermittedSubclassesAttribute) attribute).getPermittedSubclasses();
+
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+
+                for (int i = 0; i < permittedSubclasses.size(); i++) {
+                    if (i != 0) {
+                        output.write(", ");
+                    }
+
+                    DecompilerHelpers.writeType(output, permittedSubclasses.get(i), NameSyntax.DESCRIPTOR);
+                }
+
+                output.writeLine();
+                break;
+            }
+
             case AttributeNames.ModuleMainClass: {
                 assert attribute instanceof ModuleMainClassAttribute;
 

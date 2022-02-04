@@ -23,7 +23,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,8 +96,8 @@ public class EnumRewriterTransform implements IAstTransform {
 
             pattern.setName("values");
             pattern.setReturnType(astBuilder.convertType(definition.makeArrayType()));
-            pattern.getModifiers().add(new JavaModifierToken(Modifier.PUBLIC));
-            pattern.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+            pattern.getModifiers().add(new JavaModifierToken(Flags.Flag.PUBLIC));
+            pattern.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
             pattern.setBody(
                 new BlockStatement(
                     new ReturnStatement(

@@ -71,8 +71,17 @@ public class Flags {
         if ((mask & STATIC) != 0) {
             flags.add(Flag.STATIC);
         }
+        if ((mask & ABSTRACT) != 0) {
+            flags.add(Flag.ABSTRACT);
+        }
         if ((mask & FINAL) != 0) {
             flags.add(Flag.FINAL);
+        }
+        if ((mask & SEALED) != 0) {
+            flags.add(Flag.SEALED);
+        }
+        if ((mask & NON_SEALED) != 0) {
+            flags.add(Flag.NON_SEALED);
         }
         if ((mask & SYNCHRONIZED) != 0) {
             flags.add(Flag.SYNCHRONIZED);
@@ -88,9 +97,6 @@ public class Flags {
         }
         if ((mask & INTERFACE) != 0) {
             flags.add(Flag.INTERFACE);
-        }
-        if ((mask & ABSTRACT) != 0) {
-            flags.add(Flag.ABSTRACT);
         }
         if ((mask & DEFAULT) != 0) {
             flags.add(Flag.DEFAULT);
@@ -219,6 +225,12 @@ public class Flags {
         }
         if ((mask & FINAL) != 0) {
             flags.add(Flag.FINAL);
+        }
+        if ((mask & SEALED) != 0) {
+            flags.add(Flag.SEALED);
+        }
+        if ((mask & NON_SEALED) != 0) {
+            flags.add(Flag.NON_SEALED);
         }
         if ((mask & SYNCHRONIZED) != 0) {
             flags.add(kind == Kind.Class || kind == Kind.InnerClass ? Flag.SUPER : Flag.SYNCHRONIZED);
@@ -599,9 +611,10 @@ public class Flags {
         RecordMethodFlags                 = AccessFlags | ABSTRACT | STATIC |
                                             SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
+        ExtendedInterfaceFlags            = SEALED | NON_SEALED,
         ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED,
         ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED,
-        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED,
+        ExtendedMemberStaticClassFlags    = (long)MemberStaticClassFlags | SEALED | NON_SEALED,
         ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
@@ -741,18 +754,20 @@ public class Flags {
 
     public enum Flag {
         PUBLIC("public"),
-        PRIVATE("private"),
         PROTECTED("protected"),
-        STATIC("static"),
-        FINAL("final"),
-        SYNCHRONIZED("synchronized"),
-        VOLATILE("volatile"),
-        TRANSIENT("transient"),
-        NATIVE("native"),
-        INTERFACE("interface"),
+        PRIVATE("private"),
         ABSTRACT("abstract"),
         DEFAULT("default"),
+        STATIC("static"),
+        SEALED("sealed"),
+        NON_SEALED("non-sealed"),
+        FINAL("final"),
+        TRANSIENT("transient"),
+        VOLATILE("volatile"),
+        SYNCHRONIZED("synchronized"),
+        NATIVE("native"),
         STRICTFP("strictfp"),
+        INTERFACE("interface"),
         SUPER("super"),
         BRIDGE("bridge"),
         SYNTHETIC("synthetic"),

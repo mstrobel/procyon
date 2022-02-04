@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
 import com.strobel.assembler.ir.attributes.ModuleAttribute;
+import com.strobel.assembler.ir.attributes.PermittedSubclassesAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
@@ -37,7 +38,6 @@ import com.strobel.decompiler.languages.java.ast.UnionType;
 import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
-import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1796,6 +1796,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                         writeCommaSeparatedList(node.getInterfaces());
                     }
                 }
+            }
+
+            if (any(node.getPermittedSubclasses())) {
+                space();
+                writeKeyword(Roles.PERMITS_KEYWORD);
+                space();
+                writeCommaSeparatedList(node.getPermittedSubclasses());
             }
 
             if (classType == ClassType.RECORD && node.getMembers().isEmpty()) {

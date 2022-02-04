@@ -23,7 +23,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -282,11 +281,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final MethodDeclaration setAccessor = new MethodDeclaration();
 
         getAccessor.setName(Pattern.ANY_STRING);
-        getAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        getAccessor.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
         getAccessor.setReturnType(new AnyNode("returnType").toType());
 
         setAccessor.setName(Pattern.ANY_STRING);
-        setAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        setAccessor.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
         setAccessor.setReturnType(new AnyNode("returnType").toType());
 
         final ParameterDeclaration getParameter = new ParameterDeclaration(
@@ -390,7 +389,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
             new AnyNode("value").toExpression()
         );
 
-        tempVariable.addModifier(Modifier.FINAL);
+        tempVariable.addModifier(Flags.Flag.FINAL);
 
         altSetAccessor.setBody(
             new BlockStatement(

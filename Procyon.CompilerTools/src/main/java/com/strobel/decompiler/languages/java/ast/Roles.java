@@ -28,6 +28,7 @@ public final class Roles {
     public final static Role<AstType> TYPE = new Role<>("Type", AstType.class, AstType.NULL);
     public final static Role<AstType> BASE_TYPE = new Role<>("BaseType", AstType.class, AstType.NULL);
     public final static Role<AstType> IMPLEMENTED_INTERFACE = new Role<>("ImplementedInterface", AstType.class, AstType.NULL);
+    public final static Role<AstType> PERMITTED_SUBCLASSES = new Role<>("PermittedSubclasses", AstType.class, AstType.NULL);
     public final static Role<AstType> TYPE_ARGUMENT = new Role<>("TypeArgument", AstType.class, AstType.NULL);
     public final static Role<AstType> EXTENDS_BOUND = new Role<>("ExtendsBound", AstType.class, AstType.NULL);
     public final static Role<AstType> SUPER_BOUND = new Role<>("SuperBound", AstType.class, AstType.NULL);
@@ -88,4 +89,5 @@ public final class Roles {
     public final static TokenRole ANNOTATION_KEYWORD = new TokenRole("@interface", TokenRole.FLAG_KEYWORD);
     public final static TokenRole EXTENDS_KEYWORD = new TokenRole("extends", TokenRole.FLAG_KEYWORD);
     public final static TokenRole IMPLEMENTS_KEYWORD = new TokenRole("implements", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole PERMITS_KEYWORD = new TokenRole("permits", TokenRole.FLAG_KEYWORD);
 }

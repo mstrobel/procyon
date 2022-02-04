@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
@@ -28,7 +29,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,7 +61,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 if (v.isCatchVariable()) {
                     if (!analysisResult.isAssigned) {
-                        v.getCatchClause().addVariableModifier(Modifier.FINAL);
+                        v.getCatchClause().addVariableModifier(Flags.Flag.FINAL);
                     }
                 }
                 else {
@@ -72,7 +72,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                     }
 
                     if (analysisResult.isSingleAssignment) {
-                        declaration.addModifier(Modifier.FINAL);
+                        declaration.addModifier(Flags.Flag.FINAL);
                     }
                     else if (analysisResult.needsInitializer && variable != null) {
                         declaration.getVariables().firstOrNullObject().setInitializer(
@@ -124,7 +124,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 if (parent instanceof ExpressionStatement) {
                     if (analysisResult.isSingleAssignment) {
-                        declaration.addModifier(Modifier.FINAL);
+                        declaration.addModifier(Flags.Flag.FINAL);
                     }
 
                     declaration.putUserDataIfAbsent(Keys.MEMBER_REFERENCE, parent.getUserData(Keys.MEMBER_REFERENCE));
@@ -133,7 +133,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 }
                 else {
                     if (analysisResult.isSingleAssignment) {
-                        declaration.addModifier(Modifier.FINAL);
+                        declaration.addModifier(Flags.Flag.FINAL);
                     }
 
                     replacedAssignment.replaceWith(declaration);
@@ -243,8 +243,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             for (final ParameterDefinition definition : unassignedParameters) {
                 final ParameterDeclaration declaration = declarationMap.get(definition);
 
-                if (declaration != null && !declaration.hasModifier(Modifier.FINAL)) {
-                    declaration.addChild(new JavaModifierToken(Modifier.FINAL), EntityDeclaration.MODIFIER_ROLE);
+                if (declaration != null && !declaration.hasModifier(Flags.Flag.FINAL)) {
+                    declaration.addChild(new JavaModifierToken(Flags.Flag.FINAL), EntityDeclaration.MODIFIER_ROLE);
                 }
             }
         }

@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.annotations.Nullable;
 import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.CollectionUtilities;
@@ -35,7 +36,6 @@ import com.strobel.decompiler.languages.java.analysis.ControlFlowNodeType;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -904,7 +904,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         }
 
         if (body.getStatements().isEmpty()) {
-            forEach.addVariableModifier(Modifier.FINAL);
+            forEach.addVariableModifier(Flags.Flag.FINAL);
         }
         else {
             final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
@@ -915,7 +915,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
             if (!analysis.isPotentiallyAssigned()) {
-                forEach.addVariableModifier(Modifier.FINAL);
+                forEach.addVariableModifier(Flags.Flag.FINAL);
             }
         }
 
@@ -1239,13 +1239,13 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             analysis.setAnalyzedRange(firstStatement, lastStatement);
 
             if (item == null) {
-                forEach.addVariableModifier(Modifier.FINAL);
+                forEach.addVariableModifier(Flags.Flag.FINAL);
             }
             else {
                 analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
                 if (!analysis.isPotentiallyAssigned()) {
-                    forEach.addVariableModifier(Modifier.FINAL);
+                    forEach.addVariableModifier(Flags.Flag.FINAL);
                 }
             }
         }

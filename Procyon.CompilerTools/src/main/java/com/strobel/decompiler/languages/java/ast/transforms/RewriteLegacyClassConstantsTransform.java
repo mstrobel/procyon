@@ -7,8 +7,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
-
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class RewriteLegacyClassConstantsTransform implements IAstTransform {
@@ -187,7 +185,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             final AstType throwable = new AstTypeMatch(CommonTypeReferences.Throwable).toType();
 
             method.setName(Pattern.ANY_STRING);
-            method.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+            method.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
             method.setReturnType(classType);
 
             method.getParameters().add(

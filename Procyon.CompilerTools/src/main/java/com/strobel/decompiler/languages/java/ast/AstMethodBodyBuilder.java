@@ -39,7 +39,6 @@ import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
-import javax.lang.model.element.Modifier;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -786,7 +785,7 @@ public class AstMethodBodyBuilder {
                     declarations.add(d);
 
                     if (p.isFinal()) {
-                        EntityDeclaration.addModifier(d, Modifier.FINAL);
+                        EntityDeclaration.addModifier(d, Flags.Flag.FINAL);
                     }
                 }
 
