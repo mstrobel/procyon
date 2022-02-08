@@ -169,4 +169,24 @@ public class ReflectionTests {
         assertSame(gd, uea);
         assertSame(gd, uia);
     }
+
+    @Test
+    public void testBoundGenericFields() {
+        @SuppressWarnings("unused")
+        class GenericTestObject<T> {
+            public List<T> items;
+
+            public T sum(final List<T> values) {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        final class TestObject extends GenericTestObject<Double> {
+        }
+
+        final FieldInfo items = Type.of(TestObject.class).getField("items");
+
+        assertEquals(Types.List.makeGenericType(Types.Double),
+                     items.getFieldType());
+    }
 }
