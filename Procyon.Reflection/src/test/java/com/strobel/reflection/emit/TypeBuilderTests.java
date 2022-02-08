@@ -363,6 +363,11 @@ public final class TypeBuilderTests {
         final Type<?> createdTypeVariable = createdType.getGenericTypeParameters().get(0);
         final Type<?> createdTypeVariableArray = createdTypeVariable.makeArrayType();
 
+        assertNotSame(createdType, type);
+        assertNotSame(createdArrayType, arrayType);
+        assertNotSame(createdTypeVariable, typeVariable);
+        assertNotSame(createdTypeVariableArray, typeVariableArray);
+
         assertTrue(type.isEquivalentTo(createdType));
         assertTrue(createdType.isEquivalentTo(type));
         assertTrue(arrayType.isEquivalentTo(createdArrayType));
