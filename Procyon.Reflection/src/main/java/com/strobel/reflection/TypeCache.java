@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.core.Comparer;
 import com.strobel.core.HashUtilities;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.TypeUtils;
 
 import java.util.LinkedHashMap;
@@ -36,19 +37,18 @@ final class TypeCache {
         return new Key(type.isGenericType() ? type.getGenericTypeDefinition() : type, typeArguments);
     }
 
-    public Type find(final Key key) {
+    public Type<?> find(final Key key) {
         return _map.get(key);
     }
 
     public <T> Type<T[]> getArrayType(final Type<T> elementType) {
+        add(elementType);
+
         Type<T[]> arrayType = (Type<T[]>) _arrayMap.get(elementType);
 
-        if (arrayType != null) {
-            return arrayType;
+        if (arrayType == null) {
+            _arrayMap.put(elementType, arrayType = elementType.createArrayType());
         }
-
-        arrayType = elementType.createArrayType();
-        add(arrayType);
 
         return arrayType;
     }
@@ -59,15 +59,15 @@ final class TypeCache {
             typeArguments
         );
 
-        Type genericType = _map.get(key);
+        Type<T> genericType = (Type<T>) _map.get(key);
 
         if (genericType == null) {
-            genericType = new GenericType(
+            genericType = new GenericType<>(
                 type.getGenericTypeDefinition(),
                 typeArguments
             );
 
-            final Type existing = _map.put(key, genericType);
+            final Type<T> existing = (Type<T>) _map.put(key, genericType);
 
             if (existing != null) {
                 return existing;
@@ -85,7 +85,7 @@ final class TypeCache {
         return _map.size();
     }
 
-    public void put(final Key key, final Type type) {
+    void put(final Key key, final Type<?> type) {
         final String descriptor = key.descriptor;
 
         if (!_definitionMap.containsKey(descriptor)) {
@@ -102,26 +102,29 @@ final class TypeCache {
         }
 
         _map.put(key, type);
-
-        if (type.isArray()) {
-            final Type elementType = type.getElementType();
-            if (!_arrayMap.containsKey(elementType)) {
-                _arrayMap.put(elementType, type);
-            }
-        }
     }
 
-    public void add(final Type type) {
+    public void add(final Type<?> type) {
+        Type<?> coreType = type;
+
+        while (coreType.isArray()) {
+            coreType = coreType.getElementType();
+        }
+
+        if (coreType.isWildcardType() || coreType.isGenericParameter() || coreType instanceof TypeBuilder<?>) {
+            return;
+        }
+
         final TypeList typeArguments;
 
-        if (type.isGenericType()) {
-            typeArguments = type.getTypeBindings().getBoundTypes();
+        if (coreType.isGenericType()) {
+            typeArguments = coreType.getTypeBindings().getBoundTypes();
         }
         else {
             typeArguments = TypeList.empty();
         }
 
-        put(key(type, typeArguments), type);
+        put(key(coreType, typeArguments), coreType);
     }
 
     final static class Key {
@@ -181,8 +184,8 @@ final class TypeCache {
             }
 
             for (int i = 0, n = typeArguments.size(); i < n; ++i) {
-                final Type argument = typeArguments.get(i);
-                final Type otherArgument = otherArguments.get(i);
+                final Type<?> argument = typeArguments.get(i);
+                final Type<?> otherArgument = otherArguments.get(i);
 
                 if (!Comparer.equals(argument, otherArgument)) {
                     return false;

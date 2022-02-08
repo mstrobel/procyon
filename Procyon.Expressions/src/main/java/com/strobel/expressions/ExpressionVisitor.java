@@ -183,7 +183,7 @@ public abstract class ExpressionVisitor {
         return node.update(visit(node.getExpressions()));
     }
 
-    protected <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
+    protected <T> Expression visitLambda(final LambdaExpression<T> node) {
         return node.update(visit(node.getBody()), visitAndConvertList(node.getParameters(), "visitLambda"));
     }
 
