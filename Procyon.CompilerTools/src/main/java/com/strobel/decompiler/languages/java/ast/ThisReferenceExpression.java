@@ -27,6 +27,10 @@ public final class ThisReferenceExpression extends Expression {
     private TextLocation _startLocation;
     private TextLocation _endLocation;
 
+    public ThisReferenceExpression() {
+        this(MYSTERY_OFFSET, TextLocation.EMPTY);
+    }
+
     public ThisReferenceExpression(final int offset) {
         this(offset, TextLocation.EMPTY);
     }

@@ -16,7 +16,10 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.annotations.Nullable;
 import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.Flags;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
@@ -33,13 +36,14 @@ import com.strobel.decompiler.languages.java.analysis.ControlFlowNodeType;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
 
 public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode> {
+    private final static Statement[] EMPTY_STATEMENTS = new Statement[0];
+
     public ConvertLoopsTransform(final DecompilerContext context) {
         super(context);
     }
@@ -67,7 +71,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
         final AstNode n = super.visitExpressionStatement(node, data);
 
-        if (!context.getSettings().getDisableForEachTransforms() && n instanceof ExpressionStatement) {
+        if (context.isSupported(LanguageFeature.FOR_EACH_LOOPS) &&
+            !context.getSettings().getDisableForEachTransforms() &&
+            n instanceof ExpressionStatement) {
+
             final AstNode result = transformForEach((ExpressionStatement) n);
 
             if (result != null) {
@@ -158,11 +165,8 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         }
 
         final Set<Statement> incoming = new LinkedHashSet<>();
-        final Set<ControlFlowEdge> visited = new HashSet<>();
-        final ArrayDeque<ControlFlowEdge> agenda = new ArrayDeque<>();
-
-        agenda.addAll(conditionNode.getIncoming());
-        visited.addAll(conditionNode.getIncoming());
+        final ArrayDeque<ControlFlowEdge> agenda = new ArrayDeque<>(conditionNode.getIncoming());
+        final Set<ControlFlowEdge> visited = new HashSet<>(conditionNode.getIncoming());
 
         while (!agenda.isEmpty()) {
             final ControlFlowEdge edge = agenda.removeFirst();
@@ -212,7 +216,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             return null;
         }
 
-        final Statement[] iteratorSites = incoming.toArray(new Statement[incoming.size()]);
+        final Statement[] iteratorSites = incoming.toArray(EMPTY_STATEMENTS);
         final List<Statement> iterators = new ArrayList<>();
         final Set<Statement> iteratorCopies = new HashSet<>();
 
@@ -424,7 +428,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         final BlockStatement tempOuter = new BlockStatement();
         final BlockStatement temp = new BlockStatement();
-        final Statement[] initializers = forLoop.getInitializers().toArray(new Statement[forLoop.getInitializers().size()]);
+        final Statement[] initializers = forLoop.getInitializers().toArray(EMPTY_STATEMENTS);
         final Set<String> variableNames = new HashSet<>();
 
         Statement firstInlinableInitializer = null;
@@ -900,7 +904,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         }
 
         if (body.getStatements().isEmpty()) {
-            forEach.addVariableModifier(Modifier.FINAL);
+            forEach.addVariableModifier(Flags.Flag.FINAL);
         }
         else {
             final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
@@ -911,7 +915,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
             if (!analysis.isPotentiallyAssigned()) {
-                forEach.addVariableModifier(Modifier.FINAL);
+                forEach.addVariableModifier(Flags.Flag.FINAL);
             }
         }
 
@@ -924,6 +928,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
     private final static ExpressionStatement GET_ITERATOR_PATTERN;
     private final static WhileStatement FOR_EACH_PATTERN;
+    private final static WhileStatement EMPTY_FOR_EACH_PATTERN;
 
     static {
         GET_ITERATOR_PATTERN = new ExpressionStatement(
@@ -1014,6 +1019,16 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         forEachPattern.setEmbeddedStatement(embeddedStatement);
 
         FOR_EACH_PATTERN = forEachPattern;
+
+        final WhileStatement emptyPattern = new WhileStatement(forEachPattern.getCondition().clone());
+
+        emptyPattern.setEmbeddedStatement(
+            new BlockStatement(
+                new ExpressionStatement(new IdentifierBackReference("iterator").toExpression().invoke("next"))
+            )
+        );
+
+        EMPTY_FOR_EACH_PATTERN = emptyPattern;
     }
 
     public final ForEachStatement transformForEach(final ExpressionStatement node) {
@@ -1029,9 +1044,9 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             next = next.getNextSibling();
         }
 
-        final Match m2 = FOR_EACH_PATTERN.match(next);
+        Match m2 = FOR_EACH_PATTERN.match(next);
 
-        if (!m2.success()) {
+        if (!m2.success() && !(m2 = EMPTY_FOR_EACH_PATTERN.match(next)).success()) {
             return null;
         }
 
@@ -1047,7 +1062,8 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             return null;
         }
 
-        final VariableDeclarationStatement iteratorDeclaration = findVariableDeclaration(loop, iterator.getIdentifier());
+        final String itName = iterator.getIdentifier();
+        final VariableDeclarationStatement iteratorDeclaration = findVariableDeclaration(loop, itName);
 
         if (iteratorDeclaration == null || !(iteratorDeclaration.getParent() instanceof BlockStatement)) {
             return null;
@@ -1058,26 +1074,34 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         // we won't make the mistake of moving a captured variable across the loop boundary.
         //
 
-        final VariableDeclarationStatement itemDeclaration = findVariableDeclaration(loop, item.getIdentifier());
+        @Nullable
+        final VariableDeclarationStatement itemDeclaration;
 
-        if (itemDeclaration == null || !(itemDeclaration.getParent() instanceof BlockStatement)) {
-            return null;
+        if (item == null) {
+            itemDeclaration = null;
         }
+        else {
+            itemDeclaration = findVariableDeclaration(loop, item.getIdentifier());
 
-        //
-        // Now verify that we can move the variable declaration in front of the loop.
-        //
+            if (itemDeclaration == null || !(itemDeclaration.getParent() instanceof BlockStatement)) {
+                return null;
+            }
 
-        Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, itemDeclaration, loop);
+            //
+            // Now verify that we can move the variable declaration in front of the loop.
+            //
 
-        //
-        // We ignore the return value because we don't care whether we can move the variable into the loop
-        // (that is possible only with non-captured variables).  We just care that we can move it in front
-        // of the loop.
-        //
+            final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, itemDeclaration, loop);
 
-        if (declarationPoint != loop) {
-            return null;
+            //
+            // We ignore the return value because we don't care whether we can move the variable into the loop
+            // (that is possible only with non-captured variables).  We just care that we can move it in front
+            // of the loop.
+            //
+
+            if (declarationPoint != loop) {
+                return null;
+            }
         }
 
         final BlockStatement loopBody = (BlockStatement) loop.getEmbeddedStatement();
@@ -1087,7 +1111,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, loopBody);
 
             analysis.setAnalyzedRange(secondStatement, loopBody);
-            analysis.analyze(iterator.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+            analysis.analyze(itName, DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
             if (!analysis.getUnassignedVariableUses().isEmpty()) {
                 //
@@ -1097,15 +1121,41 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             }
         }
 
+        final AstType itemType;
+        final String itemName;
+
+        if (item != null) {
+            itemType = itemDeclaration.getType();
+            itemName = item.getIdentifier();
+        }
+        else {
+            final MethodDeclaration md = node.getParent(MethodDeclaration.class);
+            final NameVariables nv = md != null ? md.getUserData(Keys.NAME_VARIABLES) : null;
+
+            if (nv == null) {
+                return null;
+            }
+
+            final TypeReference itemTypeReference;
+
+            itemType = firstOrDefault(iteratorDeclaration.getType().getChildrenByRole(Roles.TYPE_ARGUMENT));
+
+            itemName = itemType != null && (itemTypeReference = itemType.toTypeReference()) != null ? nv.getNameForType(itemTypeReference)
+                                                                                                    : null;
+        }
+
+        if (itemType == null || itemName == null) {
+            return null;
+        }
+
         final ForEachStatement forEach = new ForEachStatement(node.getOffset());
 
-        forEach.setVariableType(itemDeclaration.getType().clone());
-        forEach.setVariableName(item.getIdentifier());
+        forEach.setVariableType(itemType.clone());
+        forEach.setVariableName(itemName);
 
-        forEach.putUserData(
-            Keys.VARIABLE,
-            itemDeclaration.getVariables().firstOrNullObject().getUserData(Keys.VARIABLE)
-        );
+        if (itemDeclaration != null) {
+            forEach.putUserData(Keys.VARIABLE, itemDeclaration.getVariables().firstOrNullObject().getUserData(Keys.VARIABLE));
+        }
 
         final BlockStatement body = new BlockStatement();
 
@@ -1122,7 +1172,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         // move the iterator into the foreach loop.
         //
 
-        declarationPoint = canMoveVariableDeclarationIntoStatement(context, iteratorDeclaration, forEach);
+        final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, iteratorDeclaration, forEach);
 
         if (declarationPoint != forEach) {
             //
@@ -1156,9 +1206,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         bodyStatements.clear();
 
-        final AstNode itemParent = item.getParent();
+        final AstNode itemParent = item != null ? item.getParent() : null;
 
-        if (itemParent.getParent() instanceof AssignmentExpression &&
+        if (itemParent != null &&
+            itemParent.getParent() instanceof AssignmentExpression &&
             ((AssignmentExpression) itemParent.getParent()).getRight() == itemParent) {
 
             final Statement itemStatement = firstOrDefault(itemParent.getParent().getAncestors(Statement.class));
@@ -1186,10 +1237,16 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
 
             analysis.setAnalyzedRange(firstStatement, lastStatement);
-            analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
-            if (!analysis.isPotentiallyAssigned()) {
-                forEach.addVariableModifier(Modifier.FINAL);
+            if (item == null) {
+                forEach.addVariableModifier(Flags.Flag.FINAL);
+            }
+            else {
+                analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+                if (!analysis.isPotentiallyAssigned()) {
+                    forEach.addVariableModifier(Flags.Flag.FINAL);
+                }
             }
         }
 
@@ -1250,7 +1307,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             first(m.<Statement>get("breakStatement")).remove();
         }
         else {
-            condition = firstOrDefault(m.<Expression>get("breakCondition"));
+            condition = first(m.<Expression>get("breakCondition"));
             condition.remove();
 
             if (condition instanceof UnaryOperatorExpression &&
@@ -1267,12 +1324,14 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         doWhile.setCondition(condition);
 
         final BlockStatement block = (BlockStatement) loop.getEmbeddedStatement();
+        final Statement lastStatement = lastOrDefault(block.getStatements());
 
-        lastOrDefault(block.getStatements()).remove();
+        if (lastStatement != null) {
+            lastStatement.remove();
+        }
+
         block.remove();
-
         doWhile.setEmbeddedStatement(block);
-
         loop.replaceWith(doWhile);
 
         //
@@ -1284,6 +1343,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             if (statement instanceof VariableDeclarationStatement) {
                 final VariableDeclarationStatement declaration = (VariableDeclarationStatement) statement;
                 final VariableInitializer v = firstOrDefault(declaration.getVariables());
+
+                if (v == null) {
+                    continue;
+                }
 
                 for (final AstNode node : condition.getDescendantsAndSelf()) {
                     if (node instanceof IdentifierExpression &&
@@ -1437,7 +1500,6 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         final BlockStatement parent = (BlockStatement) declaration.getParent();
 
-        //noinspection AssertWithSideEffects
         assert CollectionUtilities.contains(targetStatement.getAncestors(), parent);
 
         //

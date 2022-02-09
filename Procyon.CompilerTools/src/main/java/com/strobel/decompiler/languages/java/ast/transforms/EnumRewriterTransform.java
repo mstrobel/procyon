@@ -23,13 +23,11 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.first;
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class EnumRewriterTransform implements IAstTransform {
     private final DecompilerContext _context;
@@ -40,7 +38,9 @@ public class EnumRewriterTransform implements IAstTransform {
 
     @Override
     public void run(final AstNode compilationUnit) {
-        compilationUnit.acceptVisitor(new Visitor(_context), null);
+        if (_context.isSupported(LanguageFeature.ENUM_CLASSES)) {
+            compilationUnit.acceptVisitor(new Visitor(_context), null);
+        }
     }
 
     private final static class Visitor extends ContextTrackingVisitor<Void> {
@@ -53,7 +53,7 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             final MemberReference oldValuesField = _valuesField;
             final Map<String, FieldDeclaration> oldValueFields = _valueFields;
             final Map<String, ObjectCreationExpression> oldValueInitializers = _valueInitializers;
@@ -66,7 +66,7 @@ public class EnumRewriterTransform implements IAstTransform {
             _valueInitializers = valueInitializers;
 
             try {
-                super.visitTypeDeclaration(typeDeclaration, p);
+                super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _valuesField = oldValuesField;
@@ -96,8 +96,8 @@ public class EnumRewriterTransform implements IAstTransform {
 
             pattern.setName("values");
             pattern.setReturnType(astBuilder.convertType(definition.makeArrayType()));
-            pattern.getModifiers().add(new JavaModifierToken(Modifier.PUBLIC));
-            pattern.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+            pattern.getModifiers().add(new JavaModifierToken(Flags.Flag.PUBLIC));
+            pattern.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
             pattern.setBody(
                 new BlockStatement(
                     new ReturnStatement(
@@ -138,7 +138,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     final Match match = pattern.match(d);
 
                     if (match.success()) {
-                        final MemberReferenceExpression reference = firstOrDefault(match.<MemberReferenceExpression>get("valuesField"));
+                        final MemberReferenceExpression reference = first(match.<MemberReferenceExpression>get("valuesField"));
                         return reference.getUserData(Keys.MEMBER_REFERENCE);
                     }
                 }
@@ -274,7 +274,7 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final TypeDefinition currentType = context.getCurrentType();
 
             if (currentType != null && currentType.isEnum() && !context.getSettings().getShowSyntheticMembers()) {
@@ -300,7 +300,7 @@ public class EnumRewriterTransform implements IAstTransform {
 
                                 final ParameterDefinition pd = method.getParameters().get(0);
 
-                                if ("java/lang/String".equals(pd.getParameterType().getInternalName())) {
+                                if (CommonTypeReferences.String.isEquivalentTo(pd.getParameterType())) {
                                     node.remove();
                                 }
                             }
@@ -310,7 +310,7 @@ public class EnumRewriterTransform implements IAstTransform {
                 }
             }
 
-            return super.visitMethodDeclaration(node, p);
+            return super.visitMethodDeclarationOverride(node, p);
         }
 
         private void rewrite(

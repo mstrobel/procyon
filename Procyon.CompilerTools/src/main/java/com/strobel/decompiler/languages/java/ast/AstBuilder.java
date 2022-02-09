@@ -19,8 +19,10 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.assembler.ir.attributes.AnnotationDefaultAttribute;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.UnionType;
 import com.strobel.assembler.metadata.annotations.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Closeables;
@@ -39,10 +41,11 @@ import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeline;
 import com.strobel.util.ContractUtils;
 
-import javax.lang.model.element.Modifier;
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.*;
+
+import static com.strobel.core.CollectionUtilities.first;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
@@ -122,7 +125,16 @@ public final class AstBuilder {
     }
 
     public final void addType(final TypeDefinition type) {
-        final TypeDeclaration astType = createType(type);
+        if (type.isModule()) {
+            final ModuleAttribute attribute = SourceAttribute.find(AttributeNames.Module, type.getSourceAttributes());
+
+            if (attribute != null) {
+                _compileUnit.addChild(createModuleNoCache(type, attribute), CompilationUnit.MODULE_ROLE);
+                return;
+            }
+        }
+
+        final EntityDeclaration astType = createType(type);
         final String packageName = type.getPackageName();
 
         if (_compileUnit.getPackage().isNull() && !StringUtilities.isNullOrWhitespace(packageName)) {
@@ -148,6 +160,28 @@ public final class AstBuilder {
         }
 
         return createTypeNoCache(type);
+    }
+
+    protected final ModuleDeclaration createModuleNoCache(final TypeDefinition type, final ModuleAttribute attribute) {
+        VerifyArgument.notNull(type, "type");
+
+        final TypeDefinition oldCurrentType = _context.getCurrentType();
+
+        _context.setCurrentType(type);
+
+        try {
+            final ModuleDeclaration declaration = new ModuleDeclaration();
+
+            declaration.setName(attribute.getModuleName());
+            declaration.putUserData(Keys.TYPE_DEFINITION, type);
+            declaration.putUserData(Keys.MODULE_REFERENCE, new ModuleReference(attribute.getModuleName(), attribute.getVersion()));
+
+            return declaration;
+
+        }
+        finally {
+            _context.setCurrentType(oldCurrentType);
+        }
     }
 
     protected final TypeDeclaration createTypeNoCache(final TypeDefinition type) {
@@ -190,7 +224,7 @@ public final class AstBuilder {
             declarations.add(d);
 
             if (p.isFinal()) {
-                EntityDeclaration.addModifier(d, Modifier.FINAL);
+                EntityDeclaration.addModifier(d, Flags.Flag.FINAL);
             }
         }
 
@@ -200,6 +234,47 @@ public final class AstBuilder {
     final AstType convertType(final TypeReference type, final MutableInteger typeIndex, final ConvertTypeOptions options) {
         if (type == null) {
             return AstType.NULL;
+        }
+
+        if (type instanceof ICompoundType) {
+            final ICompoundType cType = (ICompoundType) type;
+
+            if (options.getIncludeIntersectionTypes()) {
+                final List<TypeReference> ifReferences = cType.getInterfaces();
+
+                final AstType baseType = cType.getBaseType() == BuiltinTypes.Null ? AstType.NULL
+                                                                                  : convertType(cType.getBaseType(), typeIndex, options);
+                final AstType[] ifTypes = new AstType[ifReferences.size()];
+
+                for (int i = 0; i < ifReferences.size(); i++) {
+                    ifTypes[i] = convertType(ifReferences.get(i), typeIndex, options);
+                }
+
+                final IntersectionType isType = new IntersectionType(baseType, ifTypes);
+                isType.putUserData(Keys.TYPE_REFERENCE, type);
+                return isType;
+            }
+
+            return convertType(cType.getBaseType(), typeIndex, options).makeArrayType();
+        }
+
+        if (type instanceof UnionType) {
+            final UnionType uType = (UnionType) type;
+
+            if (options.getIncludeUnionTypes()) {
+                final List<TypeReference> alternatives = uType.getAlternatives();
+                final AstType[] astAlternatives = new AstType[alternatives.size()];
+
+                for (int i = 0; i < alternatives.size(); i++) {
+                    astAlternatives[i] = convertType(alternatives.get(i), typeIndex, options);
+                }
+
+                final com.strobel.decompiler.languages.java.ast.UnionType isType = new com.strobel.decompiler.languages.java.ast.UnionType(astAlternatives);
+                isType.putUserData(Keys.TYPE_REFERENCE, type);
+                return isType;
+            }
+
+            return convertType(first(uType.getAlternatives()), typeIndex, options).makeArrayType();
         }
 
         if (type.isArray()) {
@@ -320,17 +395,17 @@ public final class AstBuilder {
         else {
             final TypeReference typeToImport;
 
-            String unqualifiedName;
+            StringBuilder unqualifiedName;
 
             if (packageDeclaration != null &&
                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
 
-                unqualifiedName = nameSource.getSimpleName();
-                name = unqualifiedName;
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
+                name = unqualifiedName.toString();
             }
 
             if (nameSource.isNested()) {
-                unqualifiedName = nameSource.getSimpleName();
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
 
                 TypeReference current = nameSource;
 
@@ -341,15 +416,15 @@ public final class AstBuilder {
                         break;
                     }
 
-                    unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
+                    unqualifiedName.insert(0, current.getSimpleName() + ".");
                 }
 
-                name = unqualifiedName;
+                name = unqualifiedName.toString();
                 typeToImport = current;
             }
             else {
                 typeToImport = nameSource;
-                unqualifiedName = nameSource.getSimpleName();
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
             }
 
             if (options.getAddImports() && !areImportsSuppressed() && !_typeDeclarations.containsKey(typeToImport.getInternalName())) {
@@ -377,7 +452,7 @@ public final class AstBuilder {
 
                 if (name == null) {
                     if (importedName.equals(typeToImport.getFullName())) {
-                        name = unqualifiedName;
+                        name = unqualifiedName.toString();
                     }
                     else {
                         final String packageName = nameSource.getPackageName();
@@ -389,6 +464,10 @@ public final class AstBuilder {
             else if (name != null) {
                 name = nameSource.getSimpleName();
             }
+        }
+
+        if (name == null) {
+            name = nameSource.getSimpleName();
         }
 
         final SimpleType astType = new SimpleType(name);
@@ -464,16 +543,19 @@ public final class AstBuilder {
 
         long flags = type.getFlags();
 
-        if (type.isInterface() || type.isEnum()) {
+        if (type.isInterface()) {
+            flags &= Flags.AccessFlags | Flags.ExtendedInterfaceFlags;
+        }
+        else if (type.isEnum()) {
             flags &= Flags.AccessFlags;
         }
         else {
-            flags &= (Flags.AccessFlags | Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+            flags &= (Flags.AccessFlags | Flags.ExtendedClassFlags | Flags.STATIC | Flags.FINAL);
         }
 
         EntityDeclaration.setModifiers(
             astType,
-            Flags.asModifierSet(scrubAccessModifiers(flags))
+            Flags.asFlagSet(scrubAccessModifiers(flags))
         );
 
         astType.setName(type.getSimpleName());
@@ -506,10 +588,14 @@ public final class AstBuilder {
         }
 
         for (final TypeReference interfaceType : type.getExplicitInterfaces()) {
-            if (type.isAnnotation() && "java/lang/annotations/Annotation".equals(interfaceType.getInternalName())) {
+            if (type.isAnnotation() && CommonTypeReferences.Annotation.isEquivalentTo(interfaceType)) {
                 continue;
             }
             astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);
+        }
+
+        for (final TypeReference permittedSubclass : type.getPermittedSubclasses()) {
+            astType.addChild(convertType(permittedSubclass), Roles.PERMITTED_SUBCLASSES);
         }
 
         for (final CustomAnnotation annotation : type.getAnnotations()) {
@@ -625,7 +711,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astField,
-            Flags.asModifierSet(scrubAccessModifiers(field.getFlags() & Flags.VarFlags))
+            Flags.asFlagSet(scrubAccessModifiers(field.getFlags() & Flags.VarFlags))
         );
 
         if (field.hasConstantValue()) {
@@ -644,16 +730,16 @@ public final class AstBuilder {
     public final MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
-        final Set<Modifier> modifiers;
+        final Set<Flags.Flag> modifiers;
 
         if (method.isTypeInitializer()) {
-            modifiers = Collections.singleton(Modifier.STATIC);
+            modifiers = Collections.singleton(Flags.Flag.STATIC);
         }
         else if (method.getDeclaringType().isInterface()) {
             modifiers = Collections.emptySet();
         }
         else {
-            modifiers = Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.MethodFlags));
+            modifiers = Flags.asFlagSet(scrubAccessModifiers(method.getFlags() & Flags.MethodFlags));
         }
 
         EntityDeclaration.setModifiers(astMethod, modifiers);
@@ -704,7 +790,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astMethod,
-            Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags))
+            Flags.asFlagSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags))
         );
 
         astMethod.setName(method.getDeclaringType().getName());

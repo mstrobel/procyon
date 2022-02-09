@@ -34,6 +34,8 @@ public class JavaFormattingOptions {
     public BraceStyle InterfaceBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle AnnotationBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle EnumBraceStyle = BraceStyle.DoNotChange;
+    public BraceStyle ModuleBraceStyle = BraceStyle.DoNotChange;
+    public BraceStyle RecordBraceStyle = BraceStyle.EndOfLine;
     public BraceStyle MethodBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle InitializerBlockBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle ConstructorBraceStyle = BraceStyle.DoNotChange;
@@ -72,6 +74,7 @@ public class JavaFormattingOptions {
     public boolean SpaceBeforeConstructorDeclarationParameterComma;
     public boolean SpaceAfterConstructorDeclarationParameterComma;
     public boolean SpaceWithinConstructorDeclarationParentheses;
+    public boolean SpaceWithinRecordDeclarationParentheses;
     public boolean SpaceWithinEnumDeclarationParentheses;
     public boolean SpaceBeforeIndexerDeclarationBracket;
     public boolean SpaceWithinIndexerDeclarationBracket;
@@ -251,6 +254,8 @@ public class JavaFormattingOptions {
         options.BlankLinesBetweenFields = 0;
         options.BlankLinesBetweenEventFields = 0;
         options.BlankLinesBetweenMembers = 1;
+
+        options.SpaceWithinRecordDeclarationParentheses = false;
 
         options.KeepCommentsAtFirstColumn = true;
 

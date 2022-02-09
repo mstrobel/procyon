@@ -19,6 +19,8 @@ package com.strobel.expressions;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 
+import java.util.Objects;
+
 /**
  * @author Mike Strobel
  */
@@ -26,7 +28,6 @@ public class ParameterExpressionList extends ExpressionList<ParameterExpression>
 
     private final static ParameterExpressionList EMPTY = new ParameterExpressionList();
 
-    @SuppressWarnings("unchecked")
     public static ParameterExpressionList empty() {
         return EMPTY;
     }
@@ -35,6 +36,14 @@ public class ParameterExpressionList extends ExpressionList<ParameterExpression>
         super(expressions);
     }
 
+    public ParameterExpression get(final String name) {
+        for (final ParameterExpression expression : this) {
+            if (Objects.equals(name, expression.getName())) {
+                return expression;
+            }
+        }
+        throw new IllegalArgumentException("No parameter named '" + name + "'.");
+    }
     @Override
     protected ParameterExpressionList newInstance(final ParameterExpression[] expressions) {
         return new ParameterExpressionList(expressions);

@@ -7,8 +7,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
-
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class RewriteLegacyClassConstantsTransform implements IAstTransform {
@@ -100,7 +98,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             if (_currentType != null) {
                 return null;
             }
@@ -108,7 +106,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             _currentType = typeDeclaration;
 
             try {
-                return super.visitTypeDeclaration(typeDeclaration, p);
+                return super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _currentType = null;
@@ -141,7 +139,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final MethodDefinition m = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (isClassMethodCandidate(m) && PATTERN.matches(node)) {
@@ -180,14 +178,14 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             final MethodDeclaration method = new MethodDeclaration();
             final MetadataParser parser = new MetadataParser();
 
-            final TypeReference classNotFoundException = parser.parseTypeDescriptor("java/lang/ClassNotFoundException");
-            final TypeReference noClassDefFoundError = parser.parseTypeDescriptor("java/lang/NoClassDefFoundError");
+            final TypeReference classNotFoundException = CommonTypeReferences.ClassNotFoundException;
+            final TypeReference noClassDefFoundError = CommonTypeReferences.NoClassDefFoundError;
 
             final AstType classType = new AstTypeMatch(CommonTypeReferences.Class).toType();
             final AstType throwable = new AstTypeMatch(CommonTypeReferences.Throwable).toType();
 
             method.setName(Pattern.ANY_STRING);
-            method.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+            method.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
             method.setReturnType(classType);
 
             method.getParameters().add(
@@ -210,14 +208,14 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
                     new AstTypeMatch(noClassDefFoundError)
                         .toType()
                         .makeNew()
-                        .invoke("initCause", new IdentifierExpressionBackReference("catch").toExpression().cast(throwable))
+                        .invoke("initCause", new IdentifierBackReference("catch").toExpression().cast(throwable))
                         .makeThrow()
                 ),
                 // Java 1.2 Pattern: throw new NoClassDefFoundError(ex.getMessage());
                 new BlockStatement(
                     new AstTypeMatch(noClassDefFoundError)
                         .toType()
-                        .makeNew(new IdentifierExpressionBackReference("catch").toExpression().invoke("getMessage"))
+                        .makeNew(new IdentifierBackReference("catch").toExpression().invoke("getMessage"))
                         .makeThrow()
                 )
             ).toBlockStatement();

@@ -17,23 +17,51 @@
 package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.core.StringUtilities;
+import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class BreakStatement extends Statement {
     public final static TokenRole BREAK_KEYWORD_ROLE = new TokenRole("break", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole YIELD_KEYWORD_ROLE = new TokenRole("yield", TokenRole.FLAG_KEYWORD);
 
-    public BreakStatement( int offset) {
-        super( offset);
+    public BreakStatement(final int offset) {
+        super(offset);
     }
 
-    public BreakStatement( int offset, final String label) {
-        super( offset);
+    public BreakStatement(final int offset, final String label) {
+        super(offset);
         setLabel(label);
+        setChildByRole(BREAK_KEYWORD_ROLE, new JavaTokenNode(TextLocation.EMPTY));
     }
 
     public final JavaTokenNode getBreakToken() {
         return getChildByRole(BREAK_KEYWORD_ROLE);
+    }
+
+    public final JavaTokenNode getYieldToken() {
+        return getChildByRole(YIELD_KEYWORD_ROLE);
+    }
+
+    public final Expression getValue() {
+        return getChildByRole(Roles.EXPRESSION);
+    }
+
+    public final void setValue(final Expression value) {
+        setChildByRole(Roles.EXPRESSION, value);
+    }
+
+    public final void setYield(final boolean isYield) {
+        if (isYield) {
+            final JavaTokenNode old = getChildByRole(BREAK_KEYWORD_ROLE);
+            old.remove();
+            setChildByRole(YIELD_KEYWORD_ROLE, old.isNull() ? new JavaTokenNode(TextLocation.EMPTY) : old);
+        }
+        else {
+            final JavaTokenNode old = getChildByRole(YIELD_KEYWORD_ROLE);
+            old.remove();
+            setChildByRole(BREAK_KEYWORD_ROLE, old.isNull() ? new JavaTokenNode(TextLocation.EMPTY) : old);
+        }
     }
 
     public final JavaTokenNode getSemicolonToken() {

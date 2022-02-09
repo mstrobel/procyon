@@ -27,6 +27,7 @@ import java.util.Stack;
 
 public class CompilationUnit extends AstNode {
     public final static Role<TypeDeclaration> TYPE_ROLE = Roles.TOP_LEVEL_TYPE_ROLE;
+    public final static Role<ModuleDeclaration> MODULE_ROLE = Roles.MODULE;
     public final static Role<ImportDeclaration> IMPORT_ROLE = new Role<>("Import", ImportDeclaration.class, ImportDeclaration.NULL);
 
     private AstNode _topExpression;

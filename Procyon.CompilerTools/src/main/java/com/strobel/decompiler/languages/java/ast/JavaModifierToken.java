@@ -16,43 +16,43 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-import javax.lang.model.element.Modifier;
 import java.util.List;
 
 public class JavaModifierToken extends JavaTokenNode {
-    private final static List<Modifier> ALL_MODIFIERS = ArrayUtilities.asUnmodifiableList(Modifier.values());
+    private final static List<Flags.Flag> ALL_MODIFIERS = ArrayUtilities.asUnmodifiableList(Flags.Flag.values());
 
-    public static List<Modifier> allModifiers() {
+    public static List<Flags.Flag> allModifiers() {
         return ALL_MODIFIERS;
     }
 
-    private Modifier _modifier;
+    private Flags.Flag _modifier;
 
-    public JavaModifierToken(final Modifier modifier) {
+    public JavaModifierToken(final Flags.Flag modifier) {
         this(TextLocation.EMPTY, modifier);
     }
 
-    public JavaModifierToken(final TextLocation startLocation, final Modifier modifier) {
+    public JavaModifierToken(final TextLocation startLocation, final Flags.Flag modifier) {
         super(startLocation);
         _modifier = modifier;
     }
 
-    public final Modifier getModifier() {
+    public final Flags.Flag getModifier() {
         return _modifier;
     }
 
-    public final void setModifier(final Modifier modifier) {
+    public final void setModifier(final Flags.Flag modifier) {
         verifyNotFrozen();
         _modifier = modifier;
     }
     
-    public static String getModifierName(final Modifier modifier) {
+    public static String getModifierName(final Flags.Flag modifier) {
         return String.valueOf(modifier);
     }
 

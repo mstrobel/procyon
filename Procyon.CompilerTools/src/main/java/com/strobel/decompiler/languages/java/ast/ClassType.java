@@ -21,5 +21,6 @@ public enum ClassType
     CLASS,
     INTERFACE,
     ANNOTATION,
-    ENUM
+    ENUM,
+    RECORD
 }

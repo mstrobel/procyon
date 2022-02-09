@@ -160,6 +160,16 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
+    public S visitSwitchExpression(final SwitchExpression node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitSwitchExpressionArm(final SwitchExpressionArm node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
     public S visitCaseLabel(final CaseLabel node, final T data) {
         return visitChildren(node, data);
     }
@@ -210,6 +220,16 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
+    public S visitIntersectionType(final IntersectionType node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitUnionType(final UnionType node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
     public S visitMethodDeclaration(final MethodDeclaration node, final T data) {
         return visitChildren(node, data);
     }
@@ -241,6 +261,11 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
 
     @Override
     public S visitTypeDeclaration(final TypeDeclaration node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitModuleDeclaration(final ModuleDeclaration node, final T data) {
         return visitChildren(node, data);
     }
 
@@ -392,5 +417,15 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     @Override
     public S visitTryCatchStatement(final TryCatchStatement node, final T data) {
         return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitInlinedBytecode(final InlinedBytecodeExpression node, final T data) {
+        return null;
+    }
+
+    @Override
+    public S visitBytecodeConstant(final BytecodeConstant node, final T data) {
+        return null;
     }
 }

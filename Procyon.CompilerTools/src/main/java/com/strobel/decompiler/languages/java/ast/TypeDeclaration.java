@@ -55,6 +55,14 @@ public class TypeDeclaration extends EntityDeclaration {
         return getChildrenByRole(Roles.IMPLEMENTED_INTERFACE);
     }
 
+    public final boolean isSealed() {
+        return !getPermittedSubclasses().isEmpty();
+    }
+
+    public final AstNodeCollection<AstType> getPermittedSubclasses() {
+        return getChildrenByRole(Roles.PERMITTED_SUBCLASSES);
+    }
+
     public final AstType getBaseType() {
         return getChildByRole(Roles.BASE_TYPE);
     }

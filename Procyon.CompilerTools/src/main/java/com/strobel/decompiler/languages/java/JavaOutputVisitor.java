@@ -18,26 +18,26 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
+import com.strobel.assembler.ir.attributes.PermittedSubclassesAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.Flags;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.ast.UnionType;
+import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
-import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,6 +50,8 @@ import static java.lang.String.format;
 
 @SuppressWarnings("ConstantConditions")
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
+    private final static int MAX_SWITCH_EXPRESSION_ARM_VALUES_LENGTH = 40;
+
     final TextOutputFormatter formatter;
     final DecompilerSettings settings;
     final JavaFormattingOptions policy;
@@ -57,6 +59,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     final Stack<AstNode> positionStack = new Stack<>();
     final ITextOutput output;
 
+    private TypeDefinition currentType;
     private LastWritten lastWritten;
 
     public JavaOutputVisitor(final ITextOutput output, final DecompilerSettings settings) {
@@ -201,7 +204,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
 
         space(
-            (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
+            (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle || style == BraceStyle.DoNotChange) &&
             lastWritten != LastWritten.Whitespace && lastWritten != LastWritten.LeftParenthesis
         );
 
@@ -216,11 +219,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         formatter.closeBrace(style);
         lastWritten = LastWritten.Other;
     }
-    
+
     void writeIdentifier(final Identifier identifier, final String text) {
         // for now, set the start location to *here*
         identifier.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
-        boolean wroteSpace = writeIdentifier(text);
+
+        final boolean wroteSpace = writeIdentifier(text);
+
         if (wroteSpace) {
             // shift the start position over by one
             identifier.setStartLocation(new TextLocation(identifier.getStartLocation().line(), identifier.getStartLocation().column() + 1));
@@ -235,7 +240,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(identifierRole != null ? identifierRole : Roles.IDENTIFIER);
 
         boolean wroteSpace = false;
-        
+
         if (isKeyword(identifier, containerStack.peek())) {
             if (lastWritten == LastWritten.KeywordOrIdentifier) {
                 space();
@@ -258,7 +263,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         lastWritten = LastWritten.KeywordOrIdentifier;
-        
+
         return wroteSpace;
     }
 
@@ -266,7 +271,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeToken(tokenRole.getToken(), tokenRole);
     }
 
-    void writeToken(final String token, final Role role) {
+    void writeToken(final String token, final Role<?> role) {
         writeSpecialsUpToRole(role);
 
         if (lastWritten == LastWritten.Plus && token.charAt(0) == '+' ||
@@ -356,7 +361,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     void semicolon() {
-        final Role role = containerStack.peek().getRole();
+        final Role<?> role = containerStack.peek().getRole();
         if (!(role == ForStatement.INITIALIZER_ROLE || role == ForStatement.ITERATOR_ROLE)) {
             writeToken(Roles.SEMICOLON);
             newLine();
@@ -414,18 +419,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
         rightParenthesis();
     }
-
-/*
-    private void writeCommaSeparatedListInBrackets(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
-        writeToken(Roles.LEFT_BRACKET);
-        if (any(list)) {
-            space(spaceWithin);
-            writeCommaSeparatedList(list);
-            space(spaceWithin);
-        }
-        writeToken(Roles.RIGHT_BRACKET);
-    }
-*/
 
     // </editor-fold>
 
@@ -534,14 +527,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final boolean addBraces;
         final AstNodeCollection<Statement> statements = body.getStatements();
 
-        switch (braceEnforcement) {
-            case RemoveBraces:
-                addBraces = false;
-                break;
-            default:
-                addBraces = true;
-                break;
-        }
+        addBraces = braceEnforcement != BraceEnforcement.RemoveBraces;
 
         if (addBraces) {
             openBrace(style);
@@ -611,7 +597,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeKeyword(token, null);
     }
 
-    void writeKeyword(final String token, final Role tokenRole) {
+    void writeKeyword(final String token, final Role<?> tokenRole) {
         if (tokenRole != null) {
             writeSpecialsUpToRole(tokenRole);
         }
@@ -632,8 +618,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         if (childNode instanceof AstNode) {
             ((AstNode) childNode).acceptVisitor(this, null);
         }
-        else if (childNode instanceof IdentifierExpressionBackReference) {
-            visitIdentifierExpressionBackReference((IdentifierExpressionBackReference) childNode);
+        else if (childNode instanceof IdentifierBackReference) {
+            visitIdentifierExpressionBackReference((IdentifierBackReference) childNode);
         }
         else if (childNode instanceof Choice) {
             visitChoice((Choice) childNode);
@@ -664,7 +650,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
         else if (childNode instanceof AstTypeMatch) {
             visitAstTypeMatch((AstTypeMatch) childNode);
-
         }
         else {
             writePrimitiveValue(childNode);
@@ -685,7 +670,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
     }
 
-    private void visitIdentifierExpressionBackReference(final IdentifierExpressionBackReference node) {
+    private void visitIdentifierExpressionBackReference(final IdentifierBackReference node) {
         writeKeyword("identifierBackReference");
         leftParenthesis();
         writeIdentifier(node.getReferencedGroupName());
@@ -831,7 +816,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             endNode(modifierToken);
         }
         else {
-            throw ContractUtils.unsupported();
+            startNode(node);
+            writeKeyword(node.getText());
+            endNode(node);
         }
         return null;
     }
@@ -871,6 +858,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitThisReferenceExpression(final ThisReferenceExpression node, final Void ignored) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
@@ -888,6 +876,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void ignored) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
@@ -953,14 +942,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         final boolean addBraces;
 
-        switch (braceEnforcement) {
-            case RemoveBraces:
-                addBraces = false;
-                break;
-            default:
-                addBraces = true;
-                break;
-        }
+        addBraces = braceEnforcement != BraceEnforcement.RemoveBraces;
 
         if (addBraces) {
             openBrace(style);
@@ -997,12 +979,32 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitBreakStatement(final BreakStatement node, final Void ignored) {
         startNode(node);
-        writeKeyword("break");
 
-        final String label = node.getLabel();
+        JavaTokenNode yt = node.getYieldToken();
 
-        if (!StringUtilities.isNullOrEmpty(label)) {
-            writeIdentifier(label, Roles.LABEL);
+        if (yt.isNull()) {
+            yt = node.getBreakToken();
+        }
+
+        if (yt.isNull()) {
+            writeKeyword("break");
+        }
+        else {
+            yt.acceptVisitor(this, ignored);
+        }
+
+        final Expression value = node.getValue();
+
+        if (value.isNull()) {
+            final String label = node.getLabel();
+
+            if (!StringUtilities.isNullOrEmpty(label)) {
+                writeIdentifier(label, Roles.LABEL);
+            }
+        }
+        else {
+            space();
+            value.acceptVisitor(this, ignored);
         }
 
         semicolon();
@@ -1188,8 +1190,109 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             first = false;
         }
 
-        final boolean isBlock = node.getStatements().size() == 1 &&
-                                firstOrDefault(node.getStatements()) instanceof BlockStatement;
+        writeSwitchSectionStatements(node.getStatements(), false);
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchExpression(final SwitchExpression node, final Void ignored) {
+        startNode(node);
+        writeKeyword(SwitchStatement.SWITCH_KEYWORD_ROLE);
+        space(policy.SpaceBeforeSwitchParentheses);
+        leftParenthesis();
+        space(policy.SpacesWithinSwitchParentheses);
+        node.getGoverningExpression().acceptVisitor(this, ignored);
+        space(policy.SpacesWithinSwitchParentheses);
+        rightParenthesis();
+        openBrace(policy.StatementBraceStyle);
+
+        if (policy.IndentSwitchBody) {
+            formatter.indent();
+        }
+
+        for (final SwitchExpressionArm section : node.getArms()) {
+            section.acceptVisitor(this, ignored);
+        }
+
+        if (policy.IndentSwitchBody) {
+            formatter.unindent();
+        }
+
+        closeBrace(policy.StatementBraceStyle);
+        endNode(node);
+
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchExpressionArm(final SwitchExpressionArm node, final Void ignored) {
+        startNode(node);
+
+        final AstNodeCollection<Expression> values = node.getValues();
+        final boolean isDefault = values.isEmpty();
+
+        writeKeyword(isDefault ? SwitchExpressionArm.DEFAULT_KEYWORD_ROLE
+                               : SwitchExpressionArm.CASE_KEYWORD_ROLE);
+
+        if (!isDefault) {
+            final int startColumn = output.getIndentToken().length() * output.indentDepth();
+            final int endColumn = output.getColumn();
+
+            String padding = null;
+            boolean comma = false;
+
+            for (final Expression value : values) {
+                if (comma) {
+                    comma(value);
+                }
+
+                space();
+
+                if (output.getColumn() - endColumn >= MAX_SWITCH_EXPRESSION_ARM_VALUES_LENGTH) {
+                    newLine();
+                    if (padding == null) {
+                        padding = StringUtilities.repeat(' ', endColumn - startColumn);
+                    }
+                    output.write(padding);
+                }
+
+                value.acceptVisitor(this, ignored);
+                comma = true;
+            }
+        }
+
+        if (node.isClassicStyle()) {
+            writeToken(SwitchExpressionArm.COLON_ROLE);
+        }
+        else {
+            space();
+            writeToken(SwitchExpressionArm.ARROW_ROLE);
+        }
+
+        space();
+
+        final Statement first;
+        final AstNodeCollection<Statement> statements = node.getStatements();
+
+        if (statements.size() == 1 && !((first = statements.firstOrNullObject()) instanceof BlockStatement)) {
+            first.acceptVisitor(this, ignored);
+        }
+        else {
+            writeSwitchSectionStatements(statements, true);
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    private void writeSwitchSectionStatements(final AstNodeCollection<Statement> statements, final boolean forceBraces) {
+        final boolean isBlock = statements.size() == 1 &&
+                                firstOrDefault(statements) instanceof BlockStatement;
+
+        if (forceBraces && !isBlock) {
+            openBrace(BraceStyle.EndOfLine);
+        }
 
         if (policy.IndentCaseBody && !isBlock) {
             formatter.indent();
@@ -1199,16 +1302,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             newLine();
         }
 
-        for (final Statement statement : node.getStatements()) {
-            statement.acceptVisitor(this, ignored);
+        for (final Statement statement : statements) {
+            statement.acceptVisitor(this, null);
         }
 
         if (policy.IndentCaseBody && !isBlock) {
             formatter.unindent();
         }
 
-        endNode(node);
-        return null;
+        if (forceBraces && !isBlock) {
+            closeBrace(BraceStyle.EndOfLine);
+        }
     }
 
     @Override
@@ -1253,6 +1357,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             space(policy.SpaceBeforeCatchParentheses);
             leftParenthesis();
             space(policy.SpacesWithinCatchParentheses);
+
+            writeModifiers(node.getVariableModifiers());
             writePipeSeparatedList(node.getExceptionTypes());
 
             if (!StringUtilities.isNullOrEmpty(node.getVariableName())) {
@@ -1470,6 +1576,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final TypeDeclaration type = parent instanceof TypeDeclaration ? (TypeDeclaration) parent : null;
 
         final MethodDefinition constructor = node.getUserData(Keys.METHOD_DEFINITION);
+        final TypeDefinition declaringType = constructor.getDeclaringType();
 
         final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
             AttributeNames.LineNumberTable,
@@ -1485,7 +1592,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeIdentifier(node.getNameToken(), type != null ? type.getName() : node.getName());
         endNode(node.getNameToken());
         space(policy.SpaceBeforeConstructorDeclarationParentheses);
-        writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+
+        if (constructor == null || declaringType == null || !declaringType.isRecord() || !node.getParameters().isEmpty()) {
+            writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+        }
 
         final AstNodeCollection<AstType> thrownTypes = node.getThrownTypes();
 
@@ -1572,105 +1682,183 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitInlinedBytecode(final InlinedBytecodeExpression node, final Void data) {
+        output.writeReference(node.getCode().getName(), node.getCode());
+
+        final AstNodeCollection<Expression> operands = node.getOperands();
+
+        if (!operands.isEmpty()) {
+            writeCommaSeparatedListInParenthesis(operands, false);
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitBytecodeConstant(final BytecodeConstant node, final Void data) {
+        final Object constantValue = node.getConstantValue();
+
+        if (constantValue instanceof AstNode) {
+            ((AstNode) constantValue).acceptVisitor(this, data);
+        }
+        else {
+            DecompilerHelpers.writeOperand(output, constantValue);
+        }
+
+        return null;
+    }
+
+    @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void ignored) {
-        startNode(node);
-
         final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+        final TypeDefinition previousType = this.currentType;
 
-        final boolean isTrulyAnonymous = type != null &&
-                                         type.isAnonymous() &&
-                                         node.getParent() instanceof AnonymousObjectCreationExpression;
+        this.currentType = type;
 
-        if (!isTrulyAnonymous) {
-            writeAnnotations(node.getAnnotations(), true);
-            writeModifiers(node.getModifiers());
+        try {
+            startNode(node);
 
-            switch (node.getClassType()) {
-                case ENUM:
-                    writeKeyword(Roles.ENUM_KEYWORD);
-                    break;
-                case INTERFACE:
-                    writeKeyword(Roles.INTERFACE_KEYWORD);
-                    break;
-                case ANNOTATION:
-                    writeKeyword(Roles.ANNOTATION_KEYWORD);
-                    break;
-                default:
-                    writeKeyword(Roles.CLASS_KEYWORD);
-                    break;
-            }
+            final boolean isTrulyAnonymous = type != null &&
+                                             type.isAnonymous() &&
+                                             node.getParent() instanceof AnonymousObjectCreationExpression;
 
-            node.getNameToken().acceptVisitor(this, ignored);
-            writeTypeParameters(node.getTypeParameters());
+            final ClassType classType = node.getClassType();
 
-            if (!node.getBaseType().isNull()) {
-                space();
-                writeKeyword(Roles.EXTENDS_KEYWORD);
-                space();
-                node.getBaseType().acceptVisitor(this, ignored);
-            }
+            if (!isTrulyAnonymous) {
+                writeAnnotations(node.getAnnotations(), true);
+                writeModifiers(node.getModifiers());
 
-            if (any(node.getInterfaces())) {
-                final Collection<AstType> interfaceTypes;
-
-                if (node.getClassType() == ClassType.ANNOTATION) {
-                    interfaceTypes = new ArrayList<>();
-
-                    for (final AstType t : node.getInterfaces()) {
-                        final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
-
-                        if (r != null && "java/lang/annotation/Annotation".equals(r.getInternalName())) {
-                            continue;
-                        }
-
-                        interfaceTypes.add(t);
-                    }
-                }
-                else {
-                    interfaceTypes = node.getInterfaces();
+                switch (classType) {
+                    case ENUM:
+                        writeKeyword(Roles.ENUM_KEYWORD);
+                        break;
+                    case RECORD:
+                        writeKeyword(Roles.RECORD_KEYWORD);
+                        break;
+                    case INTERFACE:
+                        writeKeyword(Roles.INTERFACE_KEYWORD);
+                        break;
+                    case ANNOTATION:
+                        writeKeyword(Roles.ANNOTATION_KEYWORD);
+                        break;
+                    default:
+                        writeKeyword(Roles.CLASS_KEYWORD);
+                        break;
                 }
 
-                if (any(interfaceTypes)) {
+                node.getNameToken().acceptVisitor(this, ignored);
+                writeTypeParameters(node.getTypeParameters());
+
+                if (classType == ClassType.RECORD) {
+                    writeCommaSeparatedListInParenthesis(node.getChildrenByRole(EntityDeclaration.RECORD_COMPONENT),
+                                                         policy.SpaceWithinRecordDeclarationParentheses);
+                }
+
+                if (!node.getBaseType().isNull()) {
                     space();
+                    writeKeyword(Roles.EXTENDS_KEYWORD);
+                    space();
+                    node.getBaseType().acceptVisitor(this, ignored);
+                }
 
-                    if (node.getClassType() == ClassType.INTERFACE || node.getClassType() == ClassType.ANNOTATION) {
-                        writeKeyword(Roles.EXTENDS_KEYWORD);
+                if (any(node.getInterfaces())) {
+                    final Collection<AstType> interfaceTypes;
+
+                    if (classType == ClassType.ANNOTATION) {
+                        interfaceTypes = new ArrayList<>();
+
+                        for (final AstType t : node.getInterfaces()) {
+                            final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
+
+                            if (r != null && CommonTypeReferences.Annotation.isEquivalentTo(r)) {
+                                continue;
+                            }
+
+                            interfaceTypes.add(t);
+                        }
                     }
                     else {
-                        writeKeyword(Roles.IMPLEMENTS_KEYWORD);
+                        interfaceTypes = node.getInterfaces();
                     }
 
-                    space();
-                    writeCommaSeparatedList(node.getInterfaces());
+                    if (any(interfaceTypes)) {
+                        space();
+
+                        if (classType == ClassType.INTERFACE || classType == ClassType.ANNOTATION) {
+                            writeKeyword(Roles.EXTENDS_KEYWORD);
+                        }
+                        else {
+                            writeKeyword(Roles.IMPLEMENTS_KEYWORD);
+                        }
+
+                        space();
+                        writeCommaSeparatedList(node.getInterfaces());
+                    }
                 }
             }
+
+            if (any(node.getPermittedSubclasses())) {
+                space();
+                writeKeyword(Roles.PERMITS_KEYWORD);
+                space();
+                writeCommaSeparatedList(node.getPermittedSubclasses());
+            }
+
+            if (classType == ClassType.RECORD && node.getMembers().isEmpty()) {
+                openBrace(BraceStyle.BannerStyle);
+                closeBrace(BraceStyle.BannerStyle);
+                endNode(node);
+                newLine();
+                return null;
+            }
+
+            final BraceStyle braceStyle;
+            final AstNodeCollection<EntityDeclaration> members = node.getMembers();
+
+            switch (classType) {
+                case ENUM:
+                    braceStyle = policy.EnumBraceStyle;
+                    break;
+                case RECORD:
+                    braceStyle = policy.RecordBraceStyle;
+                    break;
+                case INTERFACE:
+                    braceStyle = policy.InterfaceBraceStyle;
+                    break;
+                case ANNOTATION:
+                    braceStyle = policy.AnnotationBraceStyle;
+                    break;
+                default:
+                    if (type != null && type.isAnonymous()) {
+                        braceStyle = members.isEmpty() ? BraceStyle.BannerStyle : policy.AnonymousClassBraceStyle;
+                    }
+                    else {
+                        braceStyle = policy.ClassBraceStyle;
+                    }
+                    break;
+            }
+
+            openBrace(braceStyle);
+
+            writeMembers(members);
+
+            closeBrace(braceStyle);
+
+            if (type == null || !type.isAnonymous()) {
+                optionalSemicolon();
+                newLine();
+            }
+
+            endNode(node);
+            return null;
         }
-
-        final BraceStyle braceStyle;
-        final AstNodeCollection<EntityDeclaration> members = node.getMembers();
-
-        switch (node.getClassType()) {
-            case ENUM:
-                braceStyle = policy.EnumBraceStyle;
-                break;
-            case INTERFACE:
-                braceStyle = policy.InterfaceBraceStyle;
-                break;
-            case ANNOTATION:
-                braceStyle = policy.AnnotationBraceStyle;
-                break;
-            default:
-                if (type != null && type.isAnonymous()) {
-                    braceStyle = members.isEmpty() ? BraceStyle.BannerStyle : policy.AnonymousClassBraceStyle;
-                }
-                else {
-                    braceStyle = policy.ClassBraceStyle;
-                }
-                break;
+        finally {
+            this.currentType = previousType;
         }
+    }
 
-        openBrace(braceStyle);
-
+    private void writeMembers(final AstNodeCollection<EntityDeclaration> members) {
         boolean first = true;
         EntityDeclaration lastMember = null;
 
@@ -1692,18 +1880,28 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                     formatter.newLine();
                 }
             }
-            member.acceptVisitor(this, ignored);
+
+            member.acceptVisitor(this, null);
             lastMember = member;
         }
+    }
+
+    @Override
+    public Void visitModuleDeclaration(final ModuleDeclaration node, final Void ignored) {
+        startNode(node);
+
+        final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+        final ModuleAttribute attribute = SourceAttribute.find(AttributeNames.Module, type.getSourceAttributes());
+        final BraceStyle braceStyle = policy.ModuleBraceStyle;
+
+        writeKeyword(Roles.MODULE_KEYWORD);
+        node.getNameToken().acceptVisitor(this, ignored);
+        openBrace(braceStyle);
+
+        BytecodeLanguage.writeModuleBody(output, attribute, true);
 
         closeBrace(braceStyle);
-
-        if (type == null || !type.isAnonymous()) {
-            optionalSemicolon();
-            newLine();
-        }
-
-        endNode(node);
+        newLine();
         return null;
     }
 
@@ -1783,6 +1981,57 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             else {
                 specifier.acceptVisitor(this, ignored);
             }
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitIntersectionType(final IntersectionType node, final Void data) {
+        startNode(node);
+
+        final AstType baseType = node.getBaseType();
+
+        boolean needToken = true;
+
+        if (baseType.isNull()) {
+            needToken = false;
+        }
+        else {
+            baseType.acceptVisitor(this, data);
+        }
+
+        for (final AstType ifType : node.getInterfaces()) {
+            if (needToken) {
+                space();
+                writeToken(IntersectionType.INTERSECTION_TOKEN);
+                space();
+            }
+
+            ifType.acceptVisitor(this, data);
+            needToken = true;
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitUnionType(final UnionType node, final Void data) {
+        startNode(node);
+
+        boolean needToken = false;
+
+        for (final AstType alternative : node.getAlternatives()) {
+            if (needToken) {
+                space();
+                writeToken(UnionType.UNION_TOKEN);
+                space();
+            }
+
+            alternative.acceptVisitor(this, data);
+            needToken = true;
         }
 
         endNode(node);
@@ -1870,6 +2119,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
                         return isBitwiseContext(TypeUtilities.skipParenthesesDown(comparand), null);
                     }
+                    break;
                 }
 
                 default: {
@@ -1878,12 +2128,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             }
         }
         else if (parent instanceof UnaryOperatorExpression) {
-            switch (((UnaryOperatorExpression) parent).getOperator()) {
-                case BITWISE_NOT:
-                    return true;
-                default:
-                    return false;
-            }
+            return ((UnaryOperatorExpression) parent).getOperator() == UnaryOperatorType.BITWISE_NOT;
         }
 
         return false;
@@ -1906,7 +2151,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (val instanceof String) {
-            formatter.writeTextLiteral(StringUtilities.escape(val.toString(), true, settings.isUnicodeOutputEnabled()));
+            final String s = val.toString();
+            if (canWriteTextBlock(s)) {
+                formatter.writeTextBlock(s);
+            }
+            else {
+                formatter.writeTextLiteral(StringUtilities.escape(s, true, settings.isUnicodeOutputEnabled()));
+            }
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
@@ -1929,7 +2180,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 }
                 return;
             }
-            formatter.writeLiteral(Float.toString(f) + "f");
+            formatter.writeLiteral(f + "f");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Double) {
@@ -2004,6 +2255,54 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
+    private CompilerTarget currentCompilerTarget() {
+        CompilerTarget target = settings.getForcedCompilerTarget();
+
+        if (target != null) {
+            return target;
+        }
+
+        final TypeDefinition type = currentType;
+
+        target = type != null ? type.getCompilerTarget() : null;
+
+        if (target != null) {
+            return target;
+        }
+
+        return CompilerTarget.DEFAULT;
+    }
+
+    private boolean canWriteTextBlock(final String s) {
+        final int minLines = settings.getTextBlockLineMinimum();
+
+        return minLines > 0 &&
+               LanguageFeature.TEXT_BLOCKS.isAvailable(currentCompilerTarget(), settings.arePreviewFeaturesEnabled()) &&
+               countLines(s, minLines) >= minLines;
+    }
+
+    private static int countLines(final String s, final int stopAfter) {
+        return countLines(s, 0, s.length(), stopAfter);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static int countLines(final String s, final int from, final int end, final int stopAfter) {
+        int count = 1;
+        int index = from;
+
+        while ((index = s.indexOf('\n', index)) > 0) {
+            if (index >= end) {
+                break;
+            }
+            if (++count >= stopAfter) {
+                return count;
+            }
+            ++index;
+        }
+
+        return count;
+    }
+
     @Override
     public Void visitCastExpression(final CastExpression node, final Void ignored) {
         startNode(node);
@@ -2074,10 +2373,24 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitInstanceOfExpression(final InstanceOfExpression node, final Void ignored) {
         startNode(node);
+
         node.getExpression().acceptVisitor(this, ignored);
         space();
         writeKeyword(InstanceOfExpression.INSTANCE_OF_KEYWORD_ROLE);
+
+        final Identifier identifier = node.getIdentifier();
+        final boolean isPattern = identifier != null && !identifier.isNull();
+
+        if (isPattern) {
+            writeModifiers(node.getModifiers());
+        }
+
         node.getType().acceptVisitor(this, ignored);
+
+        if (isPattern) {
+            identifier.acceptVisitor(this, ignored);
+        }
+
         endNode(node);
         return null;
     }
@@ -2197,6 +2510,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void ignored) {
         startNode(node);
 
@@ -2216,6 +2530,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void ignored) {
         startNode(node);
 
@@ -2279,6 +2594,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitEnumValueDeclaration(final EnumValueDeclaration node, final Void ignored) {
         startNode(node);
         writeAnnotations(node.getAnnotations(), true);
@@ -2297,32 +2613,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             final BraceStyle braceStyle = policy.AnonymousClassBraceStyle;
 
             openBrace(braceStyle);
-
-            boolean first = true;
-            EntityDeclaration lastMember = null;
-
-            for (final EntityDeclaration member : node.getMembers()) {
-                if (first) {
-                    first = false;
-                }
-                else {
-                    final int blankLines;
-
-                    if (member instanceof FieldDeclaration && lastMember instanceof FieldDeclaration) {
-                        blankLines = policy.BlankLinesBetweenFields;
-                    }
-                    else {
-                        blankLines = policy.BlankLinesBetweenMembers;
-                    }
-
-                    for (int i = 0; i < blankLines; i++) {
-                        formatter.newLine();
-                    }
-                }
-                member.acceptVisitor(this, ignored);
-                lastMember = member;
-            }
-
+            writeMembers(node.getMembers());
             closeBrace(braceStyle);
         }
 
@@ -2404,6 +2695,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         boolean needType = true;
 
+        //noinspection RedundantIfStatement
         if (node.getDimensions().isEmpty() &&
             node.getType() != null &&
             (node.getParent() instanceof ArrayInitializerExpression ||
@@ -2504,25 +2796,31 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeKeyword(TryCatchStatement.TRY_KEYWORD_ROLE);
 
-        final AstNodeCollection<VariableDeclarationStatement> resources = node.getResources();
+        final boolean hasResources = !node.getDeclaredResources().isEmpty() || !node.getExternalResources().isEmpty();
+        final List<AstNode> resources = hasResources ? CollectionUtilities.<AstNode>toList(node.getExternalResources()) : Collections.<AstNode>emptyList();
 
-        if (!resources.isEmpty()) {
+        if (hasResources) {
+            resources.addAll(node.getDeclaredResources());
             space();
             leftParenthesis();
 
-            final VariableDeclarationStatement firstResource = resources.firstOrNullObject();
+            for (int i = 0, n = resources.size(); i < n; i++) {
+                final AstNode r = resources.get(i);
 
-            for (VariableDeclarationStatement resource = firstResource;
-                 resource != null;
-                 resource = resource.getNextSibling(TryCatchStatement.TRY_RESOURCE_ROLE)) {
-
-                if (resource != firstResource) {
+                if (i != 0) {
                     semicolon();
                     // indent additional resources with 5 spaces, i.e., the length of `try (`.
+                    // @formatter:off
                     space(); space(); space(); space(); space();
+                    // @formatter:on
                 }
 
-                writeVariableDeclaration(resource, false);
+                if (r instanceof VariableDeclarationStatement) {
+                    writeVariableDeclaration((VariableDeclarationStatement) r, false);
+                }
+                else {
+                    r.acceptVisitor(this, ignored);
+                }
             }
 
             rightParenthesis();

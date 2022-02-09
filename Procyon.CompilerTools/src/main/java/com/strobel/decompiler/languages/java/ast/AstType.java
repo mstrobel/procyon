@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
@@ -65,7 +66,7 @@ public abstract class AstType extends AstNode {
 
         @Override
         public TypeReference toTypeReference() {
-            throw ContractUtils.unreachable();
+            return BuiltinTypes.Null;
         }
     }
 
@@ -105,7 +106,7 @@ public abstract class AstType extends AstNode {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return _child.matchesCollection(role, position, match, backtrackingInfo);
         }
     }

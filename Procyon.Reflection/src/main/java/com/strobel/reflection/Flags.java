@@ -349,6 +349,10 @@ public class Flags {
     public static final long LocalVarFlags = FINAL | PARAMETER;
 
     public static Set<Modifier> asModifierSet(final long flags) {
+        return asModifierSet(MemberType.All, flags);
+    }
+
+    public static Set<Modifier> asModifierSet(final MemberType memberType, final long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
 
         if (modifiers == null) {
@@ -372,7 +376,7 @@ public class Flags {
             if (0 != (flags & FINAL)) {
                 modifiers.add(Modifier.FINAL);
             }
-            if (0 != (flags & TRANSIENT)) {
+            if (0 != (flags & TRANSIENT) && (memberType.mask & MemberType.Field.mask) != 0) {
                 modifiers.add(Modifier.TRANSIENT);
             }
             if (0 != (flags & VOLATILE)) {

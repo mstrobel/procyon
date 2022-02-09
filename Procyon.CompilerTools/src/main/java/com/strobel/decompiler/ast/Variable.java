@@ -21,6 +21,8 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 
 public final class Variable {
+    public final static Variable[] EMPTY_VARIABLES = new Variable[0];
+
     private String _name;
     private boolean _isGenerated;
     private boolean _isLambdaParameter;

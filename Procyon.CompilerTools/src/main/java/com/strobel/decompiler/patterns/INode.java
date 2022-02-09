@@ -29,11 +29,11 @@ public interface INode {
     INode getNextSibling();
 
     boolean matches(final INode other, final Match match);
-    boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo);
+    boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo);
     Match match(INode other);
     boolean matches(INode other);
 
-    public final static Function<INode, Iterable<INode>> CHILD_ITERATOR = new Function<INode, Iterable<INode>>() {
+    Function<INode, Iterable<INode>> CHILD_ITERATOR = new Function<INode, Iterable<INode>>() {
         @Override
         public Iterable<INode> apply(final INode input) {
             return new Iterable<INode>() {

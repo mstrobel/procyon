@@ -16,12 +16,16 @@
 
 package com.strobel.expressions;
 
+import com.strobel.core.CollectionUtilities;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MemberType;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
+
+import java.util.Arrays;
 
 import static java.lang.String.format;
 
@@ -211,6 +215,14 @@ final class Error {
 
     public static IllegalStateException incorrectNumberOfConstructorArguments() {
         return new IllegalStateException("Incorrect number of arguments supplied for constructor call.");
+    }
+
+    public static IllegalStateException couldNotResolveConstructor(final Type<?> type, final Type<?>... parameterTypes) {
+        return new IllegalStateException(format("Could not resolve '%s' constructor for argument types [%s].",
+                                                type.getName(),
+                                                StringUtilities.join(", ",
+                                                                     CollectionUtilities.select(Arrays.asList(parameterTypes),
+                                                                                                Functions.typeName()))));
     }
 
     public static IllegalStateException incorrectNumberOfLambdaArguments() {

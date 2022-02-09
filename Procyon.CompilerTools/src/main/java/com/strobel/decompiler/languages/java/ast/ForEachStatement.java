@@ -16,10 +16,10 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-import javax.lang.model.element.Modifier;
 import java.util.List;
 
 public class ForEachStatement extends Statement {
@@ -66,19 +66,19 @@ public class ForEachStatement extends Statement {
         setChildByRole(Roles.IDENTIFIER, value);
     }
 
-    public final List<Modifier> getVariableModifiers() {
+    public final List<Flags.Flag> getVariableModifiers() {
         return EntityDeclaration.getModifiers(this);
     }
 
-    public final void addVariableModifier(final Modifier modifier) {
+    public final void addVariableModifier(final Flags.Flag modifier) {
         EntityDeclaration.addModifier(this, modifier);
     }
 
-    public final void removeVariableModifier(final Modifier modifier) {
+    public final void removeVariableModifier(final Flags.Flag modifier) {
         EntityDeclaration.removeModifier(this, modifier);
     }
 
-    public final void setVariableModifiers(final List<Modifier> modifiers) {
+    public final void setVariableModifiers(final List<Flags.Flag> modifiers) {
         EntityDeclaration.setModifiers(this, modifiers);
     }
 

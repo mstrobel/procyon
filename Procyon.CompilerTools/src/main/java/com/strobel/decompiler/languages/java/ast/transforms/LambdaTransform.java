@@ -38,14 +38,14 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         compilationUnit.acceptVisitor(
             new ContextTrackingVisitor<Void>(context) {
                 @Override
-                public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+                protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
                     final MemberReference methodReference = node.getUserData(Keys.MEMBER_REFERENCE);
 
                     if (methodReference instanceof MethodReference) {
                         _methodDeclarations.put(makeMethodKey((MethodReference) methodReference), node);
                     }
 
-                    return super.visitMethodDeclaration(node, p);
+                    return super.visitMethodDeclarationOverride(node, p);
                 }
             },
             null

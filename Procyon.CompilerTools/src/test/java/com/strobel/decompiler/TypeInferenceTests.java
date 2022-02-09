@@ -90,10 +90,10 @@ public class TypeInferenceTests extends DecompilerTest {
 
                     s = args[1];
                 }
-                catch (ArrayIndexOutOfBoundsException e) {
+                catch (final ArrayIndexOutOfBoundsException e) {
                 }
             }
-            catch (Throwable t) {
+            catch (final Throwable t) {
                 System.out.println(t instanceof NullPointerException);
                 throw t;
             }
@@ -232,9 +232,9 @@ public class TypeInferenceTests extends DecompilerTest {
             "                }\n" +
             "                s = args[1];\n" +
             "            }\n" +
-            "            catch (ArrayIndexOutOfBoundsException ex) {}\n" +
+            "            catch (final ArrayIndexOutOfBoundsException ex) {}\n" +
             "        }\n" +
-            "        catch (Throwable t) {\n" +
+            "        catch (final Throwable t) {\n" +
             "            System.out.println(t instanceof NullPointerException);\n" +
             "            throw t;\n" +
             "        }\n" +

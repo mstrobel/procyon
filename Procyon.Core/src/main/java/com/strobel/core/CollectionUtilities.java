@@ -14,6 +14,7 @@
 package com.strobel.core;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.annotations.Nullable;
 import com.strobel.functions.Supplier;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
@@ -148,7 +149,7 @@ public final class CollectionUtilities {
         return list;
     }
 
-    public static <T> List<T> toList(final Iterable<T> collection) {
+    public static <T> List<T> toList(final Iterable<? extends T> collection) {
         final ArrayList<T> list = new ArrayList<>();
 
         for (final T item : collection) {
@@ -693,6 +694,16 @@ public final class CollectionUtilities {
         VerifyArgument.notNull(sequence, "sequence");
 
         return new Buffer<>(elementType, sequence.iterator()).toArray();
+    }
+
+    public static <V, K> void removeAll(final @NotNull Map<K, V> map, final @Nullable List<K> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+
+        for (final K key : keys) {
+            map.remove(key);
+        }
     }
 
     private final static class Buffer<E> {

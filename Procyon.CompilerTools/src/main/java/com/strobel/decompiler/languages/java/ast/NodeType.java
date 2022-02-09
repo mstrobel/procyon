@@ -25,5 +25,6 @@ public enum NodeType {
     EXPRESSION,
     TOKEN,
     WHITESPACE,
-    PATTERN
+    PATTERN,
+    MODULE_DECLARATION
 }

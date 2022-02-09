@@ -900,6 +900,7 @@ final class GotoRemoval {
                 boolean firstBlock = true;
                 boolean isRedundant = true;
 
+            upTraversal:
                 while (parent != null && parent != Node.NULL) {
                     if (parent instanceof BasicBlock || parent instanceof Block) {
                         final List<Node> body = parent instanceof BasicBlock ? ((BasicBlock) parent).getBody()
@@ -921,6 +922,22 @@ final class GotoRemoval {
 
                                     isRedundant = false;
                                     break;
+                                }
+                            }
+
+                            if (parent instanceof CaseBlock && grandparent instanceof Switch) {
+                                final List<CaseBlock> blocks = ((Switch) grandparent).getCaseBlocks();
+                                final int caseIndex = blocks.indexOf((CaseBlock) parent);
+
+                                for (int i = caseIndex + 1; i < blocks.size(); i++) {
+                                    final CaseBlock otherCase = blocks.get(i);
+                                    final List<Node> caseBody = otherCase.getBody();
+                                    final Node last = caseBody.isEmpty() ? null : last(caseBody);
+
+                                    if (caseBody.size() > 1 || last != null && !(matchEmptyReturn(last) || match(last, AstCode.LoopOrSwitchBreak))) {
+                                        isRedundant = false;
+                                        break upTraversal;
+                                    }
                                 }
                             }
 

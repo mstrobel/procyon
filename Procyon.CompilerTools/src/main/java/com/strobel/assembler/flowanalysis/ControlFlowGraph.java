@@ -21,7 +21,7 @@ import com.strobel.core.BooleanBox;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.PlainTextOutput;
-import com.strobel.functions.Block;
+import com.strobel.functions.Consumer;
 import com.strobel.functions.Function;
 
 import java.io.File;
@@ -94,7 +94,7 @@ public final class ControlFlowGraph {
                         return input.getSuccessors();
                     }
                 },
-                new Block<ControlFlowNode>() {
+                new Consumer<ControlFlowNode>() {
                     @Override
                     public final void accept(final ControlFlowNode b) {
                         if (b == entryPoint) {
@@ -150,7 +150,7 @@ public final class ControlFlowGraph {
                     return input.getDominatorTreeChildren();
                 }
             },
-            new Block<ControlFlowNode>() {
+            new Consumer<ControlFlowNode>() {
                 @Override
                 public void accept(final ControlFlowNode n) {
                     final Set<ControlFlowNode> dominanceFrontier = n.getDominanceFrontier();
