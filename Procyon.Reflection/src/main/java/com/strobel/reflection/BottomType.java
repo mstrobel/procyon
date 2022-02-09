@@ -20,15 +20,22 @@ import javax.lang.model.type.TypeKind;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
-final class BottomType extends Type {
+final class BottomType extends Type<Object> {
+    static BottomType instance() {
+        return BottomType.LazyInit.INSTANCE;
+    }
+
+    private final static class LazyInit {
+        final static BottomType INSTANCE = new BottomType();
+    }
+
     @Override
     public TypeKind getKind() {
         return TypeKind.NONE;
     }
 
     @Override
-    public final Class getErasedClass() {
+    public Class<Object> getErasedClass() {
         return null;
     }
 
@@ -38,52 +45,52 @@ final class BottomType extends Type {
     }
 
     @Override
-    public boolean isAssignableFrom(final Type type) {
+    public boolean isAssignableFrom(final Type<?> type) {
         return true;
     }
 
     @Override
-    protected final Type createArrayType() {
+    protected Type<Object[]> createArrayType() {
         throw ContractUtils.unsupported();
     }
 
     @Override
-    public Object accept(final TypeVisitor visitor, final Object parameter) {
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
         return visitor.visitType(this, parameter);
     }
 
     @Override
-    public final MemberType getMemberType() {
+    public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
 
     @Override
-    public final Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
     @Override
-    public final int getModifiers() {
+    public int getModifiers() {
         return 0;
     }
 
     @Override
-    protected final StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         return sb.append("<any>");
     }
 
     @Override
-    protected final StringBuilder _appendClassDescription(final StringBuilder sb) {
+    protected StringBuilder _appendClassDescription(final StringBuilder sb) {
         return sb.append("<any>");
     }
 
     @Override
-    public final StringBuilder appendBriefDescription(final StringBuilder sb) {
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
         return sb.append("<any>");
     }
 
     @Override
-    public final StringBuilder appendSimpleDescription(final StringBuilder sb) {
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         return sb.append("<any>");
     }
 }

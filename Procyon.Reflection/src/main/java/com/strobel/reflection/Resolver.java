@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
@@ -36,7 +37,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
 final class Resolver {
     final static byte FLAG_RESOLVE_METHODS      = 0x01;
     final static byte FLAG_RESOLVE_FIELDS       = 0x02;
@@ -53,7 +53,7 @@ final class Resolver {
         private final ReflectedType<?>                  _type;
         private final java.lang.reflect.Type            _typeElement;
         private final Frame                             _previous;
-        private final Map<java.lang.reflect.Type, Type> _elementTypeMap;
+        private final Map<java.lang.reflect.Type, Type<?>> _elementTypeMap;
         private final Stack<ReflectedMethod>            _methods;
 
         private final ArrayList<Type<?>> _typeArguments = new ArrayList<>();
@@ -61,7 +61,7 @@ final class Resolver {
         public Frame(final java.lang.reflect.Type typeElement, final Frame previous) {
             _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
             _previous = previous;
-            _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<java.lang.reflect.Type, Type>();
+            _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<java.lang.reflect.Type, Type<?>>();
             _methods = previous != null ? previous._methods : new Stack<ReflectedMethod>();
             _type = new ReflectedType<>((Class<?>) typeElement);
             _elementTypeMap.put(typeElement, _type);
@@ -71,7 +71,7 @@ final class Resolver {
             _type = VerifyArgument.notNull(type, "type");
             _typeElement = type;
             _previous = previous;
-            _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<java.lang.reflect.Type, Type>();
+            _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<java.lang.reflect.Type, Type<?>>();
             _methods = previous != null ? previous._methods : new Stack<ReflectedMethod>();
             _elementTypeMap.put(_typeElement, _type);
 
@@ -121,14 +121,14 @@ final class Resolver {
             Frame currentFrame = this;
 
             while (currentFrame != null) {
-                Type result = currentFrame._elementTypeMap.get(e);
+                Type<?> result = currentFrame._elementTypeMap.get(e);
 
                 if (result != null) {
                     return result;
                 }
 
-                if (e instanceof java.lang.reflect.TypeVariable) {
-                    final TypeVariable typeVariable = (TypeVariable) e;
+                if (e instanceof java.lang.reflect.TypeVariable<?>) {
+                    final TypeVariable<?> typeVariable = (TypeVariable<?>) e;
 
                     result = currentFrame._type.findGenericParameter(typeVariable);
 
@@ -141,7 +141,7 @@ final class Resolver {
                             if (!(typeArgument instanceof GenericParameter)) {
                                 continue;
                             }
-                            if (((GenericParameter) typeArgument).getRawTypeVariable() == typeVariable) {
+                            if (((GenericParameter<?>) typeArgument).getRawTypeVariable() == typeVariable) {
                                 return typeArgument;
                             }
                         }
@@ -160,7 +160,7 @@ final class Resolver {
 /*
             if (result != null && result.isGenericType()) {
                 if (t instanceof Class<?> &&
-                    ArrayUtilities.isNullOrEmpty(((Class)t).getTypeParameters())) {
+                    ArrayUtilities.isNullOrEmpty(((Class<?>)t).getTypeParameters())) {
                     return result.getErasedType();
                 }
             }
@@ -174,6 +174,7 @@ final class Resolver {
             return result;
         }
 
+        @SuppressWarnings("DuplicatedCode")
         private Type<?> resolveTypeCore(final java.lang.reflect.Type t) {
             final Type<?> fromMap = findType(t);
 
@@ -198,7 +199,7 @@ final class Resolver {
                     return null;
                 }
 
-                final Type cachedType = Type.CACHE.find((Class<?>) t);
+                final Type<?> cachedType = Type.CACHE.find((Class<?>) t);
 
                 if (cachedType != null) {
                     return cachedType;
@@ -263,7 +264,7 @@ final class Resolver {
                 }
 
                 Type<?> upperBound = Types.Object;
-                Type<?> lowerBound = Type.Bottom;
+                Type<?> lowerBound = Type.bottomType();
 
                 if (resolvedUpperBounds != null) {
                     if (resolvedUpperBounds.size() == 1) {
@@ -283,17 +284,17 @@ final class Resolver {
                     }
                 }
 
-                return new WildcardType(upperBound, lowerBound);
+                return new WildcardType<>(upperBound, lowerBound);
             }
 
             // Now redundant to findType()...
-            if (t instanceof java.lang.reflect.TypeVariable) {
-                final java.lang.reflect.TypeVariable typeVariable = (java.lang.reflect.TypeVariable) t;
+            if (t instanceof java.lang.reflect.TypeVariable<?>) {
+                final java.lang.reflect.TypeVariable<?> typeVariable = (java.lang.reflect.TypeVariable<?>) t;
 
                 Frame currentFrame = this;
 
                 while (currentFrame != null) {
-                    final GenericParameter genericParameter = currentFrame._type.findGenericParameter(typeVariable);
+                    final GenericParameter<?> genericParameter = currentFrame._type.findGenericParameter(typeVariable);
 
                     if (genericParameter != null) {
                         return genericParameter;
@@ -318,8 +319,8 @@ final class Resolver {
                 for (int i = 0, n = typeArguments.length; i < n; i++) {
                     final java.lang.reflect.Type typeArg = typeArguments[i];
 
-                    if (typeArg instanceof java.lang.reflect.TypeVariable) {
-                        final java.lang.reflect.TypeVariable typeVariable = (java.lang.reflect.TypeVariable) typeArg;
+                    if (typeArg instanceof java.lang.reflect.TypeVariable<?>) {
+                        final java.lang.reflect.TypeVariable<?> typeVariable = (java.lang.reflect.TypeVariable<?>) typeArg;
                         final GenericDeclaration genericDeclaration = typeVariable.getGenericDeclaration();
                         final Type<?> existingTypeArgument = findType(typeVariable);
 
@@ -359,7 +360,7 @@ final class Resolver {
                     }
                 }
 
-                final Type fromCache = Type.CACHE.find(
+                final Type<?> fromCache = Type.CACHE.find(
                     Type.CACHE.key(
                         rawType,
                         Type.list(resolvedTypeArguments)
@@ -396,7 +397,7 @@ final class Resolver {
             return null;
         }
 
-        void addTypeArgument(final GenericParameter genericParameter) {
+        void addTypeArgument(final GenericParameter<?> genericParameter) {
             _typeArguments.add(genericParameter);
         }
     }
@@ -415,15 +416,15 @@ final class Resolver {
         else if (type instanceof GenericArrayType) {
             return visitGenericArrayType((GenericArrayType) type, frame);
         }
-        else if (type instanceof java.lang.reflect.TypeVariable) {
-            return visitTypeVariable((java.lang.reflect.TypeVariable) type, frame);
+        else if (type instanceof java.lang.reflect.TypeVariable<?>) {
+            return visitTypeVariable((java.lang.reflect.TypeVariable<?>) type, frame);
         }
         else {
             return visitClass((Class<?>) type, frame);
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({ "ConstantConditions", "DuplicatedCode" })
     private Type<?> visitClass(final Class<?> c, final Frame frame) {
         final Method declaringMethod;
         final Constructor<?> declaringConstructor;
@@ -451,7 +452,7 @@ final class Resolver {
         final ReflectedType<?> currentType = currentFrame.getCurrentClass();
 
         if (enclosingClass != null) {
-            final Type declaringType = currentFrame.resolveType(enclosingClass);
+            final Type<?> declaringType = currentFrame.resolveType(enclosingClass);
 
             currentType.setDeclaringType(declaringType);
 
@@ -491,10 +492,10 @@ final class Resolver {
 
         if (!ArrayUtilities.isNullOrEmpty(typeParameters)) {
             for (int i = 0, n = typeParameters.length; i < n; i++) {
-                final TypeVariable typeVariable = typeParameters[i];
+                final TypeVariable<?> typeVariable = typeParameters[i];
 
                 currentType.addGenericParameter(
-                    new GenericParameter(
+                    new GenericParameter<>(
                         typeVariable.getName(),
                         currentType,
                         null,
@@ -561,7 +562,7 @@ final class Resolver {
         }
 */
 
-        for (final GenericParameter genericParameter : currentType.getGenericParameters()) {
+        for (final GenericParameter<?> genericParameter : currentType.getGenericParameters()) {
             final java.lang.reflect.Type[] bounds = genericParameter.getRawTypeVariable().getBounds();
 
             if (ArrayUtilities.isNullOrEmpty(bounds)) {
@@ -595,7 +596,7 @@ final class Resolver {
         return currentType;
     }
 
-    private Type<?> visitTypeVariable(final java.lang.reflect.TypeVariable type, final Frame frame) {
+    private Type<?> visitTypeVariable(final java.lang.reflect.TypeVariable<?> type, final Frame frame) {
         return frame.findType(type);
     }
 
@@ -609,6 +610,7 @@ final class Resolver {
         return null;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     private Type<?> visitWildcardType(final java.lang.reflect.WildcardType w, final Frame frame) {
         final java.lang.reflect.Type[] upperBounds = w.getUpperBounds();
         final java.lang.reflect.Type[] lowerBounds = w.getLowerBounds();
@@ -653,7 +655,7 @@ final class Resolver {
         }
 
         Type<?> upperBound = Types.Object;
-        Type<?> lowerBound = Type.Bottom;
+        Type<?> lowerBound = Type.bottomType();
 
         if (resolvedUpperBounds != null) {
             if (resolvedUpperBounds.size() == 1) {
@@ -673,7 +675,7 @@ final class Resolver {
             }
         }
 
-        return new WildcardType(upperBound, lowerBound);
+        return new WildcardType<>(upperBound, lowerBound);
     }
 
     private Type<?> visitParameterizedType(final ParameterizedType type, final Frame frame) {
@@ -697,6 +699,7 @@ final class Resolver {
         return rawType.makeGenericType(resolvedTypeArguments);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private Type<?> resolveExisting(final Frame frame, final java.lang.reflect.Type type, final boolean resolve) {
         final Type<?> result;
 
@@ -718,7 +721,7 @@ final class Resolver {
                 result = fromCacheOrFrame;
             }
             else if (type instanceof Class<?>) {
-                result = visitClass((Class) type, frame);
+                result = visitClass((Class<?>) type, frame);
             }
             else {
                 result = visit(type, frame);
@@ -728,6 +731,7 @@ final class Resolver {
         return result;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     private Type<?> visit(final ReflectedType<?> type, final Frame frame, final int flags) {
         final Class<?> erasedClass = type.getErasedClass();
 
@@ -766,6 +770,7 @@ final class Resolver {
         return type;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public Type<?> visitField(final Field field, final Frame frame) {
         final ReflectedType<?> declaringType = frame.getCurrentClass();
 
@@ -780,7 +785,7 @@ final class Resolver {
         return declaringType;
     }
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({ "ConstantConditions", "UnusedReturnValue", "DuplicatedCode" })
     private Type<?> visitMethod(final Method m, final Frame frame) {
         java.lang.reflect.Type[] parameterTypes = m.getGenericParameterTypes();
         java.lang.reflect.Type[] thrownTypes = m.getGenericExceptionTypes();
@@ -811,7 +816,7 @@ final class Resolver {
 
             for (int i = 0; i < typeParameters.length; i++) {
                 final TypeVariable<Method> typeVariable = typeParameters[i];
-                final GenericParameter genericParameter = new GenericParameter(typeVariable.getName(), typeVariable, i);
+                final GenericParameter<?> genericParameter = new GenericParameter<>(typeVariable.getName(), typeVariable, i);
 
                 resolvedTypeParameters[i] = genericParameter;
                 frame.addTypeArgument(genericParameter);
@@ -858,8 +863,8 @@ final class Resolver {
         );
 
         if (!genericParameters.isEmpty()) {
-            for (final Type type : genericParameters.getGenericParameters()) {
-                final GenericParameter genericParameter = (GenericParameter) type;
+            for (final Type<?> type : genericParameters.getGenericParameters()) {
+                final GenericParameter<?> genericParameter = (GenericParameter<?>) type;
 
                 genericParameter.setDeclaringMethod(method);
 
@@ -894,6 +899,7 @@ final class Resolver {
         return declaringType;
     }
 
+    @SuppressWarnings({ "UnusedReturnValue", "ConstantConditions", "DuplicatedCode" })
     private Type<?> visitConstructor(final Constructor<?> c, final Frame frame) {
         java.lang.reflect.Type[] parameterTypes = c.getGenericParameterTypes();
         java.lang.reflect.Type[] thrownTypes = c.getGenericExceptionTypes();
@@ -946,7 +952,7 @@ final class Resolver {
 
 @SuppressWarnings({ "unchecked", "UnusedDeclaration" })
 class ReflectedType<T> extends Type<T> {
-    private final static AtomicIntegerFieldUpdater<ReflectedType> FLAGS_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+    private final static @SuppressWarnings("rawtypes") AtomicIntegerFieldUpdater<ReflectedType> FLAGS_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
         ReflectedType.class,
         "_flags"
     );
@@ -991,6 +997,7 @@ class ReflectedType<T> extends Type<T> {
         return (_flags & flags) == flags;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private void setFlags(final int flags) {
         while (true) {
             final int oldFlags = _flags;
@@ -1048,7 +1055,7 @@ class ReflectedType<T> extends Type<T> {
         return null;
     }
 
-    ReflectedConstructor findConstructor(final Constructor rawConstructor) {
+    ReflectedConstructor findConstructor(final Constructor<?> rawConstructor) {
         if (_constructors == null) {
             return null;
         }
@@ -1072,7 +1079,7 @@ class ReflectedType<T> extends Type<T> {
         return null;
     }
 
-    GenericParameter findGenericParameter(final java.lang.reflect.TypeVariable typeVariable) {
+    GenericParameter<?> findGenericParameter(final java.lang.reflect.TypeVariable<?> typeVariable) {
         return GenericParameterFinder.visit(this, typeVariable);
     }
 
@@ -1084,7 +1091,7 @@ class ReflectedType<T> extends Type<T> {
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
     }
 
-    void addGenericParameter(final GenericParameter genericParameter) {
+    void addGenericParameter(final GenericParameter<?> genericParameter) {
         VerifyArgument.notNull(genericParameter, "typeParameter");
         _completed = false;
         if (_genericParameters == null) {
@@ -1149,6 +1156,7 @@ class ReflectedType<T> extends Type<T> {
         }
     }
 
+    @SuppressWarnings("DoubleCheckedLocking")
     private void completeIfNecessary() {
         if (!_completed) {
             synchronized (CACHE_LOCK) {
@@ -1232,14 +1240,15 @@ class ReflectedType<T> extends Type<T> {
             return;
         }
 
-        _completed = true;
-
         if (_genericParameters == null || _genericParameters.isEmpty()) {
-            _typeBindings = TypeBindings.empty();
+            _typeBindings = Fences.orderWrites(TypeBindings.empty());
         }
         else {
-            _typeBindings = TypeBindings.createUnbound(list(_genericParameters));
+            _typeBindings = Fences.orderWrites(TypeBindings.createUnbound(list(_genericParameters)));
         }
+
+        _completed = true;
+        Fences.orderAccesses(this);
     }
 
     @Override
@@ -1262,7 +1271,7 @@ class ReflectedType<T> extends Type<T> {
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         if (!isGenericType()) {
             throw Error.notGenericType(this);
         }
@@ -1273,7 +1282,7 @@ class ReflectedType<T> extends Type<T> {
     }
 
     @Override
-    protected Type makeGenericTypeCore(final TypeList typeArguments) {
+    protected Type<?> makeGenericTypeCore(final TypeList typeArguments) {
         synchronized (CACHE_LOCK) {
             return CACHE.getGenericType(getGenericTypeDefinition(), typeArguments);
         }
@@ -1291,7 +1300,7 @@ class ReflectedType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
@@ -1316,11 +1325,11 @@ class ReflectedType<T> extends Type<T> {
         return super._appendClassName(sb, true, false);
     }
 
-    private final static SimpleVisitor<java.lang.reflect.Type, GenericParameter> GenericParameterFinder =
-        new SimpleVisitor<java.lang.reflect.Type, GenericParameter>() {
-            public GenericParameter visit(final TypeList types, final java.lang.reflect.Type s) {
-                for (final Type type : types) {
-                    final GenericParameter result = visit(type, s);
+    private final static SimpleVisitor<java.lang.reflect.Type, GenericParameter<?>> GenericParameterFinder =
+        new SimpleVisitor<java.lang.reflect.Type, GenericParameter<?>>() {
+            public GenericParameter<?> visit(final TypeList types, final java.lang.reflect.Type s) {
+                for (final Type<?> type : types) {
+                    final GenericParameter<?> result = visit(type, s);
                     if (result != null) {
                         return result;
                     }
@@ -1329,13 +1338,13 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public GenericParameter visitCapturedType(final Type<?> t, final java.lang.reflect.Type s) {
+            public GenericParameter<?> visitCapturedType(final Type<?> t, final java.lang.reflect.Type s) {
                 return null;
             }
 
             @Override
-            public GenericParameter visitClassType(final Type<?> type, final java.lang.reflect.Type parameter) {
-                GenericParameter result;
+            public GenericParameter<?> visitClassType(final Type<?> type, final java.lang.reflect.Type parameter) {
+                GenericParameter<?> result;
 
                 if (type.isGenericType()) {
                     result = visit(type.getGenericTypeParameters(), parameter);
@@ -1345,11 +1354,10 @@ class ReflectedType<T> extends Type<T> {
                     }
                 }
 
-                if (type instanceof ReflectedType) {
-                    final ReflectedType reflectedType = (ReflectedType) type;
+                if (type instanceof ReflectedType<?>) {
+                    final ReflectedType<?> reflectedType = (ReflectedType<?>) type;
                     if (reflectedType._methods != null) {
-                        for (final Object o : reflectedType._methods) {
-                            final ReflectedMethod method = (ReflectedMethod) o;
+                        for (final ReflectedMethod method : reflectedType._methods) {
                             if (method.isGenericMethod()) {
                                 result = visit(method.getGenericMethodParameters(), parameter);
 
@@ -1361,9 +1369,9 @@ class ReflectedType<T> extends Type<T> {
                     }
                 }
 
-                final Type declaringType = type.getDeclaringType();
+                final Type<?> declaringType = type.getDeclaringType();
 
-                if (declaringType != null && declaringType != NullType) {
+                if (declaringType != null && declaringType != nullType()) {
                     return visitClassType(declaringType, parameter);
                 }
 
@@ -1371,24 +1379,24 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public GenericParameter visitPrimitiveType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter<?> visitPrimitiveType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return super.visitPrimitiveType(type, parameter);
             }
 
             @Override
-            public GenericParameter visitTypeParameter(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter<?> visitTypeParameter(final Type<?> type, final java.lang.reflect.Type parameter) {
                 if (parameter instanceof TypeVariable<?>) {
-                    return visitTypeParameter(type, (TypeVariable) parameter);
+                    return visitTypeParameter(type, (TypeVariable<?>) parameter);
                 }
                 return null;
             }
 
-            public GenericParameter visitTypeParameter(final Type<?> type, final TypeVariable typeVariable) {
+            public GenericParameter<?> visitTypeParameter(final Type<?> type, final TypeVariable<?> typeVariable) {
                 if (!(type instanceof GenericParameter)) {
                     return null;
                 }
 
-                final GenericParameter genericParameter = (GenericParameter) type;
+                final GenericParameter<?> genericParameter = (GenericParameter<?>) type;
 
                 final int position = ArrayUtilities.indexOf(
                     typeVariable.getGenericDeclaration().getTypeParameters(),
@@ -1399,7 +1407,7 @@ class ReflectedType<T> extends Type<T> {
                     return null;
                 }
 
-                final Type declaringType = genericParameter.getDeclaringType();
+                final Type<?> declaringType = genericParameter.getDeclaringType();
 
                 if (declaringType != null && declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
                     return genericParameter;
@@ -1415,12 +1423,12 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public GenericParameter visitWildcardType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter<?> visitWildcardType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return null;
             }
 
             @Override
-            public GenericParameter visitArrayType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter<?> visitArrayType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return null;
             }
         };

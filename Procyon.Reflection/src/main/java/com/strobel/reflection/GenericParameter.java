@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.Comparer;
+import com.strobel.core.Fences;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.emit.GenericParameterBuilder;
@@ -26,13 +27,14 @@ import java.lang.reflect.TypeVariable;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("DoubleCheckedLocking")
 class GenericParameter<T> extends Type<T> {
     private final String _name;
     private final int _position;
-    private Type _upperBound;
-    private Type _lowerBound;
+    private Type<?> _upperBound;
+    private Type<?> _lowerBound;
     private MethodInfo _declaringMethod;
-    private Type _declaringType;
+    private Type<?> _declaringType;
     private Class<T> _erasedClass;
     private TypeVariable<?> _typeVariable;
 
@@ -41,49 +43,49 @@ class GenericParameter<T> extends Type<T> {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
         _upperBound = Types.Object;
-        _lowerBound = Bottom;
+        _lowerBound = bottomType();
         _position = position;
     }
 
-    GenericParameter(final String name, final Type declaringType, final Type upperBound, final int position) {
+    GenericParameter(final String name, final Type<?> declaringType, final Type<?> upperBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = Bottom;
+        _lowerBound = bottomType();
         _position = position;
     }
 
-    GenericParameter(final String name, final MethodInfo declaringMethod, final Type upperBound, final int position) {
+    GenericParameter(final String name, final MethodInfo declaringMethod, final Type<?> upperBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = Bottom;
+        _lowerBound = bottomType();
         _position = position;
     }
 
-    protected GenericParameter(final String name, final Type declaringType, final Type upperBound, final Type lowerBound, final int position) {
+    protected GenericParameter(final String name, final Type<?> declaringType, final Type<?> upperBound, final Type<?> lowerBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
+        _lowerBound = lowerBound != null ? lowerBound : Type.bottomType();
         _position = position;
     }
 
-    protected GenericParameter(final String name, final MethodInfo declaringMethod, final Type upperBound, final Type lowerBound, final int position) {
+    protected GenericParameter(final String name, final MethodInfo declaringMethod, final Type<?> upperBound, final Type<?> lowerBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
+        _lowerBound = lowerBound != null ? lowerBound : Type.bottomType();
         _position = position;
     }
 
-    final void setUpperBound(final Type upperBound) {
+    final void setUpperBound(final Type<?> upperBound) {
         _upperBound = upperBound;
     }
 
-    final void setLowerBound(final Type lowerBound) {
+    final void setLowerBound(final Type<?> lowerBound) {
         _lowerBound = lowerBound;
     }
 
@@ -93,7 +95,7 @@ class GenericParameter<T> extends Type<T> {
     }
 
     private TypeVariable<?> resolveTypeVariable() {
-        final TypeVariable[] parameters;
+        final TypeVariable<?>[] parameters;
 
         if (_declaringMethod != null) {
             parameters = _declaringMethod.getRawMethod().getTypeParameters();
@@ -102,7 +104,7 @@ class GenericParameter<T> extends Type<T> {
             parameters = _declaringType.getErasedClass().getTypeParameters();
         }
 
-        for (final TypeVariable typeVariable : parameters) {
+        for (final TypeVariable<?> typeVariable : parameters) {
             if (_name.equals(typeVariable.getName())) {
                 return typeVariable;
             }
@@ -123,7 +125,7 @@ class GenericParameter<T> extends Type<T> {
         if (_typeVariable == null) {
             synchronized (CACHE_LOCK) {
                 if (_typeVariable == null) {
-                    _typeVariable = resolveTypeVariable();
+                    _typeVariable = Fences.orderWrites(resolveTypeVariable());
                 }
             }
         }
@@ -183,7 +185,7 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
@@ -196,7 +198,7 @@ class GenericParameter<T> extends Type<T> {
         _declaringMethod = declaringMethod;
     }
 
-    public void setDeclaringType(final Type declaringType) {
+    public void setDeclaringType(final Type<?> declaringType) {
         _declaringType = declaringType;
     }
 
@@ -221,12 +223,13 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+
     public Class<T> getErasedClass() {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
-                    _erasedClass = (Class<T>) resolveErasedClass();
+                    final @SuppressWarnings("unchecked") Class<T> erasedClass = (Class<T>) resolveErasedClass();
+                    _erasedClass = Fences.orderWrites(erasedClass);
                 }
             }
         }
@@ -249,7 +252,7 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
         return null;
     }
 
@@ -290,10 +293,11 @@ class GenericParameter<T> extends Type<T> {
             return false;
         }
 
+        if (member instanceof CapturedType<?>) {
+            return false;
+        }
+
         if (member instanceof GenericParameter<?>) {
-            if (member instanceof CapturedType<?>) {
-                return false;
-            }
             final GenericParameter<?> other = (GenericParameter<?>) member;
             return other._position == _position &&
                    Comparer.equals(other.getRawTypeVariable(), _typeVariable);

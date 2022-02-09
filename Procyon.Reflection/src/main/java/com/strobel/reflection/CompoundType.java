@@ -17,8 +17,6 @@ import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.Comparator;
 
 /**
  * @author Mike Strobel
@@ -30,18 +28,18 @@ final class CompoundType<T> extends Type<T> {
     CompoundType(final TypeList interfaces, final Type<T> baseType) {
         _baseType = VerifyArgument.notNull(baseType, "baseType");
 
-        final Type[] sortedInterfaces = VerifyArgument.notNull(interfaces, "interfaces").toArray();
+//        final Type<?>[] sortedInterfaces = VerifyArgument.notNull(interfaces, "interfaces").toArray();
+//
+//        Arrays.sort(
+//            sortedInterfaces,
+//            new Comparator<Type<?>>() {
+//                @Override
+//                public int compare(final Type<?> o1, final Type<?> o2) {
+//                    return Integer.compare(Helper.rank(o1), Helper.rank(o2));
+//                }
+//            });
 
-        Arrays.sort(
-            sortedInterfaces,
-            new Comparator<Type>() {
-                @Override
-                public int compare(final Type o1, final Type o2) {
-                    return Integer.compare(Helper.rank(o1), Helper.rank(o2));
-                }
-            });
-
-        _interfaces = interfaces;
+        _interfaces = VerifyArgument.noNullElementsAndNotEmpty(interfaces, "interfaces");
     }
 
     @Override
@@ -70,7 +68,7 @@ final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
@@ -193,7 +191,7 @@ final class CompoundType<T> extends Type<T> {
 
         s.append(':');
 
-        for (final Type interfaceType : _interfaces) {
+        for (final Type<?> interfaceType : _interfaces) {
             s = interfaceType.appendSignature(s);
         }
 

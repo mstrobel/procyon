@@ -16,6 +16,7 @@ package com.strobel.reflection;
 import com.strobel.collections.ImmutableList;
 import com.strobel.collections.ListBuffer;
 import com.strobel.core.Comparer;
+import com.strobel.core.Fences;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -27,6 +28,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static com.strobel.collections.ListBuffer.lb;
@@ -35,9 +37,8 @@ import static com.strobel.util.TypeUtils.*;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings({ "unchecked" })
+@SuppressWarnings("RedundantIfStatement")
 final class Helper {
-
     private Helper() {}
 
     public static boolean overrides(final MethodInfo baseMethod, final MethodInfo ancestorMethod) {
@@ -69,15 +70,15 @@ final class Helper {
             return false;
         }
 
-        final Type baseDeclaringType = erasure(baseMethod.getDeclaringType());
-        final Type ancestorDeclaringType = erasure(ancestorMethod.getDeclaringType());
+        final Type<?> baseDeclaringType = erasure(baseMethod.getDeclaringType());
+        final Type<?> ancestorDeclaringType = erasure(ancestorMethod.getDeclaringType());
 
         if (!isSubtype(baseDeclaringType, ancestorDeclaringType)) {
             return false;
         }
 
-        final Type ancestorReturnType = erasure(ancestorMethod.getReturnType());
-        final Type baseReturnType = erasure(baseMethod.getReturnType());
+        final Type<?> ancestorReturnType = erasure(ancestorMethod.getReturnType());
+        final Type<?> baseReturnType = erasure(baseMethod.getReturnType());
 
         if (!ancestorReturnType.isAssignableFrom(baseReturnType)) {
             return false;
@@ -98,7 +99,7 @@ final class Helper {
         return true;
     }
 
-    private static boolean isOverridableIn(final MethodInfo method, final Type origin) {
+    private static boolean isOverridableIn(final MethodInfo method, final Type<?> origin) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(origin, "origin");
 
@@ -159,19 +160,19 @@ final class Helper {
     public static boolean resultSubtype(final MethodInfo t, final MethodInfo s) {
         final TypeList tVars = t.getTypeArguments();
         final TypeList sVars = s.getTypeArguments();
-        final Type tReturn = t.getReturnType();
-        final Type sReturn = substitute(s.getReturnType(), sVars, tVars);
+        final Type<?> tReturn = t.getReturnType();
+        final Type<?> sReturn = substitute(s.getReturnType(), sVars, tVars);
         return covariantReturnType(tReturn, sReturn);
     }
 
-    public static boolean covariantReturnType(final Type t, final Type s) {
+    public static boolean covariantReturnType(final Type<?> t, final Type<?> s) {
         return isSameType(t, s) ||
                !t.isPrimitive() &&
                !s.isPrimitive() &&
                isAssignable(t, s);
     }
 
-    public static boolean isAssignable(final Type sourceType, final Type targetType) {
+    public static boolean isAssignable(final Type<?> sourceType, final Type<?> targetType) {
         if (VerifyArgument.notNull(sourceType, "sourceType") ==
             VerifyArgument.notNull(targetType, "targetType")) {
 
@@ -187,7 +188,7 @@ final class Helper {
         }
 
         if (targetType instanceof TypeBuilder) {
-            final TypeBuilder targetTypeBuilder = (TypeBuilder) targetType;
+            final TypeBuilder<?> targetTypeBuilder = (TypeBuilder<?>) targetType;
 
             return targetTypeBuilder.isCreated() &&
                    isAssignable(sourceType, targetTypeBuilder.createType());
@@ -196,11 +197,11 @@ final class Helper {
         return isConvertible(sourceType, targetType);
     }
 
-    public static boolean isConvertible(final Type sourceType, final Type targetType) {
+    public static boolean isConvertible(final Type<?> sourceType, final Type<?> targetType) {
         final boolean tPrimitive = sourceType.isPrimitive();
         final boolean sPrimitive = targetType.isPrimitive();
 
-        if (sourceType == Type.NullType) {
+        if (sourceType == Type.nullType()) {
             return !targetType.isPrimitive();
         }
 
@@ -221,12 +222,12 @@ final class Helper {
                : isSubtype(TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType), targetType);
     }
 
-    public static boolean isSubtypeUnchecked(final Type t, final Type s) {
+    public static boolean isSubtypeUnchecked(final Type<?> t, final Type<?> s) {
         if (t.isArray() && s.isArray()) {
             if (t.getElementType().isPrimitive()) {
                 return isSameType(elementType(t), elementType(s));
             }
-            return isSubtypeUnchecked(elementType(t), elementType(s));
+            return isSubtypeUnchecked(Objects.requireNonNull(elementType(t)), elementType(s));
         }
         else if (isSubtype(t, s)) {
             return true;
@@ -238,7 +239,7 @@ final class Helper {
             return isSubtypeUnchecked(t, s.getExtendsBound());
         }
         else if (s.isGenericType() && !s.isGenericTypeDefinition()) {
-            final Type t2 = asSuper(t, s);
+            final Type<?> t2 = asSuper(t, s);
             if (t2 != null) {
                 return true;
             }
@@ -273,12 +274,12 @@ final class Helper {
         return containsTypeEquivalent(t, p);
     }
 
-    public static Type asSuper(final Type type, final Type other) {
+    public static Type<?> asSuper(final Type<?> type, final Type<?> other) {
         return AsSuperVisitor.visit(type, other);
     }
 
-    public static boolean isSuperType(final Type type, final Type other) {
-        if (type == other || other == Type.Bottom) {
+    public static boolean isSuperType(final Type<?> type, final Type<?> other) {
+        if (type == other || other == Type.bottomType()) {
             return true;
         }
         if (type.isGenericParameter()) {
@@ -287,15 +288,15 @@ final class Helper {
         return isSubtype(other, type);
     }
 
-    public static boolean isSubtype(final Type t, final Type p) {
+    public static boolean isSubtype(final Type<?> t, final Type<?> p) {
         return isSubtype(t, p, true);
     }
 
-    public static boolean isSubtypeNoCapture(final Type t, final Type p) {
+    public static boolean isSubtypeNoCapture(final Type<?> t, final Type<?> p) {
         return isSubtype(t, p, false);
     }
 
-    public static boolean isSubtype(final Type t, final Type p, final boolean capture) {
+    public static boolean isSubtype(final Type<?> t, final Type<?> p, final boolean capture) {
         if (t == p) {
             return true;
         }
@@ -313,7 +314,7 @@ final class Helper {
         }
 
         if (p.isCompoundType()) {
-            final Type baseType = p.getBaseType();
+            final Type<?> baseType = p.getBaseType();
 
             if (baseType != null && !isSubtype(t, baseType, capture)) {
                 return false;
@@ -322,7 +323,7 @@ final class Helper {
             final TypeList interfaces = p.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
-                final Type type = interfaces.get(i);
+                final Type<?> type = interfaces.get(i);
                 if (!isSubtype(t, type, capture)) {
                     return false;
                 }
@@ -331,7 +332,7 @@ final class Helper {
             return true;
         }
 
-        final Type lower = lowerBound(p);
+        final Type<?> lower = lowerBound(p);
 
         if (p != lower) {
             return isSubtype(capture ? capture(t) : t, lower, false);
@@ -343,10 +344,10 @@ final class Helper {
 /*
     private static ImmutableList<Type<?>> freshTypeVariables(final ImmutableList<Type<?>> types) {
         final ListBuffer<Type<?>> result = lb();
-        for (final Type t : types) {
+        for (final Type<?> t : types) {
             if (t.isWildcardType()) {
-                final Type bound = t.getUpperBound();
-                result.append(new CapturedType(Type.Bottom, bound, Type.Bottom, t));
+                final Type<?> bound = t.getUpperBound();
+                result.append(new CapturedType(Type.bottomType(), bound, Type.bottomType(), t));
             }
             else {
                 result.append(t);
@@ -358,10 +359,10 @@ final class Helper {
 
     private static TypeList freshTypeVariables(final TypeList types) {
         final ListBuffer<Type<?>> result = lb();
-        for (final Type t : types) {
+        for (final Type<?> t : types) {
             if (t.isWildcardType()) {
-                final Type bound = t.getExtendsBound();
-                result.append(new CapturedType(Type.Bottom, bound, Type.Bottom, t));
+                final Type<?> bound = t.getExtendsBound();
+                result.append(new CapturedType<>(Type.bottomType(), bound, Type.bottomType(), t));
             }
             else {
                 result.append(t);
@@ -370,18 +371,18 @@ final class Helper {
         return new TypeList(result.toList());
     }
 
-    public static Type capture(Type t) {
-        if (t.isGenericParameter() || t.isWildcardType() || t.isPrimitive() || t.isArray() || t == Type.Bottom || t == Type.NullType) {
+    public static Type<?> capture(Type<?> t) {
+        if (t.isGenericParameter() || t.isWildcardType() || t.isPrimitive() || t.isArray() || t == Type.bottomType() || t == Type.nullType()) {
             return t;
         }
 
-        final Type declaringType = t.getDeclaringType();
+        final Type<?> declaringType = t.getDeclaringType();
 
-        if (declaringType != Type.Bottom && declaringType != null) {
-            final Type capturedDeclaringType = capture(declaringType);
+        if (declaringType != Type.bottomType() && declaringType != null) {
+            final Type<?> capturedDeclaringType = capture(declaringType);
 
             if (capturedDeclaringType != declaringType) {
-                final Type memberType = capturedDeclaringType.getNestedType(t.getFullName());
+                final Type<?> memberType = capturedDeclaringType.getNestedType(t.getFullName());
                 if (memberType != null) {
                     t = substitute(memberType, memberType.getGenericTypeParameters(), t.getTypeArguments());
                 }
@@ -392,7 +393,7 @@ final class Helper {
             return t;
         }
 
-        final Type G = t.getGenericTypeDefinition();
+        final Type<?> G = t.getGenericTypeDefinition();
         final TypeList A = G.getTypeArguments();
         final TypeList T = t.getTypeArguments();
         final TypeList S = freshTypeVariables(T);
@@ -409,32 +410,32 @@ final class Helper {
             if (currentS.head != currentT.head) {
                 captured = true;
 
-                final WildcardType Ti = (WildcardType)currentT.head;
-                Type Ui = currentA.head.getExtendsBound();
-                CapturedType Si = (CapturedType)currentS.head;
+                final WildcardType<?> Ti = (WildcardType<?>)currentT.head;
+                Type<?> Ui = currentA.head.getExtendsBound();
+                CapturedType<?> Si = (CapturedType<?>)currentS.head;
 
                 if (Ui == null) {
                     Ui = Types.Object;
                 }
 
                 if (Ti.isUnbounded()) {
-                    currentS.head = Si = new CapturedType(
+                    currentS.head = Si = new CapturedType<>(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
-                        Type.Bottom,
+                        Type.bottomType(),
                         Si.getWildcard()
                     );
                 }
                 else if (Ti.hasExtendsBound()) {
-                    currentS.head = Si = new CapturedType(
+                    currentS.head = Si = new CapturedType<>(
                         Si.getDeclaringType(),
                         glb(Ti.getExtendsBound(), substitute(Ui, A, S)),
-                        Type.Bottom,
+                        Type.bottomType(),
                         Si.getWildcard()
                     );
                 }
                 else {
-                    currentS.head = Si = new CapturedType(
+                    currentS.head = Si = new CapturedType<>(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
                         Ti.getSuperBound(),
@@ -490,7 +491,7 @@ final class Helper {
         return true;
     }
 
-    static boolean containsType(final Type t, final Type p) {
+    static boolean containsType(final Type<?> t, final Type<?> p) {
         return ContainsTypeRelation.visit(t, p);
     }
 
@@ -525,11 +526,11 @@ final class Helper {
             return TypeList.empty();
         }
 
-        Type[] results = null;
+        Type<?>[] results = null;
 
         for (int i = 0, n = ts.size(); i < n; i++) {
-            final Type t = ts.get(i);
-            final Type r = f.apply(t);
+            final Type<?> t = ts.get(i);
+            final Type<?> r = f.apply(t);
 
             if (r != t) {
                 if (results == null) {
@@ -546,7 +547,7 @@ final class Helper {
         return ts;
     }
 
-    private static boolean containsTypeEquivalent(final Type t, final Type p) {
+    private static boolean containsTypeEquivalent(final Type<?> t, final Type<?> p) {
         return isSameType(t, p) || // shortcut
                containsType(t, p) && containsType(p, t);
     }
@@ -569,17 +570,17 @@ final class Helper {
         return true;
     }
 
-    public static boolean isSameType(final Type t, final Type p) {
+    public static boolean isSameType(final Type<?> t, final Type<?> p) {
         return IsSameTypeRelation.visit(t, p);
     }
 
-    public static boolean isCaptureOf(final Type p, final Type t) {
+    public static boolean isCaptureOf(final Type<?> p, final Type<?> t) {
         return p.isGenericParameter() &&
                p instanceof ICapturedType &&
                isSameWildcard(t, ((ICapturedType)p).getWildcard());
     }
 
-    public static boolean isSameWildcard(final Type t, final Type p) {
+    public static boolean isSameWildcard(final Type<?> t, final Type<?> p) {
         if (!p.isWildcardType() || !t.isWildcardType()) {
             return false;
         }
@@ -598,7 +599,7 @@ final class Helper {
                isSameType(p.getExtendsBound(), t.getExtendsBound());
     }
 
-    public static Type glb(final Type t, final Type p) {
+    public static Type<?> glb(final Type<?> t, final Type<?> p) {
         if (p == null) {
             return t;
         }
@@ -623,7 +624,7 @@ final class Helper {
         }
         else {                            // length > 1
             int classCount = 0;
-            for (final Type bound : bounds) {
+            for (final Type<?> bound : bounds) {
                 if (!bound.isInterface()) {
                     classCount++;
                 }
@@ -633,10 +634,10 @@ final class Helper {
             }
         }
 
-        Type baseClass = Types.Object;
+        Type<?> baseClass = Types.Object;
         ImmutableList<Type<?>> interfaces = ImmutableList.empty();
 
-        for (final Type bound : bounds) {
+        for (final Type<?> bound : bounds) {
             if (bound.isInterface()) {
                 interfaces = interfaces.append(bound);
             }
@@ -651,7 +652,7 @@ final class Helper {
         );
     }
 
-    public static Type elementType(final Type t) {
+    public static Type<?> elementType(final Type<?> t) {
         if (t.isArray()) {
             return t.getElementType();
         }
@@ -665,7 +666,7 @@ final class Helper {
         return UpperBoundVisitor.visit(t);
     }
 
-    public static Type lowerBound(final Type t) {
+    public static Type<?> lowerBound(final Type<?> t) {
         return LowerBoundVisitor.visit(t);
     }
 
@@ -673,7 +674,7 @@ final class Helper {
         return map(ts, ErasureFunctor);
     }
 
-    public static Type erasureRecursive(final Type t) {
+    public static Type<?> erasureRecursive(final Type<?> t) {
         return erasure(t, true);
     }
 
@@ -681,11 +682,11 @@ final class Helper {
         return map(ts, ErasureRecursiveFunctor);
     }
 
-    public static Type erasure(final Type t) {
+    public static Type<?> erasure(final Type<?> t) {
         return erasure(t, false);
     }
 
-    public static Type substitute(final Type type, final ImmutableList<Type<?>> genericParameters, final ImmutableList<Type<?>> typeArguments) {
+    public static Type<?> substitute(final Type<?> type, final ImmutableList<Type<?>> genericParameters, final ImmutableList<Type<?>> typeArguments) {
         return SubstitutingBinder.visit(
             type,
             TypeBindings.create(
@@ -695,18 +696,18 @@ final class Helper {
         );
     }
 
-    public static Type substitute(final Type type, final TypeList genericParameters, final TypeList typeArguments) {
+    public static Type<?> substitute(final Type<?> type, final TypeList genericParameters, final TypeList typeArguments) {
         return SubstitutingBinder.visit(
             type,
             TypeBindings.create(genericParameters, typeArguments)
         );
     }
 
-    public static Type substitute(final Type type, final TypeBindings bindings) {
+    public static Type<?> substitute(final Type<?> type, final TypeBindings bindings) {
         return SubstitutingBinder.visit(type, bindings);
     }
 
-    private static Type erasure(final Type t, final boolean recurse) {
+    private static Type<?> erasure(final Type<?> t, final boolean recurse) {
         if (t.isPrimitive()) {
             return t;  // fast special case
         }
@@ -715,16 +716,16 @@ final class Helper {
         }
     }
 
-    public static ImmutableList<Type<?>> interfaces(final Type type) {
+    public static ImmutableList<Type<?>> interfaces(final Type<?> type) {
         return InterfacesVisitor.visit(type, ImmutableList.<Type<?>>empty());
     }
 
-    public static int rank(final Type t) {
+    public static int rank(final Type<?> t) {
         if (t == null) {
             return 0;
         }
 
-        if (t.isPrimitive() || t.isWildcardType() || t.isArray() || t == Type.Bottom || t == Type.NullType) {
+        if (t.isPrimitive() || t.isWildcardType() || t.isArray() || t == Type.bottomType() || t == Type.nullType()) {
             throw new AssertionError();
         }
 
@@ -748,7 +749,7 @@ final class Helper {
         return r + 1;
     }
 
-    public static boolean precedes(final Type origin, final Type other) {
+    public static boolean precedes(final Type<?> origin, final Type<?> other) {
         if (origin == other) {
             return false;
         }
@@ -760,14 +761,14 @@ final class Helper {
         final boolean originIsClass = !origin.isWildcardType() &&
                                       !origin.isPrimitive() &&
                                       !origin.isArray() &&
-                                      origin != Type.Bottom &&
-                                      origin != Type.NullType;
+                                      origin != Type.bottomType() &&
+                                      origin != Type.nullType();
 
         final boolean otherIsClass = !other.isWildcardType() &&
                                      !other.isPrimitive() &&
                                      !other.isArray() &&
-                                     other != Type.Bottom &&
-                                     other != Type.NullType;
+                                     other != Type.bottomType() &&
+                                     other != Type.nullType();
 
         if (originIsClass && otherIsClass) {
             return rank(other) < rank(origin) ||
@@ -797,7 +798,7 @@ final class Helper {
     }
 
     public static boolean isInheritedIn(final Type<?> site, final MemberInfo member) {
-        if (site == null || site == Type.NullType) {
+        if (site == null || site == Type.nullType()) {
             return false;
         }
 
@@ -805,7 +806,7 @@ final class Helper {
             return true;
         }
 
-        final Type declaringType = member.getDeclaringType();
+        final Type<?> declaringType = member.getDeclaringType();
 
         if (member.isPrivate()) {
             return TypeUtils.areEquivalent(site, declaringType);
@@ -815,7 +816,7 @@ final class Helper {
             return !site.isInterface();
         }
 
-        for (Type t = site;
+        for (Type<?> t = site;
              t != null && t != declaringType;
              t = superType(t)) {
 
@@ -839,7 +840,7 @@ final class Helper {
         return !site.isInterface();
     }
 
-    public static boolean inSamePackage(final Type t1, final Type t2) {
+    public static boolean inSamePackage(final Type<?> t1, final Type<?> t2) {
         if (t1 == t2) {
             return true;
         }
@@ -859,18 +860,18 @@ final class Helper {
     }
 
     private final static TypeMapping ErasureFunctor = new TypeMapping("erasure") {
-        public Type apply(final Type t) { return erasure(t); }
+        public Type<?> apply(final Type<?> t) { return erasure(t); }
     };
 
     private final static TypeMapping ErasureRecursiveFunctor = new TypeMapping("erasureRecursive") {
-        public Type apply(final Type t) { return erasureRecursive(t); }
+        public Type<?> apply(final Type<?> t) { return erasureRecursive(t); }
     };
 
     private final static TypeBinder SubstitutingBinder = new TypeBinder();
 
-    private final static TypeVisitor<Type, Type> AsSuperVisitor = new SimpleVisitor<Type, Type>() {
+    private final static TypeVisitor<Type<?>, Type<?>> AsSuperVisitor = new SimpleVisitor<Type<?>, Type<?>>() {
         @Override
-        public Type visitClassType(final Type t, final Type p) {
+        public Type<?> visitClassType(final Type<?> t, final Type<?> p) {
             if (t == p) {
                 return t;
             }
@@ -928,10 +929,10 @@ final class Helper {
                 return t;
             }
 
-            final Type superType = superType(t);
+            final Type<?> superType = superType(t);
 
             if (superType != null && !superType.isInterface()) {
-                final Type ancestor = asSuper(superType, p);
+                final Type<?> ancestor = asSuper(superType, p);
                 if (ancestor != null) {
                     return ancestor;
                 }
@@ -940,7 +941,7 @@ final class Helper {
             final TypeList interfaces = t.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
-                final Type ancestor = asSuper(interfaces.get(i), p);
+                final Type<?> ancestor = asSuper(interfaces.get(i), p);
                 if (ancestor != null) {
                     return ancestor;
                 }
@@ -956,7 +957,7 @@ final class Helper {
         }
 
         @Override
-        public Type visitPrimitiveType(final Type t, final Type p) {
+        public Type<?> visitPrimitiveType(final Type<?> t, final Type<?> p) {
             if (t == p) {
                 return t;
             }
@@ -964,7 +965,7 @@ final class Helper {
         }
 
         @Override
-        public Type visitTypeParameter(final Type t, final Type p) {
+        public Type<?> visitTypeParameter(final Type<?> t, final Type<?> p) {
             if (t == p) {
                 return t;
             }
@@ -972,34 +973,34 @@ final class Helper {
         }
 
         @Override
-        public Type visitArrayType(final Type t, final Type p) {
+        public Type<?> visitArrayType(final Type<?> t, final Type<?> p) {
             return isSubtype(t, p) ? p : null;
         }
 
         @Override
-        public Type visitType(final Type t, final Type p) {
+        public Type<?> visitType(final Type<?> t, final Type<?> p) {
             return super.visitType(t, p);
         }
     };
 
     private final static TypeRelation IsSameTypeRelation = new TypeRelation() {
         @Override
-        public Boolean visitCapturedType(final Type t, final Type p) {
+        public Boolean visitCapturedType(final Type<?> t, final Type<?> p) {
             return super.visitCapturedType(t, p);
         }
 
         @Override
-        public Boolean visitClassType(final Type type, final Type parameter) {
+        public Boolean visitClassType(final Type<?> type, final Type<?> parameter) {
             return super.visitClassType(type, parameter);
         }
 
         @Override
-        public Boolean visitPrimitiveType(final Type type, final Type parameter) {
+        public Boolean visitPrimitiveType(final Type<?> type, final Type<?> parameter) {
             return type == parameter ? Boolean.TRUE : Boolean.FALSE;
         }
 
         @Override
-        public Boolean visitTypeParameter(final Type type, final Type parameter) {
+        public Boolean visitTypeParameter(final Type<?> type, final Type<?> parameter) {
             return StringUtilities.equals(type.getFullName(), parameter.getFullName()) &&
                    Comparer.equals(type.getDeclaringType(), parameter.getDeclaringType()) &&
                    Comparer.equals(type.getDeclaringMethod(), parameter.getDeclaringMethod()) &&
@@ -1007,28 +1008,28 @@ final class Helper {
         }
 
         @Override
-        public Boolean visitWildcardType(final Type type, final Type parameter) {
+        public Boolean visitWildcardType(final Type<?> type, final Type<?> parameter) {
             return parameter.hasSuperBound() &&
                    !parameter.hasExtendsBound() &&
                    visit(type, upperBound(parameter));
         }
 
         @Override
-        public Boolean visitArrayType(final Type type, final Type parameter) {
+        public Boolean visitArrayType(final Type<?> type, final Type<?> parameter) {
             return super.visitArrayType(type, parameter);
         }
 
         @Override
-        public Boolean visitType(final Type type, final Type parameter) {
+        public Boolean visitType(final Type<?> type, final Type<?> parameter) {
             return type == parameter;
         }
     };
 
     private final static TypeMapper<Void> UpperBoundVisitor = new TypeMapper<Void>() {
         @Override
-        public Type visitWildcardType(final Type t, final Void ignored) {
+        public Type<?> visitWildcardType(final Type<?> t, final Void ignored) {
             if (t.hasSuperBound()) {
-                final Type lowerBound = t.getSuperBound();
+                final Type<?> lowerBound = t.getSuperBound();
 
                 if (lowerBound.hasExtendsBound()) {
                     return visit(lowerBound.getExtendsBound());
@@ -1042,25 +1043,25 @@ final class Helper {
         }
 
         @Override
-        public Type visitCapturedType(final Type t, final Void ignored) {
+        public Type<?> visitCapturedType(final Type<?> t, final Void ignored) {
             return visit(t.getExtendsBound());
         }
     };
 
     private final static TypeMapper<Void> LowerBoundVisitor = new TypeMapper<Void>() {
         @Override
-        public Type visitWildcardType(final Type t, final Void ignored) {
-            return t.hasExtendsBound() ? Type.Bottom : visit(t.getSuperBound());
+        public Type<?> visitWildcardType(final Type<?> t, final Void ignored) {
+            return t.hasExtendsBound() ? Type.bottomType() : visit(t.getSuperBound());
         }
 
         @Override
-        public Type visitCapturedType(final Type t, final Void ignored) {
+        public Type<?> visitCapturedType(final Type<?> t, final Void ignored) {
             return visit(t.getSuperBound());
         }
     };
 
     private final static TypeMapper<Boolean> ErasureVisitor = new TypeMapper<Boolean>() {
-        public Type visitType(final Type t, final Boolean recurse) {
+        public Type<?> visitType(final Type<?> t, final Boolean recurse) {
             if (t.isPrimitive()) {
                 return t;  // fast special case
             }
@@ -1070,7 +1071,7 @@ final class Helper {
         }
 
         @Override
-        public Type visitWildcardType(final Type t, final Boolean recurse) {
+        public Type<?> visitWildcardType(final Type<?> t, final Boolean recurse) {
             return erasure(upperBound(t), recurse);
         }
 
@@ -1080,7 +1081,7 @@ final class Helper {
         }
 
         @Override
-        public Type visitTypeParameter(final Type t, final Boolean recurse) {
+        public Type<?> visitTypeParameter(final Type<?> t, final Boolean recurse) {
             return erasure(t.getExtendsBound(), recurse);
         }
 
@@ -1092,10 +1093,10 @@ final class Helper {
 
     private final static TypeRelation ContainsTypeRelation = new TypeRelation() {
 
-        private Type U(Type t) {
+        private Type<?> U(Type<?> t) {
             while (t.isWildcardType()) {
                 if (t.hasSuperBound()) {
-                    final Type lowerBound = t.getSuperBound();
+                    final Type<?> lowerBound = t.getSuperBound();
                     if (lowerBound.hasExtendsBound()) {
                         return lowerBound.getExtendsBound();
                     }
@@ -1106,10 +1107,10 @@ final class Helper {
             return t;
         }
 
-        private Type L(Type t) {
+        private Type<?> L(Type<?> t) {
             while (t.isWildcardType()) {
                 if (t.hasExtendsBound()) {
-                    return Type.Bottom;
+                    return Type.bottomType();
                 }
                 else {
                     t = t.getSuperBound();
@@ -1118,12 +1119,12 @@ final class Helper {
             return t;
         }
 
-        public Boolean visitType(final Type t, final Type p) {
+        public Boolean visitType(final Type<?> t, final Type<?> p) {
             return isSameType(t, p);
         }
 
         @Override
-        public Boolean visitWildcardType(final Type t, final Type p) {
+        public Boolean visitWildcardType(final Type<?> t, final Type<?> p) {
             return isSameWildcard(t, p) ||
                    isCaptureOf(p, t) ||
                    ((t.hasExtendsBound() || isSubtypeNoCapture(L(t), lowerBound(p))) &&
@@ -1168,7 +1169,7 @@ final class Helper {
 
                 ImmutableList<Type<?>> result = union(list, ImmutableList.from(t.getExplicitInterfaces().toArray()));
 
-                for (final Type ifType : interfaces) {
+                for (final Type<?> ifType : interfaces) {
                     if (!list.contains(ifType)) {
                         result = union(result, visit(ifType, result));
                     }
@@ -1179,7 +1180,7 @@ final class Helper {
 
             @Override
             public ImmutableList<Type<?>> visitTypeParameter(final Type<?> t, final ImmutableList<Type<?>> list) {
-                final Type upperBound = t.getExtendsBound();
+                final Type<?> upperBound = t.getExtendsBound();
 
                 if (upperBound.isCompoundType()) {
                     return interfaces(upperBound);
@@ -1198,26 +1199,26 @@ final class Helper {
             }
         };
 
-    public static Type superType(final Type t) {
+    public static Type<?> superType(final Type<?> t) {
         return SuperTypeVisitor.visit(t);
     }
 
-    private final static UnaryTypeVisitor<Type> SuperTypeVisitor = new UnaryTypeVisitor<Type>() {
+    private final static UnaryTypeVisitor<Type<?>> SuperTypeVisitor = new UnaryTypeVisitor<Type<?>>() {
 
-        public Type visitType(final Type t, final Void ignored) {
+        public Type<?> visitType(final Type<?> t, final Void ignored) {
             // A note on wildcards: there is no good way to
             // determine a super type for a super-bounded wildcard.
             return null;
         }
 
         @Override
-        public Type visitClassType(final Type t, final Void ignored) {
+        public Type<?> visitClassType(final Type<?> t, final Void ignored) {
             return t.getBaseType();
         }
 
         @Override
-        public Type visitTypeParameter(final Type t, final Void ignored) {
-            final Type bound = t.getExtendsBound();
+        public Type<?> visitTypeParameter(final Type<?> t, final Void ignored) {
+            final Type<?> bound = t.getExtendsBound();
 
             if (!bound.isCompoundType() && !bound.isInterface()) {
                 return bound;
@@ -1227,21 +1228,21 @@ final class Helper {
         }
 
         @Override
-        public Type visitArrayType(final Type t, final Void ignored) {
-            final Type elementType = t.getElementType();
+        public Type<?> visitArrayType(final Type<?> t, final Void ignored) {
+            final Type<?> elementType = t.getElementType();
 
             if (elementType.isPrimitive() || isSameType(elementType, Types.Object)) {
                 return arraySuperType();
             }
             else {
-                return new ArrayType(superType(elementType));
+                return new ArrayType<>(superType(elementType));
             }
         }
     };
 
     private final static TypeRelation IsSubtypeRelation = new TypeRelation() {
         @Override
-        public Boolean visitPrimitiveType(final Type t, final Type p) {
+        public Boolean visitPrimitiveType(final Type<?> t, final Type<?> p) {
             final TypeKind kt = t.getKind();
             final TypeKind kp = p.getKind();
 
@@ -1275,7 +1276,7 @@ final class Helper {
             }
         }
 
-        public Boolean visitType(final Type t, final Type s) {
+        public Boolean visitType(final Type<?> t, final Type<?> s) {
             if (t.isGenericParameter()) {
                 return isSubtypeNoCapture(t.getExtendsBound(), s);
             }
@@ -1284,7 +1285,7 @@ final class Helper {
 
         private final Set<TypePair> cache = new HashSet<>();
 
-        private boolean containsTypeRecursive(final Type t, final Type s) {
+        private boolean containsTypeRecursive(final Type<?> t, final Type<?> s) {
             final TypePair pair = new TypePair(t, s);
             if (cache.add(pair)) {
                 try {
@@ -1305,7 +1306,7 @@ final class Helper {
             }
         }
 
-        private Type rewriteSupers(final Type t) {
+        private Type<?> rewriteSupers(final Type<?> t) {
             if (!t.isGenericType()) {
                 return t;
             }
@@ -1321,19 +1322,19 @@ final class Helper {
 
             final ListBuffer<Type<?>> rewrite = lb();
             boolean changed = false;
-            for (final Type orig : to.toList()) {
+            for (final Type<?> orig : to.toList()) {
                 Type<?> s = rewriteSupers(orig);
                 if (s.hasSuperBound() && !s.hasExtendsBound()) {
                     s = new WildcardType<>(
                         Types.Object,
-                        Type.Bottom
+                        Type.bottomType()
                     );
                     changed = true;
                 }
                 else if (s != orig) {
                     s = new WildcardType<>(
                         upperBound(s),
-                        Type.Bottom
+                        Type.bottomType()
                     );
                     changed = true;
                 }
@@ -1348,9 +1349,9 @@ final class Helper {
         }
 
         @Override
-        public Boolean visitClassType(final Type t, final Type s) {
+        public Boolean visitClassType(final Type<?> t, final Type<?> s) {
 /*
-            final Type asSuper = asSuper(t, s);
+            final Type<?> asSuper = asSuper(t, s);
             if (asSuper == null || (asSuper != s && asSuper != Types.Object)
                 // You're not allowed to write
                 //     Vector<Object> vec = new Vector<String>();
@@ -1362,14 +1363,14 @@ final class Helper {
                 return false;
             }
 
-            final Type superDeclaringType = asSuper.getDeclaringType();
-            final Type sDeclaringType = s.getDeclaringType();
+            final Type<?> superDeclaringType = asSuper.getDeclaringType();
+            final Type<?> sDeclaringType = s.getDeclaringType();
 
             return superDeclaringType == null ||
                    sDeclaringType == null ||
                    isSubtypeNoCapture(superDeclaringType, sDeclaringType);
 */
-            final Type asSuper = asSuper(t, s);
+            final Type<?> asSuper = asSuper(t, s);
             return asSuper != null //&& asSuper == s
                    // You're not allowed to write
                    //     Vector<Object> vec = new Vector<String>();
@@ -1382,8 +1383,8 @@ final class Helper {
         }
 
         @Override
-        public Boolean visitArrayType(final Type t, final Type s) {
-            final Type elementType = t.getElementType();
+        public Boolean visitArrayType(final Type<?> t, final Type<?> s) {
+            final Type<?> elementType = t.getElementType();
 
             if (elementType.isPrimitive()) {
                 return isSameType(elementType, elementType(s));
@@ -1394,8 +1395,8 @@ final class Helper {
     };
 
     public static void adapt(
-        final Type source,
-        final Type target,
+        final Type<?> source,
+        final Type<?> target,
         final ListBuffer<Type<?>> from,
         final ListBuffer<Type<?>> to)
         throws AdaptFailure {
@@ -1404,11 +1405,11 @@ final class Helper {
     }
 
     @SuppressWarnings("PackageVisibleField")
-    private final static class Adapter extends SimpleVisitor<Type, Void> {
+    private final static class Adapter extends SimpleVisitor<Type<?>, Void> {
 
         ListBuffer<Type<?>> from;
         ListBuffer<Type<?>> to;
-        Map<Type, Type> mapping;
+        Map<Type<?>, Type<?>> mapping;
 
         Adapter(final ListBuffer<Type<?>> from, final ListBuffer<Type<?>> to) {
             this.from = from;
@@ -1416,13 +1417,13 @@ final class Helper {
             mapping = new HashMap<>();
         }
 
-        public void adapt(final Type source, final Type target)
+        public void adapt(final Type<?> source, final Type<?> target)
             throws AdaptFailure {
             visit(source, target);
             ImmutableList<Type<?>> fromList = from.toList();
             ImmutableList<Type<?>> toList = to.toList();
             while (!fromList.isEmpty()) {
-                final Type t = mapping.get(fromList.head);
+                final Type<?> t = mapping.get(fromList.head);
                 if (toList.head != t) {
                     toList.head = t;
                 }
@@ -1432,7 +1433,7 @@ final class Helper {
         }
 
         @Override
-        public Void visitClassType(final Type source, final Type target)
+        public Void visitClassType(final Type<?> source, final Type<?> target)
             throws AdaptFailure {
 
             adaptRecursive(
@@ -1444,14 +1445,14 @@ final class Helper {
         }
 
         @Override
-        public Void visitArrayType(final Type source, final Type target)
+        public Void visitArrayType(final Type<?> source, final Type<?> target)
             throws AdaptFailure {
             adaptRecursive(elementType(source), elementType(target));
             return null;
         }
 
         @Override
-        public Void visitWildcardType(final Type source, final Type target)
+        public Void visitWildcardType(final Type<?> source, final Type<?> target)
             throws AdaptFailure {
             if (source.hasExtendsBound()) {
                 adaptRecursive(upperBound(source), upperBound(target));
@@ -1463,12 +1464,12 @@ final class Helper {
         }
 
         @Override
-        public Void visitTypeParameter(final Type source, final Type target)
+        public Void visitTypeParameter(final Type<?> source, final Type<?> target)
             throws AdaptFailure {
             // Check to see if there is
             // already a mapping for $source$, in which case
             // the old mapping will be merged with the new
-            Type val = mapping.get(source);
+            Type<?> val = mapping.get(source);
             if (val != null) {
                 if (val.hasSuperBound() && target.hasSuperBound()) {
                     val = isSubtype(lowerBound(val), lowerBound(target))
@@ -1492,13 +1493,13 @@ final class Helper {
         }
 
         @Override
-        public Void visitType(final Type source, final Type target) {
+        public Void visitType(final Type<?> source, final Type<?> target) {
             return null;
         }
 
         private final Set<TypePair> cache = new HashSet<>();
 
-        private void adaptRecursive(final Type source, final Type target) {
+        private void adaptRecursive(final Type<?> source, final Type<?> target) {
             final TypePair pair = new TypePair(source, target);
             if (cache.add(pair)) {
                 try {
@@ -1526,21 +1527,21 @@ final class Helper {
     }
 
     private static void adaptSelf(
-        final Type t,
+        final Type<?> t,
         final ListBuffer<Type<?>> from,
         final ListBuffer<Type<?>> to) {
         try {
             //if (t.getGenericTypeDefinition() != t)
             adapt(t.getGenericTypeDefinition(), t, from, to);
         }
-        catch (AdaptFailure ex) {
+        catch (final AdaptFailure ex) {
             // Adapt should never fail calculating a mapping from
             // t.getGenericTypeDefinition() to t as there can be no merge problem.
             throw new AssertionError(ex);
         }
     }
 
-    public static int hashCode(final Type t) {
+    public static int hashCode(final Type<?> t) {
         return HashCodeVisitor.visit(t);
     }
 
@@ -1550,15 +1551,15 @@ final class Helper {
             return HashUtilities.hashCode(type.getKind());
         }
 
-        public Integer visitType(final Type t, final Void ignored) {
+        public Integer visitType(final Type<?> t, final Void ignored) {
             return t.getKind().hashCode();
         }
 
         @Override
-        public Integer visitClassType(final Type t, final Void ignored) {
+        public Integer visitClassType(final Type<?> t, final Void ignored) {
             int result = 0;
 
-            final Type declaringType = t.getDeclaringType();
+            final Type<?> declaringType = t.getDeclaringType();
 
             if (declaringType != null) {
                 result = visit(declaringType);
@@ -1566,7 +1567,7 @@ final class Helper {
 
             result = HashUtilities.combineHashCodes(result, HashUtilities.hashCode(t.getInternalName()));
 
-            for (final Type s : t.getTypeArguments()) {
+            for (final Type<?> s : t.getTypeArguments()) {
                 result = HashUtilities.combineHashCodes(result, (int) visit(s));
             }
 
@@ -1574,9 +1575,9 @@ final class Helper {
         }
 
         @Override
-        public Integer visitWildcardType(final Type t, final Void ignored) {
+        public Integer visitWildcardType(final Type<?> t, final Void ignored) {
             int result = t.getKind().hashCode();
-            if (t.getSuperBound() != Type.Bottom) {
+            if (t.getSuperBound() != Type.bottomType()) {
                 result *= 127;
                 result += visit(t.getSuperBound());
             }
@@ -1588,15 +1589,15 @@ final class Helper {
         }
 
         @Override
-        public Integer visitArrayType(final Type t, final Void ignored) {
+        public Integer visitArrayType(final Type<?> t, final Void ignored) {
             return visit(t.getElementType()) + 12;
         }
 
         @Override
-        public Integer visitTypeParameter(final Type t, final Void ignored) {
+        public Integer visitTypeParameter(final Type<?> t, final Void ignored) {
             if (t instanceof GenericParameter<?>) {
                 return HashUtilities.combineHashCodes(
-                    HashUtilities.hashCode(((GenericParameter) t).getRawTypeVariable()),
+                    HashUtilities.hashCode(((GenericParameter<?>) t).getRawTypeVariable()),
                     t.getGenericParameterPosition()
                 );
             }
@@ -1604,18 +1605,18 @@ final class Helper {
         }
     };
 
-    public static boolean isReifiable(final Type t) {
+    public static boolean isReifiable(final Type<?> t) {
         return IsReifiableVisitor.visit(t);
     }
 
     private final static UnaryTypeVisitor<Boolean> IsReifiableVisitor = new UnaryTypeVisitor<Boolean>() {
 
-        public Boolean visitType(final Type t, final Void ignored) {
+        public Boolean visitType(final Type<?> t, final Void ignored) {
             return true;
         }
 
         @Override
-        public Boolean visitClassType(final Type t, final Void ignored) {
+        public Boolean visitClassType(final Type<?> t, final Void ignored) {
             if (t.isCompoundType()) {
                 return Boolean.FALSE;
             }
@@ -1624,7 +1625,7 @@ final class Helper {
                     return Boolean.TRUE;
                 }
 
-                for (final Type p : t.getTypeArguments()) {
+                for (final Type<?> p : t.getTypeArguments()) {
                     if (p.isUnbounded()) {
                         return Boolean.FALSE;
                     }
@@ -1635,42 +1636,44 @@ final class Helper {
         }
 
         @Override
-        public Boolean visitArrayType(final Type t, final Void ignored) {
+        public Boolean visitArrayType(final Type<?> t, final Void ignored) {
             return visit(t.getElementType());
         }
 
         @Override
-        public Boolean visitTypeParameter(final Type t, final Void ignored) {
+        public Boolean visitTypeParameter(final Type<?> t, final Void ignored) {
             return false;
         }
     };
 
-    private static Type _arraySuperType = null;
+    private static Type<?> _arraySuperType = null;
 
-    private static Type arraySuperType() {
+    @SuppressWarnings("DoubleCheckedLocking")
+    private static Type<?> arraySuperType() {
         // initialized lazily to avoid problems during compiler startup
         if (_arraySuperType == null) {
             synchronized (Helper.class) {
                 if (_arraySuperType == null) {
                     // JLS 10.8: all arrays implement Cloneable and Serializable.
-                    _arraySuperType = Type.makeCompoundType(
+                    final Type<?> arraySuperType = Type.makeCompoundType(
                         Types.Object,
                         Type.list(
                             Types.Serializable,
                             Types.Cloneable
                         )
                     );
+                    _arraySuperType = Fences.orderWrites(arraySuperType);
                 }
             }
         }
         return _arraySuperType;
     }
 
-    public static Type asOuterSuper(Type t, final Type type) {
+    public static Type<?> asOuterSuper(Type<?> t, final Type<?> type) {
         switch (t.getKind()) {
             case DECLARED:
                 do {
-                    final Type s = asSuper(t, type);
+                    final Type<?> s = asSuper(t, type);
                     if (s != null) {
                         return s;
                     }
@@ -1688,7 +1691,7 @@ final class Helper {
         }
     }
 
-    public static MemberInfo asMemberOf(final Type type, final MemberInfo member) {
+    public static MemberInfo asMemberOf(final Type<?> type, final MemberInfo member) {
         return member.isStatic()
                ? member.getDeclaringType()
                : asMemberOfVisitor.visit(type, member);
@@ -1696,21 +1699,22 @@ final class Helper {
 
     private final static TypeBinder typeBinder = new TypeBinder();
 
-    private static SimpleVisitor<MemberInfo, MemberInfo> asMemberOfVisitor = new SimpleVisitor<MemberInfo, MemberInfo>() {
+    private final static SimpleVisitor<MemberInfo, MemberInfo> asMemberOfVisitor = new SimpleVisitor<MemberInfo, MemberInfo>() {
         @Override
         public MemberInfo visitClassType(final Type<?> type, final MemberInfo member) {
-            final Type owner = member.getDeclaringType();
+            final Type<?> owner = member.getDeclaringType();
 
             if (!member.isStatic() && owner.isGenericType()) {
-                Type base = asOuterSuper(type, owner);
-                //
-                // If t is an intersection type T = CT & I1 & I2 ... & In, then
-                // its supertypes CT, I1, ... In might contain wildcards, so we
-                // need to go through capture conversion.
-                //
-                base = base.isCompoundType() ? capture(base) : base;
+                Type<?> base = asOuterSuper(type, owner);
 
                 if (base != null) {
+                    //
+                    // If t is an intersection type T = CT & I1 & I2 ... & In, then
+                    // its supertypes CT, I1, ... In might contain wildcards, so we
+                    // need to go through capture conversion.
+                    //
+                    base = base.isCompoundType() ? capture(base) : base;
+
                     final TypeBindings ownerBindings = owner.getTypeBindings();
                     final TypeBindings baseBindings = owner.getTypeBindings();
                     if (!ownerBindings.isEmpty()) {
@@ -1752,9 +1756,9 @@ final class Helper {
         }
     };
 
-    private final static Map<Type, ImmutableList<Type<?>>> closureCache = new HashMap<>();
+    private final static Map<Type<?>, ImmutableList<Type<?>>> closureCache = new HashMap<>();
 
-    public static ImmutableList<Type<?>> insert(final ImmutableList<Type<?>> cl, final Type t) {
+    public static ImmutableList<Type<?>> insert(final ImmutableList<Type<?>> cl, final Type<?> t) {
         if (cl.isEmpty() || precedes(t, cl.head)) {
             return cl.prepend(t);
         }
@@ -1771,7 +1775,7 @@ final class Helper {
         final ListBuffer<Type<?>> interfaces = lb();
 
         while (!cl.isEmpty()) {
-            final Type current = cl.head;
+            final Type<?> current = cl.head;
 
             if (current.isInterface()) {
                 interfaces.append(current);
@@ -1782,7 +1786,7 @@ final class Helper {
 
             final ListBuffer<Type<?>> candidates = lb();
 
-            for (final Type t : cl.tail) {
+            for (final Type<?> t : cl.tail) {
                 if (!isSubtypeNoCapture(current, t)) {
                     candidates.append(t);
                 }
@@ -1797,7 +1801,7 @@ final class Helper {
     public static ImmutableList<Type<?>> closure(final Type<?> t) {
         ImmutableList<Type<?>> cl = closureCache.get(t);
         if (cl == null) {
-            final Type st = superType(t);
+            final Type<?> st = superType(t);
             if (!t.isCompoundType()) {
                 if (st != null && st.getKind() == TypeKind.DECLARED) {
                     cl = insert(closure(st), t);
@@ -1822,10 +1826,10 @@ final class Helper {
 
     @SuppressWarnings("PackageVisibleField")
     final static class TypePair {
-        final Type t1;
-        final Type t2;
+        final Type<?> t1;
+        final Type<?> t2;
 
-        TypePair(final Type t1, final Type t2) {
+        TypePair(final Type<?> t1, final Type<?> t2) {
             this.t1 = t1;
             this.t2 = t2;
         }

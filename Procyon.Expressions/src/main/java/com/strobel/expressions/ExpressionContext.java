@@ -42,7 +42,7 @@ public final class ExpressionContext implements AutoCloseable {
         this.isDefault = isDefault;
     }
 
-    public static ExpressionContext publicScope() {
+    public static ExpressionContext defaultContext() {
         return DEFAULT;
     }
 
@@ -70,7 +70,6 @@ public final class ExpressionContext implements AutoCloseable {
 
     public static ExpressionContext current() {
         final ArrayDeque<ExpressionContext> stack = THREAD_CONTEXT.get();
-        ensureScope0(stack);
         final ExpressionContext top = stack.peekFirst();
         return top != null ? top : DEFAULT;
     }
@@ -83,12 +82,5 @@ public final class ExpressionContext implements AutoCloseable {
     public void pop() {
         final ArrayDeque<ExpressionContext> stack = THREAD_CONTEXT.get();
         stack.removeFirstOccurrence(this);
-        ensureScope0(stack);
-    }
-
-    private static void ensureScope0(final ArrayDeque<ExpressionContext> stack) {
-        if (stack.isEmpty()) {
-            stack.addFirst(publicScope());
-        }
     }
 }
