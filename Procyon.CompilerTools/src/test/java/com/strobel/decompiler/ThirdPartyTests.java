@@ -1,5 +1,7 @@
 package com.strobel.decompiler;
 
+import com.strobel.assembler.metadata.CompilerTarget;
+import org.junit.Assume;
 import org.junit.Test;
 
 public class ThirdPartyTests extends DecompilerTest {
@@ -18,6 +20,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testOptimizedVariables() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("SootOptimizationTest"),
             defaultSettings(),
@@ -94,6 +97,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testSwitchKrakatau() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("Switch"),
             defaultSettings(),
@@ -143,6 +147,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testWhileLoopsKrakatau() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("WhileLoops"),
             defaultSettings(),
@@ -278,6 +283,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testUnboxToNumber() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("UnboxToNumber"),
             defaultSettings(),
@@ -680,5 +686,11 @@ public class ThirdPartyTests extends DecompilerTest {
             "    }\n" +
             "}"
         );
+    }
+
+    private static void assumePreJdk9() {
+        Assume.assumeTrue("This test currently only functions correctly under JDK 7 or 8.",
+                           CompilerTarget.DEFAULT.compareTo(CompilerTarget.JDK1_7) >= 0 &&
+                           CompilerTarget.DEFAULT.compareTo(CompilerTarget.JDK1_8) <= 0);
     }
 }
