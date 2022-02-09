@@ -16,6 +16,7 @@ package com.strobel.reflection;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,5 +169,48 @@ public class ReflectionTests {
         assertSame(gd, uda);
         assertSame(gd, uea);
         assertSame(gd, uia);
+    }
+
+    @Test
+    public void testBoundGenericFields() {
+        @SuppressWarnings("unused")
+        class GenericTestObject<T> {
+            public List<T> items;
+
+            public T sum(final List<T> values) {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        final class TestObject extends GenericTestObject<Double> {
+        }
+
+        final FieldInfo items = Type.of(TestObject.class).getField("items");
+
+        assertEquals(Types.List.makeGenericType(Types.Double),
+                     items.getFieldType());
+    }
+
+    @Test
+    public void genericParameterArrayTypesDoNotCollideInTypeCache() {
+        class MyClass {
+            public <T> Iterable<T> enumerate(final T[] items) {
+                return Arrays.asList(items);
+            }
+        }
+
+        class MyOtherClass {
+            public Object getFirstOrNull(final Object... values) {
+                return values.length > 0 ? values[0] : null;
+            }
+        }
+
+        final Type<MyClass> c1 = Type.of(MyClass.class); // Load class with method having T[] parameter
+        c1.getMethods();  // Load methods of class with method having T[] parameter
+        final Type<MyOtherClass> c2 = Type.of(MyOtherClass.class); // Load class with method having Object[] parameter
+        final Type<Object[]> objectArrayType = Types.Object.makeArrayType(); // Prepare Object[] type for comparison
+        final MethodInfo method = c2.getMethod("getFirstOrNull", objectArrayType); // Load specific method having Object[] parameter
+        final Type<?> methodParameterType = method.getParameters().getParameterTypes().get(0); // Retrieve method parameter type (expected to be Object[])
+        assertEquals(objectArrayType, methodParameterType); // The method parameter type should match the expected Object[], but will be T[]
     }
 }
