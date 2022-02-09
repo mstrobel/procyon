@@ -22,18 +22,18 @@ import java.util.ArrayList;
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
-final class TypeBuilderInstantiation extends Type {
-    private final TypeBuilder<?> _definition;
+final class TypeBuilderInstantiation<T> extends Type<T> {
+    private final TypeBuilder<T> _definition;
     private final TypeBindings _typeBindings;
 
-    private Type<?> _baseType;
+    private Type<T> _baseType;
 
-    private TypeBuilderInstantiation(final TypeBuilder<?> definition, final TypeBindings typeBindings) {
+    private TypeBuilderInstantiation(final TypeBuilder<T> definition, final TypeBindings typeBindings) {
         _definition = VerifyArgument.notNull(definition, "definition");
         _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
     }
 
-    static Type makeGenericType(final TypeBuilder<?> type, final TypeList typeArguments) {
+    static <T> Type<T> makeGenericType(final TypeBuilder<T> type, final TypeList typeArguments) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(typeArguments, "typeArguments");
 
@@ -41,7 +41,7 @@ final class TypeBuilderInstantiation extends Type {
             throw Error.genericTypeDefinitionRequired();
         }
 
-        return new TypeBuilderInstantiation(
+        return new TypeBuilderInstantiation<>(
             type,
             TypeBindings.create(
                 type.getGenericTypeParameters(),
@@ -55,10 +55,10 @@ final class TypeBuilderInstantiation extends Type {
         final Type<?>[] substituteArguments = new Type<?>[typeArguments.size()];
 
         for (int i = 0, n = substituteArguments.length; i < n; i++) {
-            final Type t = typeArguments.get(i);
+            final Type<?> t = typeArguments.get(i);
 
             if (t instanceof TypeBuilderInstantiation) {
-                substituteArguments[i] = ((TypeBuilderInstantiation)t).substitute(substitutes);
+                substituteArguments[i] = ((TypeBuilderInstantiation<?>)t).substitute(substitutes);
             }
             else if (t instanceof GenericParameterBuilder<?>) {
                 substituteArguments[i] = substitutes.get(t.getGenericParameterPosition());
@@ -72,7 +72,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _definition;
     }
 
@@ -82,22 +82,23 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Type getBaseType() {
+    @SuppressWarnings("unchecked")
+    public Type<? super T> getBaseType() {
         if (_baseType != null) {
             return _baseType;
         }
 
-        final Type definitionBase = _definition.getBaseType();
+        final Type<?> definitionBase = _definition.getBaseType();
 
         if (definitionBase == null) {
             return null;
         }
 
         if (definitionBase instanceof TypeBuilderInstantiation) {
-            _baseType = ((TypeBuilderInstantiation)definitionBase).substitute(getTypeArguments());
+            _baseType = (Type<T>) ((TypeBuilderInstantiation<?>)definitionBase).substitute(getTypeArguments());
         }
         else {
-            _baseType = definitionBase;
+            _baseType = (Type<T>) definitionBase;
         }
 
         return _baseType;
@@ -108,7 +109,7 @@ final class TypeBuilderInstantiation extends Type {
         final TypeList definitionInterfaces = _definition.getExplicitInterfaces();
         final ArrayList<Type<?>> interfaces = new ArrayList<>();
 
-        for (final Type interfaceType : definitionInterfaces) {
+        for (final Type<?> interfaceType : definitionInterfaces) {
             interfaces.add(substitute(interfaceType, _typeBindings));
         }
 
@@ -116,7 +117,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public Class<T> getErasedClass() {
         return _definition.getErasedClass();
     }
 
@@ -131,7 +132,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         return _definition;
     }
 
@@ -166,7 +167,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _definition.getReflectedType();
     }
 
@@ -176,12 +177,12 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public Object accept(final TypeVisitor visitor, final Object parameter) {
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
         return visitor.visitClassType(this, parameter);
     }
 
     @Override
-    public boolean isEquivalentTo(final Type other) {
+    public boolean isEquivalentTo(final Type<?> other) {
         if (other == this) {
             return true;
         }
@@ -194,8 +195,8 @@ final class TypeBuilderInstantiation extends Type {
             return _typeBindings.getBoundTypes().isEquivalentTo(_definition.getGenericTypeParameters());
         }
 
-        if (other instanceof TypeBuilderInstantiation) {
-            final TypeBuilderInstantiation tbi = (TypeBuilderInstantiation) other;
+        if (other instanceof TypeBuilderInstantiation<?>) {
+            final TypeBuilderInstantiation<?> tbi = (TypeBuilderInstantiation<?>) other;
 
             return tbi._definition == _definition &&
                    _typeBindings.getBoundTypes().isEquivalentTo(tbi._typeBindings.getBoundTypes());

@@ -13,55 +13,74 @@
 
 package com.strobel.compilerservices;
 
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
-import sun.misc.Unsafe;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
 
 /**
  * @author strobelm
  */
 public final class RuntimeHelpers {
+    @SuppressWarnings("ALL")
+    protected static void ensureInitializedSafely(final Class<?> clazz) {
+        try {
+            Class.forName(clazz.getName(), true, clazz.getClassLoader());
+        }
+        catch (final Throwable t) {
+            ExceptionUtilities.wrapOrThrow(t);
+        }
+    }
+
     private RuntimeHelpers() {
         throw ContractUtils.unreachable();
     }
 
     public static void ensureClassInitialized(final Class<?> clazz) {
-        getUnsafeInstance().ensureClassInitialized(VerifyArgument.notNull(clazz, "clazz"));
+        try {
+            LazyInit.ENSURE_INITIALIZED.invokeExact((Class<?>) VerifyArgument.notNull(clazz, "clazz"));
+        }
+        catch (final Throwable t) {
+            throw ExceptionUtilities.wrapOrThrow(t);
+        }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="Unsafe Access">
+    private final static class LazyInit {
+        final static MethodHandle ENSURE_INITIALIZED = makeEnsureInitialized();
 
-    private static Unsafe _unsafe;
+        @SuppressWarnings("UnnecessaryLocalVariable")
+        private static MethodHandle makeEnsureInitialized() {
+            final MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-    private static Unsafe getUnsafeInstance() {
-        if (_unsafe != null) {
-            return _unsafe;
-        }
+            try {
+                final Object unsafe = UnsafeAccess.unsafe();
+                final Method ensureClassInitialized = unsafe.getClass().getDeclaredMethod("ensureClassInitialized", Class.class);
 
-        try {
-            _unsafe = Unsafe.getUnsafe();
-        }
-        catch (Throwable ignored) {
-        }
+                if (!ensureClassInitialized.isAnnotationPresent(Deprecated.class)) {
+                    final MethodHandle handle = lookup.unreflect(ensureClassInitialized);
+                    final MethodHandle boundHandle = MethodHandles.insertArguments(handle, 0, unsafe);
 
-        try {
-            final Field instanceField = Unsafe.class.getDeclaredField("theUnsafe");
-            instanceField.setAccessible(true);
-            _unsafe = (Unsafe) instanceField.get(Unsafe.class);
-        }
-        catch (Throwable t) {
-            throw new IllegalStateException(
-                String.format(
-                    "Could not load an instance of the %s class.",
-                    Unsafe.class.getName()
-                )
-            );
-        }
+                    return boundHandle;
+                }
+            }
+            catch (final Throwable ignored) {
+                ExceptionUtilities.rethrowCritical(ignored);
+            }
 
-        return _unsafe;
+            try {
+                return lookup.findStatic(
+                    RuntimeHelpers.class,
+                    "ensureInitializedSafely",
+                    MethodType.methodType(void.class, Class.class)
+                );
+            }
+            catch (final ReflectiveOperationException e) {
+                throw ExceptionUtilities.wrapOrThrow(e);
+            }
+        }
     }
-
-    // </editor-fold>
 }

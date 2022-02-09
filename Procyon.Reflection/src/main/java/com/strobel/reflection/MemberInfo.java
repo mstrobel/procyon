@@ -37,14 +37,18 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     private String _briefDescription;
     private String _simpleDescription;
 
+    public static Annotation[] emptyAnnotations() {
+        return EMPTY_ANNOTATIONS;
+    }
+
     MemberInfo() {
     }
 
     public abstract MemberType getMemberType();
     public abstract String getName();
-    public abstract Type getDeclaringType();
+    public abstract Type<?> getDeclaringType();
 
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         // TODO: Implement this correctly
         return getDeclaringType();
     }
@@ -123,7 +127,7 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     @Override
     public int hashCode() {
         final int baseHash = HashUtilities.combineHashCodes(getName(), getErasedSignature());
-        final Type t = getDeclaringType();
+        final Type<?> t = getDeclaringType();
 
         if (t != null) {
             return HashUtilities.combineHashCodes(t.getInternalName(), baseHash);

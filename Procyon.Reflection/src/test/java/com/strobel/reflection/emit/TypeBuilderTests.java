@@ -20,8 +20,6 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.annotation.Retention;
@@ -36,20 +34,24 @@ import static org.junit.Assert.*;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("rawtypes")
 public final class TypeBuilderTests {
+    @SuppressWarnings("unused")
+    public final static MethodHandles.Lookup PACKAGE_ACCESS = MethodHandles.lookup();
+
     @Retention(RetentionPolicy.RUNTIME)
     @interface TestAnnotation {
         int value();
     }
 
     @Test
-    public void testGenericTypeBuilder() throws Throwable {
+    public void testGenericTypeBuilder() {
         final TypeBuilder<?> typeBuilder = new TypeBuilder<>(
             "TestGenericType",
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
-            TypeList.empty(),
-            MethodHandles.lookup()
+            TypeList.empty()/*,
+            (resolve package access from declaration site) */
         );
 
         typeBuilder.defineDefaultConstructor();
@@ -98,7 +100,7 @@ public final class TypeBuilderTests {
     }
 
     @Test
-    public void testOverrideGenericMethodNoBridge() throws Throwable {
+    public void testOverrideGenericMethodNoBridge() {
         final MethodInfo baseToArray = Types.ArrayList.getMethod("toArray", Types.Object.makeArrayType());
 
         final TypeBuilder<ArrayList> mockList = new TypeBuilder<>(
@@ -117,6 +119,7 @@ public final class TypeBuilderTests {
             Types.Object.makeArrayType()
         );
 
+        @SuppressWarnings("SpellCheckingInspection")
         final GenericParameterBuilder<?>[] mgps = toArray.defineGenericParameters("T");
 
         final GenericParameterBuilder<?> e = gps[0];
@@ -158,7 +161,7 @@ public final class TypeBuilderTests {
     }
 
     @Test
-    public void testOverrideGenericMethodWithBridge() throws Throwable {
+    public void testOverrideGenericMethodWithBridge() {
         final MethodInfo baseToArray = Types.ArrayList.getMethod("toArray", Types.Object.makeArrayType());
 
         final TypeBuilder<ArrayList<String>> mockList = new TypeBuilder<>(
@@ -210,10 +213,9 @@ public final class TypeBuilderTests {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testIsBridgeMethodNecessaryWhenImplementingParameterizedType() throws Throwable {
+    public void testIsBridgeMethodNecessaryWhenImplementingParameterizedType() {
         final Type<Comparator> openComparator = Type.of(Comparator.class);
-        final Type<Comparator> boundComparator = openComparator.makeGenericType(Types.String);
+        final Type<Comparator<String>> boundComparator = openComparator.makeGenericType(Types.String);
 
         final TypeBuilder<Comparator<String>> builder = new TypeBuilder<>(
             "TestStringComparator1",
@@ -244,12 +246,12 @@ public final class TypeBuilderTests {
 
         assertTrue(TypeBuilder.isBridgeMethodNeeded(boundCompare, compareBuilder));
 
-        assertEquals(0, ((Comparator) builder.createType().newInstance()).compare(null, null));
+        //noinspection EqualsWithItself
+        assertEquals(0, builder.createType().newInstance().compare(null, null));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testIsBridgeMethodNecessaryWhenExtendingGenericType() throws Throwable {
+    public void testIsBridgeMethodNecessaryWhenExtendingGenericType() {
         final Type<Comparator> openComparator = Type.of(Comparator.class);
 
         final TypeBuilder<Comparator<String>> builder = new TypeBuilder<>(
@@ -259,7 +261,7 @@ public final class TypeBuilderTests {
         );
 
         assertTrue(openComparator.isGenericTypeDefinition());
-        assertTrue(openComparator.getGenericTypeParameters().size() == 1);
+        assertEquals(1, openComparator.getGenericTypeParameters().size());
 
         final GenericParameterBuilder<?>[] typeVariables = builder.defineGenericParameters("T_i");
 
@@ -286,12 +288,12 @@ public final class TypeBuilderTests {
         g.emitReturn(PrimitiveTypes.Integer);
 
         assertFalse(TypeBuilder.isBridgeMethodNeeded(boundCompare, compareBuilder));
-        assertEquals(0, ((Comparator) builder.createType().newInstance()).compare(null, null));
+        //noinspection EqualsWithItself
+        assertEquals(0, builder.createType().newInstance().compare(null, null));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testIsBridgeMethodNecessaryWhenExtendingGenericTypeWithNewConstraint() throws Throwable {
+    public void testIsBridgeMethodNecessaryWhenExtendingGenericTypeWithNewConstraint() {
         final Type<Comparator> openComparator = Type.of(Comparator.class);
 
         final TypeBuilder<Comparator<String>> builder = new TypeBuilder<>(
@@ -301,7 +303,7 @@ public final class TypeBuilderTests {
         );
 
         assertTrue(openComparator.isGenericTypeDefinition());
-        assertTrue(openComparator.getGenericTypeParameters().size() == 1);
+        assertEquals(1, openComparator.getGenericTypeParameters().size());
 
         final GenericParameterBuilder<?>[] typeVariables = builder.defineGenericParameters("T_i");
 
@@ -330,11 +332,12 @@ public final class TypeBuilderTests {
         g.emitReturn(PrimitiveTypes.Integer);
 
         assertTrue(TypeBuilder.isBridgeMethodNeeded(boundCompare, compareBuilder));
-        assertEquals(0, ((Comparator) builder.createType().newInstance()).compare(null, null));
+        //noinspection EqualsWithItself
+        assertEquals(0, builder.createType().newInstance().compare(null, null));
     }
 
     @Test
-    public void testTypeBuilderArrayTypes() throws Throwable {
+    public void testTypeBuilderArrayTypes() {
         final TypeBuilder<?> type = new TypeBuilder<>(
             "TestTypeBuilderArrayTypes",
             Modifier.PUBLIC | Modifier.FINAL,
@@ -389,7 +392,7 @@ public final class TypeBuilderTests {
     }
 
     @Test
-    public void testMethodBuilderArrayTypes() throws Throwable {
+    public void testMethodBuilderArrayTypes() {
         final TypeBuilder<?> type = new TypeBuilder<>(
             "TestMethodBuilderArrayTypes",
             Modifier.PUBLIC | Modifier.FINAL

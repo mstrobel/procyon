@@ -18,7 +18,6 @@ import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 /**
  * @author Mike Strobel
@@ -96,6 +95,7 @@ public abstract class ConstructorInfo extends MethodBase {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
         final Constructor<?> rawConstructor = getRawConstructor();
         final TypeList parameterTypes = Type.list(rawConstructor.getParameterTypes());
@@ -127,12 +127,13 @@ public abstract class ConstructorInfo extends MethodBase {
         try {
             return rawConstructor.newInstance(args);
         }
-        catch (InstantiationException | InvocationTargetException | IllegalAccessException e) {
+        catch (final ReflectiveOperationException e) {
             throw Error.targetInvocationException(e);
         }
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = PrimitiveTypes.Void.appendBriefDescription(sb);
 
@@ -158,7 +159,7 @@ public abstract class ConstructorInfo extends MethodBase {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -170,6 +171,7 @@ public abstract class ConstructorInfo extends MethodBase {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = PrimitiveTypes.Void.appendSimpleDescription(sb);
 
@@ -195,7 +197,7 @@ public abstract class ConstructorInfo extends MethodBase {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -220,7 +222,7 @@ public abstract class ConstructorInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            final Type parameterType = p.getParameterType();
+            final Type<?> parameterType = p.getParameterType();
             if (parameterType.isGenericParameter()) {
                 s.append(parameterType.getName());
             }
@@ -242,13 +244,13 @@ public abstract class ConstructorInfo extends MethodBase {
 }
 
 class ReflectedConstructor extends ConstructorInfo {
-    private final Type _declaringType;
+    private final Type<?> _declaringType;
     private final ParameterList _parameters;
-    private final Constructor _rawConstructor;
+    private final Constructor<?> _rawConstructor;
     private final TypeList _thrownTypes;
     private final SignatureType _signatureType;
 
-    ReflectedConstructor(final Type declaringType, final Constructor rawConstructor, final ParameterList parameters, final TypeList thrownTypes) {
+    ReflectedConstructor(final Type<?> declaringType, final Constructor<?> rawConstructor, final ParameterList parameters, final TypeList thrownTypes) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _rawConstructor = VerifyArgument.notNull(rawConstructor, "rawConstructor");
         _parameters = VerifyArgument.notNull(parameters, "parameters");
@@ -271,15 +273,8 @@ class ReflectedConstructor extends ConstructorInfo {
         return _thrownTypes;
     }
 
-/*
     @Override
-    public String getName() {
-        return _rawConstructor.getName();
-    }
-*/
-
-    @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 

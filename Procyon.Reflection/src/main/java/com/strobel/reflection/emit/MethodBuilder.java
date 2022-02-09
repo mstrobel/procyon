@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings({"PackageVisibleField", "unchecked"})
+@SuppressWarnings({ "PackageVisibleField", "DuplicatedCode" })
 public final class MethodBuilder extends MethodInfo {
     private final String _name;
     private final TypeBuilder<?> _declaringType;
@@ -70,13 +70,13 @@ public final class MethodBuilder extends MethodInfo {
         setSignature(returnType, parameterTypes);
     }
 
-    final void verifyNotGeneric() {
+    void verifyNotGeneric() {
         if (isGenericMethod() && !isGenericMethodDefinition()) {
             throw Error.methodIsGeneric();
         }
     }
 
-    final void verifyNotAbstract() {
+    void verifyNotAbstract() {
         if (isAbstract()) {
             throw Error.abstractMethodCannotHaveBody();
         }
@@ -152,7 +152,7 @@ public final class MethodBuilder extends MethodInfo {
         return _declaringType.isCreated() ? generatedMethod.getParameters() : createParameters();
     }
 
-    final ParameterList createParameters() {
+    ParameterList createParameters() {
         final List<ParameterBuilder> pb = this.getDefinedParameters();
         final ParameterInfo[] p = new ParameterInfo[pb.size()];
 
@@ -190,7 +190,7 @@ public final class MethodBuilder extends MethodInfo {
         setSignature(type, null);
     }
 
-    final void verifyCodeGeneratorNotCreated() {
+    void verifyCodeGeneratorNotCreated() {
         if (generator != null) {
             throw Error.cannotModifyMethodAfterCallingGetGenerator();
         }
@@ -241,16 +241,16 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _declaringType;
     }
 
-    public void addCustomAnnotation(final AnnotationBuilder annotation) {
+    public <A extends Annotation> void addCustomAnnotation(final AnnotationBuilder<A> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
-        final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
+        final AnnotationBuilder<?>[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
+        _annotations = new ReadOnlyList<>(newAnnotations);
     }
 
     public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
@@ -332,7 +332,7 @@ public final class MethodBuilder extends MethodInfo {
             s.append(' ');
         }
 
-        Type returnType = getReturnType();
+        Type<?> returnType = getReturnType();
 
         while (returnType.isWildcardType()) {
             returnType = returnType.getExtendsBound();
@@ -357,7 +357,7 @@ public final class MethodBuilder extends MethodInfo {
                 s.append(", ");
             }
 
-            Type parameterType = p.getParameterType();
+            Type<?> parameterType = p.getParameterType();
 
             while (parameterType.isWildcardType()) {
                 parameterType = parameterType.getExtendsBound();
@@ -379,7 +379,7 @@ public final class MethodBuilder extends MethodInfo {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -436,7 +436,7 @@ public final class MethodBuilder extends MethodInfo {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -476,7 +476,7 @@ public final class MethodBuilder extends MethodInfo {
                 s.append('<');
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    final Type type = genericParameters[i];
+                    final Type<?> type = genericParameters[i];
                     s = type.appendGenericSignature(s);
                 }
                 s.append('>');
@@ -511,7 +511,7 @@ public final class MethodBuilder extends MethodInfo {
             if (name == null) {
                 throw new IllegalArgumentException("Names array contains one or more null elements.");
             }
-            parameters[i] = new GenericParameterBuilder<>(new TypeBuilder(name, i, this));
+            parameters[i] = new GenericParameterBuilder<>(new TypeBuilder<>(name, i, this));
         }
 
         genericParameterBuilders = parameters;
@@ -519,6 +519,7 @@ public final class MethodBuilder extends MethodInfo {
         return genericParameterBuilders;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public ParameterBuilder defineParameter(final int position, final String name) {
         verifyCodeGeneratorNotCreated();
 
@@ -562,19 +563,19 @@ public final class MethodBuilder extends MethodInfo {
         _isFinished = true;
     }
 
-    final byte[] getBody() {
+    byte[] getBody() {
         return _body;
     }
 
-    final __ExceptionInstance[] getExceptionInstances() {
+    __ExceptionInstance[] getExceptionInstances() {
         return _exceptions;
     }
 
-    final int getNumberOfExceptions() {
+    int getNumberOfExceptions() {
         return _numberOfExceptions;
     }
 
-    final void createMethodBodyHelper(final CodeGenerator code) {
+    void createMethodBodyHelper(final CodeGenerator code) {
         VerifyArgument.notNull(code, "code");
 
         final __ExceptionInfo[] exceptions;
@@ -583,7 +584,7 @@ public final class MethodBuilder extends MethodInfo {
         int[] filterAddresses;
         int[] catchAddresses;
         int[] catchEndAddresses;
-        Type[] catchClass;
+        Type<?>[] catchClass;
         int[] exceptionType;
         int numberOfCatches;
         int startAddress, endAddress;
@@ -605,20 +606,13 @@ public final class MethodBuilder extends MethodInfo {
         _body = code.bakeByteArray();
 
         exceptions = code.getExceptions();
-/*
-        unhandledExceptions = code.getUnhandledCheckedExceptions();
-
-        for (final Type<?> unhandledExceptionType : unhandledExceptions) {
-            if (!_thrownTypes.containsTypeAssignableFrom(unhandledExceptionType)) {
-                throw Error.checkedExceptionUnhandled(unhandledExceptionType);
-            }
-        }
-*/
 
         _numberOfExceptions = calculateNumberOfExceptions(exceptions);
 
         if (_numberOfExceptions > 0) {
             _exceptions = new __ExceptionInstance[_numberOfExceptions];
+
+            assert exceptions != null;
 
             for (final __ExceptionInfo exception : exceptions) {
 
@@ -687,7 +681,7 @@ public final class MethodBuilder extends MethodInfo {
         return numberOfExceptions;
     }
 
-    final void releaseBakedStructures() {
+    void releaseBakedStructures() {
         _body = null;
     }
 }
@@ -722,8 +716,8 @@ final class __ExceptionInstance {
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj != null && (obj instanceof __ExceptionInstance)) {
-            final __ExceptionInstance that = (__ExceptionInstance)obj;
+        if (obj instanceof __ExceptionInstance) {
+            final __ExceptionInstance that = (__ExceptionInstance) obj;
             return that.exceptionClass == exceptionClass &&
                    that.startAddress == startAddress &&
                    that.endAddress == endAddress &&
