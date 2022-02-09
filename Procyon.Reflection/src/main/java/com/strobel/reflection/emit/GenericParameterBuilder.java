@@ -23,17 +23,16 @@ import java.util.Set;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
 public final class GenericParameterBuilder<T> extends Type<T> {
     @SuppressWarnings("PackageVisibleField")
-    final TypeBuilder typeBuilder;
+    final TypeBuilder<T> typeBuilder;
 
-    GenericParameterBuilder(final TypeBuilder typeBuilder) {
+    GenericParameterBuilder(final TypeBuilder<T> typeBuilder) {
         this.typeBuilder = VerifyArgument.notNull(typeBuilder, "type");
     }
 
     @Override
-    public Type getDeclaringType() {
+    public TypeBuilder<?> getDeclaringType() {
         return typeBuilder.getDeclaringType();
     }
 
@@ -43,7 +42,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return typeBuilder.getReflectedType();
     }
 
@@ -108,7 +107,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
+    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention, final Type<?>... parameterTypes) {
         throw ContractUtils.unsupported();
     }
 
@@ -133,12 +132,12 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         throw ContractUtils.unsupported();
     }
 
     @Override
-    public MemberList getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         throw ContractUtils.unsupported();
     }
 
@@ -147,7 +146,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
         final String name,
         final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
-        final Type... parameterTypes) {
+        final Type<?>... parameterTypes) {
 
         throw ContractUtils.unsupported();
     }
@@ -203,7 +202,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean isSubTypeOf(final Type type) {
+    public boolean isSubTypeOf(final Type<?> type) {
         return typeBuilder.isSubTypeOf(type);
     }
 
@@ -213,7 +212,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean implementsInterface(final Type interfaceType) {
+    public boolean implementsInterface(final Type<?> interfaceType) {
         return typeBuilder.implementsInterface(interfaceType);
     }
 
@@ -249,7 +248,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public Class<T> getErasedClass() {
-        return (Class<T>) typeBuilder.getErasedClass();
+        return typeBuilder.getErasedClass();
     }
 
     @Override
@@ -263,7 +262,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean isAssignableFrom(final Type type) {
+    public boolean isAssignableFrom(final Type<?> type) {
         return typeBuilder.isAssignableFrom(type);
     }
 
@@ -316,7 +315,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return (R)typeBuilder.accept(visitor, parameter);
+        return typeBuilder.accept(visitor, parameter);
     }
 
     public void setBaseTypeConstraint(final Type<?> baseType) {

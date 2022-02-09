@@ -66,7 +66,8 @@ final class LambdaCompiler {
             getUniqueLambdaName(lambda.getName(), lambda.getCreationContext()),
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
-            Type.list(lambda.getType())
+            Type.list(lambda.getType()),
+            ExpressionContext.current().packageAccess()
         );
 
         final MethodInfo interfaceMethod = Expression.getInvokeMethod(lambda.getType(), true);

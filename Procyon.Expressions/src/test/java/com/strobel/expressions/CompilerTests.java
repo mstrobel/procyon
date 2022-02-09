@@ -1213,7 +1213,7 @@ public final class CompilerTests extends AbstractExpressionTest {
     @Test
     public void testTypeInitializerGeneration() throws Throwable {
         final TypeBuilder<Runnable> typeBuilder = new TypeBuilder<>(
-            "TestTypeInitializerGeneration",
+            CompilerTests.class.getPackage().getName() + ".TestTypeInitializerGeneration",
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(Type.of(Runnable.class))

@@ -76,7 +76,7 @@ public abstract class FieldInfo extends MemberInfo {
         try {
             return rawField.get(instance);
         }
-        catch (IllegalAccessException e) {
+        catch (final IllegalAccessException e) {
             throw Error.targetInvocationException(e);
         }
     }
@@ -91,7 +91,7 @@ public abstract class FieldInfo extends MemberInfo {
         try {
             rawField.set(instance, value);
         }
-        catch (IllegalAccessException e) {
+        catch (final IllegalAccessException e) {
             throw Error.targetInvocationException(e);
         }
     }
@@ -102,6 +102,7 @@ public abstract class FieldInfo extends MemberInfo {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = sb;
 
@@ -110,7 +111,7 @@ public abstract class FieldInfo extends MemberInfo {
             s.append(' ');
         }
 
-        final Type fieldType = getFieldType();
+        final Type<?> fieldType = getFieldType();
 
         if (fieldType.isGenericParameter()) {
             s.append(fieldType.getName());
@@ -130,11 +131,11 @@ public abstract class FieldInfo extends MemberInfo {
         StringBuilder s = sb;
 
         if (isStatic()) {
-            s.append(Modifier.STATIC.toString());
+            s.append(Modifier.STATIC);
             s.append(' ');
         }
         
-        final Type fieldType = getFieldType();
+        final Type<?> fieldType = getFieldType();
 
         if (fieldType.isGenericParameter()) {
             s.append(fieldType.getName());
@@ -170,11 +171,11 @@ public abstract class FieldInfo extends MemberInfo {
         StringBuilder s = sb;
 
         if (isStatic()) {
-            s.append(Modifier.STATIC.toString());
+            s.append(Modifier.STATIC);
             s.append(' ');
         }
 
-        final Type fieldType = getFieldType();
+        final Type<?> fieldType = getFieldType();
 
         if (fieldType.isGenericParameter()) {
             s.append(fieldType.getName());
@@ -201,16 +202,16 @@ public abstract class FieldInfo extends MemberInfo {
 }
 
 class ReflectedField extends FieldInfo {
-    private final Type _declaringType;
-    private final Type _reflectedType;
+    private final Type<?> _declaringType;
+    private final Type<?> _reflectedType;
     private final Field _rawField;
-    private final Type _fieldType;
+    private final Type<?> _fieldType;
 
-    ReflectedField(final Type declaringType, final Field rawField, final Type fieldType) {
+    ReflectedField(final Type<?> declaringType, final Field rawField, final Type<?> fieldType) {
         this(declaringType, declaringType, rawField, fieldType);
     }
 
-    ReflectedField(final Type declaringType, final Type reflectedType, final Field rawField, final Type fieldType) {
+    ReflectedField(final Type<?> declaringType, final Type<?> reflectedType, final Field rawField, final Type<?> fieldType) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
         _rawField = VerifyArgument.notNull(rawField, "rawField");
@@ -238,12 +239,12 @@ class ReflectedField extends FieldInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedType;
     }
 

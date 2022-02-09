@@ -31,7 +31,7 @@ public final class DynamicMethod extends MethodInfo {
             INVOKE = MethodHandle.class.getMethod("invoke", Object[].class);
             INVOKE_EXACT = MethodHandle.class.getMethod("invokeExact", Object[].class);
         }
-        catch (NoSuchMethodException e) {
+        catch (final NoSuchMethodException e) {
             throw Error.targetInvocationException(e);
         }
     }
@@ -125,7 +125,7 @@ public final class DynamicMethod extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return Types.MethodHandle;
     }
 

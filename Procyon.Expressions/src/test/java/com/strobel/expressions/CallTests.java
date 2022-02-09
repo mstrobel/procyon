@@ -21,6 +21,7 @@ import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.TypeBuilder;
 import org.junit.Test;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Modifier;
 
 import static com.strobel.expressions.Expression.*;
@@ -39,7 +40,8 @@ public class CallTests extends AbstractExpressionTest {
             baseType.getPackage().getName() + ".CallTestDerivedClass",
             baseType.getModifiers(),
             baseType,
-            TypeList.empty()
+            TypeList.empty(),
+            MethodHandles.lookup()
         );
 
         final LambdaExpression lambda = lambda(
