@@ -42,7 +42,7 @@ public abstract class MemberExpression extends Expression {
         return _target;
     }
 
-    MemberInfo getMember() {
+    public MemberInfo getMember() {
         throw ContractUtils.unreachable();
     }
 
