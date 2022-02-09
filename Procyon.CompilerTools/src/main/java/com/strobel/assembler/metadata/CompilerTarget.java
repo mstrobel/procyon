@@ -89,7 +89,12 @@ public enum CompilerTarget {
     /**
      * JDK 16.
      */
-    JDK16("16", 60, 0);
+    JDK16("16", 60, 0),
+
+    /**
+     * JDK 16.
+     */
+    JDK17("17", 61, 0);
 
     private static final CompilerTarget[] VALUES = values();
     private static final CompilerTarget MIN = VALUES[0];

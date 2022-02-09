@@ -1219,7 +1219,7 @@ public class AstMethodBodyBuilder {
             if (declaringType.isNested()) {
                 final TypeDefinition resolvedType = declaringType.resolve();
 
-                if (resolvedType != null) {
+                if (resolvedType != null && !resolvedType.isEnum()) {
                     if (resolvedType.isLocalClass()) {
                         return arguments;
                     }
