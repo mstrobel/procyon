@@ -122,14 +122,14 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
 
     @Override
     public int hashCode() {
-        final int nameHash = HashUtilities.hashCode(getName());
+        final int baseHash = HashUtilities.combineHashCodes(getName(), getErasedSignature());
         final Type t = getDeclaringType();
 
         if (t != null) {
-            return HashUtilities.combineHashCodes(t.hashCode(), nameHash);
+            return HashUtilities.combineHashCodes(t.getInternalName(), baseHash);
         }
 
-        return nameHash;
+        return baseHash;
     }
 
     public boolean isEquivalentTo(final MemberInfo m) {

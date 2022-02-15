@@ -772,7 +772,7 @@ final class Resolver {
         final ReflectedField reflectedField = new ReflectedField(
             declaringType,
             field,
-            frame.resolveType(field.getType())
+            frame.resolveType(field.getGenericType())
         );
 
         declaringType.addField(reflectedField);

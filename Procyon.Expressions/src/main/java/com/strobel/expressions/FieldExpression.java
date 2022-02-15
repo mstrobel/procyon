@@ -33,7 +33,7 @@ final class FieldExpression extends MemberExpression {
     }
 
     @Override
-    FieldInfo getMember() {
+    public FieldInfo getMember() {
         return _field;
     }
 
