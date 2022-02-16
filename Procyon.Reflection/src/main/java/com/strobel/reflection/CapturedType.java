@@ -35,7 +35,7 @@ final class CapturedType<T> extends Type<T> implements ICapturedType {
 
         _wildcard = VerifyArgument.notNull(wildcard, "wildcard");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
+        _lowerBound = lowerBound != null ? lowerBound : Type.bottomType();
         _declaringType = declaringType;
     }
 
@@ -96,7 +96,7 @@ final class CapturedType<T> extends Type<T> implements ICapturedType {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 

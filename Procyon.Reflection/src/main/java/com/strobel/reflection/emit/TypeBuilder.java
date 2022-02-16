@@ -16,17 +16,18 @@ package com.strobel.reflection.emit;
 import com.strobel.annotations.NotNull;
 import com.strobel.compilerservices.CallerResolver;
 import com.strobel.compilerservices.RuntimeHelpers;
+import com.strobel.compilerservices.UnsafeAccess;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.functions.Function;
 import com.strobel.io.PathHelper;
 import com.strobel.reflection.*;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
-import sun.misc.Unsafe;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -34,7 +35,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.*;
@@ -44,6 +47,10 @@ import java.util.*;
  */
 @SuppressWarnings({ "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
+    public static MethodHandles.Lookup defaultPackageAccess() {
+        return generated.PackageAccess.defaultPackage();
+    }
+
     private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
     private final static String VerifyGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.VerifyGeneratedClasses";
@@ -59,12 +66,12 @@ public final class TypeBuilder<T> extends Type<T> {
     private String _fullName;
     private String _internalName;
     private Package _package;
-    private Type<? super T> _baseType;
+    private Type<?> _baseType;
     private ConstructorList _constructors;
     private MethodList _methods;
     private FieldList _fields;
     private TypeList _interfaces;
-    private TypeBuilder _declaringType;
+    private TypeBuilder<?> _declaringType;
     private MethodBuilder _declaringMethod;
     private int _modifiers;
     private boolean _hasBeenCreated;
@@ -79,17 +86,43 @@ public final class TypeBuilder<T> extends Type<T> {
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private Map<Class<? extends Annotation>, AnnotationBuilder<? extends Annotation>> _annotationMap;
     private final ProtectionDomain _protectionDomain;
+    private final Class<T> _declarationSite;
+    private MethodHandles.Lookup _packageAccess;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
 
     public TypeBuilder(final String name, final int modifiers) {
-        this(name, modifiers, Types.Object, TypeList.empty());
+
+        this();
+
+        initialize(
+            name,
+            modifiers,
+            Types.Object,
+            TypeList.empty(),
+            null,
+            null
+        );
+    }
+
+    public TypeBuilder(final String name, final int modifiers, final MethodHandles.Lookup packageAccess) {
+
+        this();
+
+        initialize(
+            name,
+            modifiers,
+            Types.Object,
+            TypeList.empty(),
+            null,
+            packageAccess
+        );
     }
 
     public TypeBuilder(
         final String name,
         final int modifiers,
-        final Type baseType,
+        final Type<?> baseType,
         final TypeList interfaces) {
 
         this();
@@ -99,7 +132,27 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             interfaces,
+            null,
             null
+        );
+    }
+
+    public TypeBuilder(
+        final String name,
+        final int modifiers,
+        final Type<?> baseType,
+        final TypeList interfaces,
+        final MethodHandles.Lookup packageAccess) {
+
+        this();
+
+        initialize(
+            name,
+            modifiers,
+            baseType,
+            interfaces,
+            null,
+            packageAccess
         );
     }
 
@@ -116,13 +169,15 @@ public final class TypeBuilder<T> extends Type<T> {
         _fields = FieldList.empty();
         _typeBindings = TypeBindings.empty();
         _annotations = ReadOnlyList.emptyList();
-        _protectionDomain = CallerResolver.getCallerClass(1).getProtectionDomain();
+        _declarationSite = CallerResolver.getCallerClass(1);
+        _protectionDomain = _declarationSite.getProtectionDomain();
     }
 
-    TypeBuilder(final String name, final int genericParameterPosition, final TypeBuilder declaringType) {
+    TypeBuilder(final String name, final int genericParameterPosition, final TypeBuilder<?> declaringType) {
         this();
 
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _packageAccess = declaringType._packageAccess;
 
         initializeAsGenericParameter(
             VerifyArgument.notNull(name, "name"),
@@ -135,6 +190,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _declaringType = _declaringMethod.getDeclaringType();
+        _packageAccess = declaringMethod.getDeclaringType()._packageAccess;
 
         initializeAsGenericParameter(
             VerifyArgument.notNull(name, "name"),
@@ -142,7 +198,7 @@ public final class TypeBuilder<T> extends Type<T> {
         );
     }
 
-    TypeBuilder(final String name, final int modifiers, final Type baseType, final TypeBuilder declaringType) {
+    TypeBuilder(final String name, final int modifiers, final Type<?> baseType, final TypeBuilder<?> declaringType) {
         this();
 
         initialize(
@@ -150,7 +206,8 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             TypeList.empty(),
-            declaringType
+            declaringType,
+            declaringType._packageAccess
         );
     }
 
@@ -159,7 +216,7 @@ public final class TypeBuilder<T> extends Type<T> {
         final int modifiers,
         final Type<? super T> baseType,
         final TypeList interfaces,
-        final TypeBuilder declaringType) {
+        final TypeBuilder<?>declaringType) {
 
         this();
 
@@ -168,7 +225,28 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers,
             baseType,
             interfaces,
-            declaringType
+            declaringType,
+            declaringType._packageAccess
+        );
+    }
+
+    TypeBuilder(
+        final String name,
+        final int modifiers,
+        final Type<? super T> baseType,
+        final TypeList interfaces,
+        final TypeBuilder<?>declaringType,
+        final MethodHandles.Lookup packageAccess) {
+
+        this();
+
+        initialize(
+            name,
+            modifiers,
+            baseType,
+            interfaces,
+            declaringType,
+            packageAccess
         );
     }
 
@@ -183,35 +261,32 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private void initialize(
-        final String fullName,
+        final String typeName,
         final int modifiers,
-        final Type baseType,
+        final Type<?> baseType,
         final TypeList interfaces,
-        final TypeBuilder declaringType) {
+        final TypeBuilder<?>declaringType,
+        final MethodHandles.Lookup packageAccess) {
 
-        VerifyArgument.notNullOrWhitespace(fullName, "fullName");
+        VerifyArgument.notNullOrWhitespace(typeName, "typeName");
 
-        if (fullName.length() > 1023) {
+        if (typeName.length() > 1023) {
             throw Error.typeNameTooLong();
         }
 
-        _fullName = fullName;
-        _internalName = fullName.replace('.', '/');
+        final int lastDotIndex = typeName.lastIndexOf('.');
+
+        if (lastDotIndex == -1 || lastDotIndex == 0) {
+            _name = typeName;
+        }
+        else {
+            _name = typeName.substring(lastDotIndex + 1);
+        }
+
         _isGenericTypeDefinition = false;
         _isGenericParameter = false;
         _hasBeenCreated = false;
         _declaringType = declaringType;
-
-        final int lastDotIndex = fullName.lastIndexOf('.');
-
-        if (lastDotIndex == -1 || lastDotIndex == 0) {
-            _package = Package.getPackage(StringUtilities.EMPTY);
-            _name = _fullName;
-        }
-        else {
-            _package = Package.getPackage(fullName.substring(0, lastDotIndex));
-            _name = fullName.substring(lastDotIndex + 1);
-        }
 
         if (Modifier.isInterface(modifiers)) {
             _modifiers = modifiers & (Modifier.interfaceModifiers() | Modifier.INTERFACE) | Modifier.ABSTRACT;
@@ -222,9 +297,116 @@ public final class TypeBuilder<T> extends Type<T> {
 
         setBaseType(baseType);
         setInterfaces(interfaces);
+
+        _packageAccess = resolvePackageAccess(packageAccess);
+        _package = _packageAccess.lookupClass().getPackage();
+
+        if (_packageAccess == MethodHandles.publicLookup()) {
+            throw Error.packageAccessRequired();
+        }
+
+        _fullName = _package.getName() + '.' + _name;
+        _internalName = _fullName.replace('.', '/');
     }
 
-    public final void setInterfaces(final TypeList interfaces) {
+    private MethodHandles.Lookup resolvePackageAccess(final MethodHandles.Lookup explicitValue) {
+        if (explicitValue != null) {
+            return explicitValue;
+        }
+
+        MethodHandles.Lookup lookup = tryResolvePackageAccessForClass(_baseType);
+
+        if (lookup != null) {
+            return lookup;
+        }
+
+        final Type<?> callerType = Type.of((Class<?>) _declarationSite);
+
+        lookup = tryResolvePackageAccessForClass(callerType);
+
+        if (lookup != null) {
+            return lookup;
+        }
+
+        return defaultPackageAccess();
+    }
+
+    public static MethodHandles.Lookup tryResolvePackageAccessForClass(final Type<?> type) {
+        MemberInfo m = findPackageAccessDeclaration(
+            type,
+            new Function<Type<?>, Type<?>>() {
+                @Override
+                public Type<?> apply(final Type<?> input) {
+                    return input != null && !Types.Object.isEquivalentTo(input) ? input.getBaseType() : null;
+                }
+            }
+        );
+
+        MethodHandles.Lookup lookup;
+
+        if (m != null && (lookup = extractPackageAccess(m)) != null) {
+            return lookup;
+        }
+
+        m = findPackageAccessDeclaration(
+            type,
+            new Function<Type<?>, Type<?>>() {
+                @Override
+                public Type<?> apply(final Type<?> input) {
+                    return input != null ? input.getDeclaringType() : null;
+                }
+            }
+        );
+
+        if (m != null && (lookup = extractPackageAccess(m)) != null) {
+            return lookup;
+        }
+
+        return null;
+    }
+
+    private static MethodHandles.Lookup extractPackageAccess(final MemberInfo m) {
+        if (m instanceof FieldInfo) {
+            return (MethodHandles.Lookup) ((FieldInfo) m).getValue(null);
+        }
+
+        if (m instanceof MethodInfo) {
+            return (MethodHandles.Lookup) ((MethodInfo) m).invoke(null);
+        }
+
+        return null;
+    }
+
+    private static MemberInfo findPackageAccessDeclaration(final Type<?> start, final Function<Type<?>, Type<?>> next) {
+        Type<?> current = start;
+
+        while (current != null) {
+            if (current.isPublic()) {
+                for (final FieldInfo field : current.getFields(BindingFlags.PublicStaticDeclared)) {
+                    if (LazyTypes.LOOKUP.isEquivalentTo(field.getFieldType())) {
+                        if ("PACKAGE_ACCESS".equals(field.getName()) || "packageAccess".equals(field.getName())) {
+                            return field;
+                        }
+                    }
+                }
+
+                final MethodInfo method = current.getMethod("packageAccess", BindingFlags.PublicStaticDeclared);
+
+                if (method != null) {
+                    return method;
+                }
+            }
+            current = next.apply(current);
+        }
+
+        return null;
+    }
+
+    private final static class LazyTypes {
+        final static Type<MethodHandles.Lookup> LOOKUP = of(MethodHandles.Lookup.class);
+    }
+
+    public void setInterfaces(final TypeList interfaces) {
         verifyNotCreated();
 
         if (interfaces == null) {
@@ -246,7 +428,7 @@ public final class TypeBuilder<T> extends Type<T> {
         invalidateCaches();
     }
 
-    public final void setBaseType(final Type baseType) {
+    public void setBaseType(final Type<?> baseType) {
         verifyNotGeneric();
         verifyNotCreated();
 
@@ -299,19 +481,19 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // <editor-fold defaultstate="collapsed" desc="Assertions">
 
-    final void verifyNotCreated() {
+    void verifyNotCreated() {
         if (isCreated()) {
             throw Error.typeHasBeenCreated();
         }
     }
 
-    final void verifyCreated() {
+    void verifyCreated() {
         if (!isCreated()) {
             throw Error.typeHasNotBeenCreated();
         }
     }
 
-    final void verifyNotGeneric() {
+    void verifyNotGeneric() {
         //noinspection ConstantConditions
         if (isGenericType() && !isGenericTypeDefinition()) {
             throw new IllegalStateException();
@@ -320,7 +502,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Type Information Overrides">
+    // <editor-fold defaultstate="collapsed" desc="Type<?> Information Overrides">
 
     @Override
     public Package getPackage() {
@@ -390,7 +572,8 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public Type<? super T> getBaseType() {
-        return _baseType;
+        final @SuppressWarnings("unchecked") Type<? super T> baseType = (Type<? super T>) _baseType;
+        return baseType;
     }
 
     @Override
@@ -399,7 +582,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type<?> getDeclaringType() {
+    public TypeBuilder<?> getDeclaringType() {
         return _declaringType;
     }
 
@@ -419,11 +602,11 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         if (other instanceof GenericParameterBuilder<?>) {
-            return ((GenericParameterBuilder) other).typeBuilder == this;
+            return ((GenericParameterBuilder<?>) other).typeBuilder == this;
         }
 
         final Type<?> runtimeType = other instanceof TypeBuilder<?>
-                                    ? ((TypeBuilder) other)._generatedType
+                                    ? ((TypeBuilder<?>) other)._generatedType
                                     : other;
 
         return _generatedType != null &&
@@ -482,7 +665,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean isAssignableFrom(final Type type) {
+    public boolean isAssignableFrom(final Type<?> type) {
         if (_hasBeenCreated) {
             return _generatedType.isAssignableFrom(type);
         }
@@ -497,7 +680,7 @@ public final class TypeBuilder<T> extends Type<T> {
     public ConstructorInfo getConstructor(
         final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
-        final Type... parameterTypes) {
+        final Type<?>... parameterTypes) {
 
         verifyCreated();
         return _generatedType.getConstructor(bindingFlags, callingConvention, parameterTypes);
@@ -510,13 +693,13 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         verifyCreated();
         return _generatedType.getMembers(bindingFlags, memberTypes);
     }
 
     @Override
-    public MemberList getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         verifyCreated();
         return _generatedType.getMember(name, bindingFlags, memberTypes);
     }
@@ -526,7 +709,7 @@ public final class TypeBuilder<T> extends Type<T> {
         final String name,
         final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
-        final Type... parameterTypes) {
+        final Type<?>... parameterTypes) {
 
         verifyCreated();
         return _generatedType.getMethod(name, bindingFlags, callingConvention, parameterTypes);
@@ -596,10 +779,10 @@ public final class TypeBuilder<T> extends Type<T> {
             _annotationMap = new HashMap<>();
         }
 
-        final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
+        final AnnotationBuilder<?>[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
+        _annotations = new ReadOnlyList<>(newAnnotations);
         _annotationMap.put(annotationClass, annotation);
     }
 
@@ -661,7 +844,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
             Collections.addAll(annotations, declaredAnnotations);
 
-            return annotations.toArray(new Annotation[annotations.size()]);
+            return annotations.toArray(emptyAnnotations());
         }
     }
 
@@ -696,7 +879,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Type Manipulation">
+    // <editor-fold defaultstate="collapsed" desc="Type<?> Manipulation">
 
     @Override
     protected Type<?> makeGenericTypeCore(final TypeList typeArguments) {
@@ -808,7 +991,7 @@ public final class TypeBuilder<T> extends Type<T> {
         return constructor;
     }
 
-    final void addMethodToList(final MethodBuilder methodBuilder) {
+    void addMethodToList(final MethodBuilder methodBuilder) {
         methodBuilders.add(methodBuilder);
     }
 
@@ -1028,7 +1211,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         for (int i = 0, n = names.length; i < n; i++) {
             genericParameters[i] = new GenericParameterBuilder<>(
-                new TypeBuilder(names[i], i, this)
+                new TypeBuilder<>(names[i], i, this)
             );
         }
 
@@ -1148,9 +1331,8 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
+    // <editor-fold defaultstate="collapsed" desc="Type<?> Generation Methods">
 
-    @SuppressWarnings("ConstantConditions")
     private Type<T> createTypeNoLock(final OutputStream writeTo) throws IOException {
         if (isCreated()) {
             return _generatedType;
@@ -1165,7 +1347,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         if (isGenericParameter()) {
             _hasBeenCreated = true;
-            for (final AnnotationBuilder annotation : _annotations) {
+            for (final AnnotationBuilder<?> annotation : _annotations) {
                 annotation.bake();
             }
             return this;
@@ -1231,14 +1413,17 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _hasBeenCreated = true;
 
-            _generatedClass = (Class<T>) getUnsafeInstance().defineClass(
-                fullName,
-                classBytes,
-                0,
-                classBytes.length,
-                Thread.currentThread().getContextClassLoader(),
-                _protectionDomain
-            );
+            final Object unsafe = UnsafeAccess.unsafe();
+            final MethodHandle defineClass = defineClass();
+
+            _generatedClass = (Class<T>) defineClass.invokeExact((Object) unsafe,
+                                                                 (MethodHandles.Lookup) _packageAccess,
+                                                                 (String) fullName,
+                                                                 (byte[]) classBytes,
+                                                                 (int) 0,
+                                                                 (int) classBytes.length,
+                                                                 (ClassLoader) Thread.currentThread().getContextClassLoader(),
+                                                                 (ProtectionDomain) _protectionDomain);
 
             RuntimeHelpers.ensureClassInitialized(_generatedClass);
 
@@ -1387,6 +1572,7 @@ public final class TypeBuilder<T> extends Type<T> {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     private void updateMembersWithGeneratedReferences() {
         final FieldList generatedFields = _generatedType.getFields(BindingFlags.AllDeclared);
         final MethodList generatedMethods = _generatedType.getMethods(BindingFlags.AllDeclared);
@@ -1394,7 +1580,7 @@ public final class TypeBuilder<T> extends Type<T> {
         final TypeList generatedTypeParameters = _isGenericTypeDefinition ? _generatedType.getGenericTypeParameters() : TypeList.empty();
 
         for (int i = 0, n = genericParameterBuilders.size(); i < n; i++) {
-            genericParameterBuilders.get(i).typeBuilder._generatedType = generatedTypeParameters.get(i);
+            genericParameterBuilders.get(i).typeBuilder._generatedType = (Type) generatedTypeParameters.get(i);
         }
 
         for (int i = 0, n = fieldBuilders.size(); i < n; i++) {
@@ -1410,7 +1596,12 @@ public final class TypeBuilder<T> extends Type<T> {
                 constructor
             );
 
-            constructor.getRawConstructor().setAccessible(true);
+            try {
+                constructor.getRawConstructor().setAccessible(true);
+            }
+            catch (final Throwable ignored) {
+                ExceptionUtilities.rethrowCritical(ignored);
+            }
         }
 
         for (final MethodInfo method : generatedMethods) {
@@ -1447,42 +1638,12 @@ public final class TypeBuilder<T> extends Type<T> {
                 final TypeList generatedMethodTypeParameters = generatedMethod.getGenericMethodParameters();
 
                 for (int i = 0, n = methodBuilder.genericParameterBuilders.length; i < n; i++) {
-                    methodBuilder.genericParameterBuilders[i].typeBuilder._generatedType = generatedMethodTypeParameters.get(i);
+                    methodBuilder.genericParameterBuilders[i].typeBuilder._generatedType = (Type) generatedMethodTypeParameters.get(i);
                 }
             }
 
             methodBuilder.generatedMethod = generatedMethod;
         }
-    }
-
-    // </editor-fold>
-
-    // <editor-fold defaultstate="collapsed" desc="Unsafe Access">
-
-    private static Unsafe _unsafe;
-
-    private static Unsafe getUnsafeInstance() {
-
-        if (_unsafe != null) {
-            return _unsafe;
-        }
-
-        try {
-            _unsafe = Unsafe.getUnsafe();
-        }
-        catch (final Throwable ignored) {
-        }
-
-        try {
-            final Field instanceField = Unsafe.class.getDeclaredField("theUnsafe");
-            instanceField.setAccessible(true);
-            _unsafe = (Unsafe) instanceField.get(Unsafe.class);
-        }
-        catch (final Throwable t) {
-            throw Error.couldNotLoadUnsafeClassInstance();
-        }
-
-        return _unsafe;
     }
 
     // </editor-fold>
@@ -1500,4 +1661,97 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     // </editor-fold>
+
+    private static MethodHandle _defineClass;
+
+    private static MethodHandle defineClass() {
+        MethodHandle defineClass = _defineClass;
+
+        if (defineClass == null) {
+            _defineClass = defineClass = defineClass0();
+        }
+
+        return defineClass;
+    }
+
+    private static MethodHandle defineClass0() {
+        try {
+            return unsafeDefineClass0();
+        }
+        catch (final ReflectiveOperationException ignored) {
+            return mhLookupDefineClass0();
+        }
+    }
+
+    private static MethodHandle mhLookupDefineClass0() {
+        try {
+            final MethodHandle d = MethodHandles.lookup()
+                                                .findVirtual(MethodHandles.Lookup.class,
+                                                             "defineClass",
+                                                             MethodType.methodType(Class.class, byte[].class));
+
+            @SuppressWarnings("UnnecessaryLocalVariable")
+            final MethodHandle p = MethodHandles.permuteArguments(d,
+                                                                  MethodType.methodType(Class.class,
+                                                                                        Object.class,
+                                                                                        MethodHandles.Lookup.class,
+                                                                                        String.class,
+                                                                                        byte[].class,
+                                                                                        int.class,
+                                                                                        int.class,
+                                                                                        ClassLoader.class,
+                                                                                        ProtectionDomain.class),
+                                                                  1,
+                                                                  3);
+
+            return p;
+        }
+        catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not resolve `MethodHandles.Lookup.defineClass(byte[])`.", e);
+        }
+    }
+
+    private static MethodHandle unsafeDefineClass0() throws ReflectiveOperationException {
+        final Object unsafe = UnsafeAccess.unsafe();
+
+        final MethodHandle d =
+            MethodHandles.lookup().findVirtual(unsafe.getClass(),
+                                               "defineClass",
+                                               MethodType.methodType(Class.class,
+                                                                     String.class,
+                                                                     byte[].class,
+                                                                     int.class,
+                                                                     int.class,
+                                                                     ClassLoader.class,
+                                                                     ProtectionDomain.class))
+                         .asType(MethodType.methodType(Class.class,
+                                                       Object.class,
+                                                       String.class,
+                                                       byte[].class,
+                                                       int.class,
+                                                       int.class,
+                                                       ClassLoader.class,
+                                                       ProtectionDomain.class));
+
+        @SuppressWarnings("UnnecessaryLocalVariable")
+        final MethodHandle p = MethodHandles.permuteArguments(d,
+                                                              MethodType.methodType(Class.class,
+                                                                                    Object.class,
+                                                                                    MethodHandles.Lookup.class,
+                                                                                    String.class,
+                                                                                    byte[].class,
+                                                                                    int.class,
+                                                                                    int.class,
+                                                                                    ClassLoader.class,
+                                                                                    ProtectionDomain.class),
+                                                              0,
+                                                              2,
+                                                              3,
+                                                              4,
+                                                              5,
+                                                              6,
+                                                              7);
+
+        return p;
+    }
 }

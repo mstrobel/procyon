@@ -47,7 +47,7 @@ public abstract class MethodInfo extends MethodBase {
             return false;
         }
 
-        final Type declaringType = getDeclaringType();
+        final Type<?> declaringType = getDeclaringType();
 
         return declaringType != null &&
                declaringType.isInterface();
@@ -110,17 +110,17 @@ public abstract class MethodInfo extends MethodBase {
         try {
             return rawMethod.invoke(instance, args);
         }
-        catch (InvocationTargetException | IllegalAccessException e) {
+        catch (final InvocationTargetException | IllegalAccessException e) {
             throw Error.targetInvocationException(e);
         }
     }
 
     public MethodInfo findOverriddenMethod() {
-        final Type baseType = getDeclaringType().getBaseType();
+        final Type<?> baseType = getDeclaringType().getBaseType();
 
         MethodInfo baseMethod;
 
-        if (baseType != null && baseType != Type.NullType && (baseMethod = findBaseMethod(baseType)) != null) {
+        if (baseType != null && baseType != Type.nullType() && (baseMethod = findBaseMethod(baseType)) != null) {
             return baseMethod;
         }
 
@@ -177,6 +177,7 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
@@ -198,7 +199,7 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        Type returnType = getReturnType();
+        Type<?> returnType = getReturnType();
 
         while (returnType.isWildcardType()) {
             returnType = returnType.getExtendsBound();
@@ -223,7 +224,7 @@ public abstract class MethodInfo extends MethodBase {
                 s.append(", ");
             }
 
-            Type parameterType = p.getParameterType();
+            Type<?> parameterType = p.getParameterType();
 
             while (parameterType.isWildcardType()) {
                 parameterType = parameterType.getExtendsBound();
@@ -245,7 +246,7 @@ public abstract class MethodInfo extends MethodBase {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -257,6 +258,7 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
@@ -276,7 +278,7 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        Type returnType = getReturnType();
+        Type<?> returnType = getReturnType();
 
         while (returnType.isWildcardType()) {
             returnType = returnType.getExtendsBound();
@@ -301,7 +303,7 @@ public abstract class MethodInfo extends MethodBase {
                 s.append(", ");
             }
 
-            Type parameterType = p.getParameterType();
+            Type<?> parameterType = p.getParameterType();
 
             while (parameterType.isWildcardType()) {
                 parameterType = parameterType.getExtendsBound();
@@ -323,7 +325,7 @@ public abstract class MethodInfo extends MethodBase {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -338,7 +340,7 @@ public abstract class MethodInfo extends MethodBase {
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
-        Type returnType = getReturnType();
+        Type<?> returnType = getReturnType();
 
         while (returnType.isWildcardType()) {
             returnType = returnType.getExtendsBound();
@@ -363,7 +365,7 @@ public abstract class MethodInfo extends MethodBase {
                 s.append(", ");
             }
 
-            Type parameterType = p.getParameterType();
+            Type<?> parameterType = p.getParameterType();
 
             while (parameterType.isWildcardType()) {
                 parameterType = parameterType.getExtendsBound();
@@ -383,6 +385,7 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
         if (isGenericMethod() && !isGenericMethodDefinition()) {
             return getGenericMethodDefinition().appendErasedDescription(sb);
@@ -419,9 +422,8 @@ public abstract class MethodInfo extends MethodBase {
 
             if (count > 0) {
                 s.append('<');
-                //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    final Type type = typeArguments.get(i);
+                    final Type<?> type = typeArguments.get(i);
                     s = type.appendGenericSignature(s);
                 }
                 s.append('>');
@@ -706,20 +708,20 @@ class ReflectedMethod extends MethodInfo {
 
     ReflectedMethod(
         final MethodInfo baseMethod,
-        final Type declaringType,
-        final Type reflectedType,
+        final Type<?> declaringType,
+        final Type<?> reflectedType,
         final Method rawMethod,
         final ParameterList parameters,
-        final Type returnType,
+        final Type<?> returnType,
         final TypeList thrownTypes,
         final TypeBindings bindings) {
 
         _baseMethod = baseMethod;
 
-        Type[] genericParameters = null;
+        Type<?>[] genericParameters = null;
 
         for (int i = 0, n = bindings.size(); i < n; i++) {
-            final Type p = bindings.getGenericParameter(i);
+            final Type<?> p = bindings.getGenericParameter(i);
 
             if (p instanceof GenericParameter<?>) {
                 final GenericParameter<?> gp = (GenericParameter<?>) p;
@@ -729,7 +731,7 @@ class ReflectedMethod extends MethodInfo {
                     gp.setDeclaringMethod(this);
 
                     if (genericParameters == null) {
-                        genericParameters = new Type[] { gp };
+                        genericParameters = new Type<?>[] { gp };
                     }
                     else {
                         genericParameters = ArrayUtilities.append(genericParameters, gp);
@@ -781,12 +783,12 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedType;
     }
 
@@ -1057,12 +1059,12 @@ final class DelegatingMethodInfo extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedType;
     }
 
@@ -1147,9 +1149,9 @@ final class GenericMethod extends MethodInfo {
 
             for (int i = 0, n = definitionParameters.size(); i < n; i++) {
                 final ParameterInfo parameter = definitionParameters.get(i);
-                final Type parameterType = parameter.getParameterType();
+                final Type<?> parameterType = parameter.getParameterType();
 
-                final Type resolvedParameterType = resolveBindings(parameterType);
+                final Type<?> resolvedParameterType = resolveBindings(parameterType);
 
                 if (resolvedParameterType != parameterType) {
                     if (parameters == null) {
@@ -1203,7 +1205,7 @@ final class GenericMethod extends MethodInfo {
         return _genericMethodDefinition.getRawMethod();
     }
 
-    private Type resolveBindings(final Type type) {
+    private Type<?> resolveBindings(final Type<?> type) {
         return GenericType.GenericBinder.visit(type, _typeBindings);
     }
 
@@ -1223,7 +1225,7 @@ final class GenericMethod extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _genericMethodDefinition.getDeclaringType();
     }
 

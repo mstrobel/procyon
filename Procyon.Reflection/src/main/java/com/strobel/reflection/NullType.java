@@ -18,15 +18,22 @@ import javax.lang.model.type.TypeKind;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
-final class NullType extends Type {
+final class NullType extends Type<Object> {
+    static NullType instance() {
+        return LazyInit.INSTANCE;
+    }
+
+    private final static class LazyInit {
+        final static NullType INSTANCE = new NullType();
+    }
+
     @Override
     public TypeKind getKind() {
         return TypeKind.NULL;
     }
 
     @Override
-    public final Class getErasedClass() {
+    public Class<Object> getErasedClass() {
         return null;
     }
 
@@ -36,42 +43,42 @@ final class NullType extends Type {
     }
 
     @Override
-    public Object accept(final TypeVisitor visitor, final Object parameter) {
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
         return visitor.visitType(this, parameter);
     }
 
     @Override
-    public final MemberType getMemberType() {
+    public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
 
     @Override
-    public final Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
     @Override
-    public final int getModifiers() {
+    public int getModifiers() {
         return Flags.PUBLIC;
     }
 
     @Override
-    protected final StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         return sb.append("<nulltype>");
     }
 
     @Override
-    protected final StringBuilder _appendClassDescription(final StringBuilder sb) {
+    protected StringBuilder _appendClassDescription(final StringBuilder sb) {
         return sb.append("<nulltype>");
     }
 
     @Override
-    public final StringBuilder appendBriefDescription(final StringBuilder sb) {
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
         return sb.append("<nulltype>");
     }
 
     @Override
-    public final StringBuilder appendSimpleDescription(final StringBuilder sb) {
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         return sb.append("<nulltype>");
     }
 }

@@ -14,6 +14,7 @@
 package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
@@ -21,27 +22,27 @@ import java.lang.annotation.Annotation;
 /**
  * @author strobelm
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "DoubleCheckedLocking" })
 final class GenericType<T> extends Type<T> {
     final static TypeBinder GenericBinder = new TypeBinder();
 
-    private final Type _genericTypeDefinition;
+    private final Type<?> _genericTypeDefinition;
     private final TypeBindings _typeBindings;
 
     private TypeList _interfaces;
-    private Type _baseType;
+    private Type<?> _baseType;
 
     private FieldList _fields;
     private ConstructorList _constructors;
     private MethodList _methods;
     private TypeList _nestedTypes;
 
-    GenericType(final Type genericTypeDefinition, final TypeBindings typeBindings) {
+    GenericType(final Type<?> genericTypeDefinition, final TypeBindings typeBindings) {
         _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
         _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
     }
 
-    GenericType(final Type genericTypeDefinition, final TypeList typeArguments) {
+    GenericType(final Type<?> genericTypeDefinition, final TypeList typeArguments) {
         _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
 
         _typeBindings = TypeBindings.create(
@@ -50,7 +51,7 @@ final class GenericType<T> extends Type<T> {
         );
     }
 
-    GenericType(final Type genericTypeDefinition, final Type... typeArguments) {
+    GenericType(final Type<?> genericTypeDefinition, final Type<?>... typeArguments) {
         _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
 
         _typeBindings = TypeBindings.create(
@@ -63,12 +64,12 @@ final class GenericType<T> extends Type<T> {
         if (_baseType == null) {
             synchronized (CACHE_LOCK) {
                 if (_baseType == null) {
-                    final Type genericBaseType = _genericTypeDefinition.getBaseType();
-                    if (genericBaseType == null || genericBaseType == NullType) {
-                        _baseType = NullType;
+                    final Type<?> genericBaseType = _genericTypeDefinition.getBaseType();
+                    if (genericBaseType == null || genericBaseType == nullType()) {
+                        _baseType = Fences.orderWrites(nullType());
                     }
                     else {
-                        _baseType = GenericBinder.visit(genericBaseType, _typeBindings);
+                        _baseType = Fences.orderWrites(GenericBinder.visit(genericBaseType, _typeBindings));
                     }
                 }
             }
@@ -79,7 +80,8 @@ final class GenericType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericBinder.visit(_genericTypeDefinition.getExplicitInterfaces(), _typeBindings);
+                    final TypeList interfaces = GenericBinder.visit(_genericTypeDefinition.getExplicitInterfaces(), _typeBindings);
+                    _interfaces = Fences.orderWrites(interfaces);
                 }
             }
         }
@@ -89,7 +91,8 @@ final class GenericType<T> extends Type<T> {
         if (_fields == null) {
             synchronized (CACHE_LOCK) {
                 if (_fields == null) {
-                    _fields = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredFields(), _typeBindings);
+                    final FieldList fields = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredFields(), _typeBindings);
+                    _fields = Fences.orderWrites(fields);
                 }
             }
         }
@@ -99,7 +102,8 @@ final class GenericType<T> extends Type<T> {
         if (_constructors == null) {
             synchronized (CACHE_LOCK) {
                 if (_constructors == null) {
-                    _constructors = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredConstructors(), _typeBindings);
+                    final ConstructorList constructors = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredConstructors(), _typeBindings);
+                    _constructors = Fences.orderWrites(constructors);
                 }
             }
         }
@@ -109,7 +113,8 @@ final class GenericType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    _methods = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredMethods(), _typeBindings);
+                    final MethodList methods = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredMethods(), _typeBindings);
+                    _methods = Fences.orderWrites(methods);
                 }
             }
         }
@@ -119,7 +124,7 @@ final class GenericType<T> extends Type<T> {
         if (_nestedTypes == null) {
             synchronized (CACHE_LOCK) {
                 if (_nestedTypes == null) {
-                    _nestedTypes = Helper.map(
+                    final TypeList nestedTypes = Helper.map(
                         _genericTypeDefinition.getDeclaredTypes(),
                         new TypeMapping() {
                             @Override
@@ -128,6 +133,7 @@ final class GenericType<T> extends Type<T> {
                             }
                         }
                     );
+                    _nestedTypes = Fences.orderWrites(nestedTypes);
                 }
             }
         }
@@ -148,12 +154,12 @@ final class GenericType<T> extends Type<T> {
     @Override
     public Type<? super T> getBaseType() {
         ensureBaseType();
-        final Type baseType = _baseType;
-        return baseType == NullType ? null : baseType;
+        final @SuppressWarnings("unchecked") Type<? super T> baseType = (Type<? super T>) _baseType;
+        return baseType == nullType() ? null : baseType;
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         return _genericTypeDefinition;
     }
 
@@ -163,12 +169,12 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _genericTypeDefinition.getDeclaringType();
     }
 
     @Override
-    public final boolean isGenericType() {
+    public boolean isGenericType() {
         return true;
     }
 
@@ -188,8 +194,8 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return (T)_genericTypeDefinition.getAnnotation(annotationClass);
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
+        return _genericTypeDefinition.getAnnotation(annotationClass);
     }
 
     @NotNull
