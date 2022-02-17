@@ -430,7 +430,7 @@ public final class DecompilerHelpers {
         }
     }
 
-    private static void writeOperandList(final ITextOutput writer, final List<? extends Object> operands) {
+    private static void writeOperandList(final ITextOutput writer, final List<?> operands) {
         for (int i = 0, n = operands.size(); i < n; i++) {
             if (i != 0) {
                 writer.write(", ");

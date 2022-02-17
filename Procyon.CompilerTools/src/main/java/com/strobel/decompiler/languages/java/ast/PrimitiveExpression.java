@@ -34,6 +34,18 @@ public class PrimitiveExpression extends Expression {
     private String _literalValue;
     private Object _value;
 
+    public PrimitiveExpression( final Object value) {
+        this(MYSTERY_OFFSET, value);
+    }
+
+    public PrimitiveExpression( final Object value, final String literalValue) {
+        this(MYSTERY_OFFSET, value, literalValue);
+    }
+
+    public PrimitiveExpression( final Object value, final TextLocation startLocation, final String literalValue) {
+        this(MYSTERY_OFFSET, value, startLocation, literalValue);
+    }
+
     public PrimitiveExpression( final int offset, final Object value) {
         super( offset);
         _value = value;

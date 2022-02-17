@@ -16,8 +16,11 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.IMetadataResolver;
+import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
@@ -95,5 +98,42 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
     @Override
     public void run(final AstNode compilationUnit) {
         compilationUnit.acceptVisitor(this, null);
+    }
+
+    protected IMetadataResolver resolver() {
+        final TypeDefinition currentType = context.getCurrentType();
+        return currentType != null ? currentType.getResolver() : MetadataSystem.instance();
+    }
+
+    protected AstType makeType(final TypeReference reference) {
+        VerifyArgument.notNull(reference, "reference");
+
+        final AstBuilder builder = context.getUserData(Keys.AST_BUILDER);
+
+        if (builder != null) {
+            return builder.convertType(reference);
+        }
+
+        final SimpleType type = new SimpleType(reference.getName());
+        final TypeDefinition resolvedType = reference.resolve();
+
+        type.putUserData(Keys.TYPE_REFERENCE, reference);
+
+        if (resolvedType != null) {
+            type.putUserData(Keys.TYPE_DEFINITION, resolvedType);
+        }
+
+        return type;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    protected AstType makeType(final String descriptor) {
+        final AstType reference = makeType(resolver().lookupType(descriptor));
+
+        if (reference == null) {
+            return new SimpleType(descriptor.replace('/', '.'));
+        }
+
+        return reference;
     }
 }

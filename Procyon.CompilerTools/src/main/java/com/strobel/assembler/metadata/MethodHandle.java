@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 
 public final class MethodHandle {
@@ -25,6 +26,22 @@ public final class MethodHandle {
     public MethodHandle(final MethodReference method, final MethodHandleType handleType) {
         _method = VerifyArgument.notNull(method, "method");
         _handleType = VerifyArgument.notNull(handleType, "handleType");
+    }
+
+    @Override
+    public int hashCode() {
+        return HashUtilities.combineHashCodes(_method, _handleType);
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj instanceof MethodHandle) {
+            final MethodHandle other = (MethodHandle) obj;
+
+            return other._handleType == _handleType &&
+                   other._method.isEquivalentTo(_method);
+        }
+        return false;
     }
 
     public final MethodHandleType getHandleType() {

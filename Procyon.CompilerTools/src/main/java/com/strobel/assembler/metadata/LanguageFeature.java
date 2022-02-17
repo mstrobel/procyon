@@ -11,6 +11,7 @@ public enum LanguageFeature {
     STATIC_INTERFACE_METHODS(CompilerTarget.JDK1_8),
     LAMBDA_EXPRESSIONS(CompilerTarget.JDK1_8),
     TRY_EXPRESSION_RESOURCE(CompilerTarget.JDK9),
+    PRIVATE_LOOKUP(CompilerTarget.JDK9),
     LOCAL_TYPE_INFERENCE(CompilerTarget.JDK10),
     SWITCH_EXPRESSIONS(CompilerTarget.JDK14, CompilerTarget.JDK13),
     TEXT_BLOCKS(CompilerTarget.JDK15, CompilerTarget.JDK13),
