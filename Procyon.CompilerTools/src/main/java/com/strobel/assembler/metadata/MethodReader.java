@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.ErrorOperand;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
@@ -282,8 +283,13 @@ public class MethodReader {
                 }
 
                 case Constant: {
-                    //noinspection RedundantTypeArguments
-                    instruction = new Instruction(op, _scope.<Object>lookupConstant(b.readUnsignedByte()));
+                    final Object entry = _scope.lookup(b.readUnsignedByte());
+                    if (entry instanceof ConstantPool.ConstantEntry) {
+                        instruction = new Instruction(op, ((ConstantPool.ConstantEntry) entry).getConstantValue());
+                    }
+                    else {
+                        instruction = new Instruction(OpCode.LDC, entry);
+                    }
                     break;
                 }
 

@@ -28,6 +28,7 @@ public interface InstructionVisitor {
     void visit(final OpCode opCode);
 
     void visitConstant(final OpCode opCode, final TypeReference value);
+    void visitConstant(final OpCode opCode, final MethodHandle value);
     void visitConstant(final OpCode opCode, final int value);
     void visitConstant(final OpCode opCode, final long value);
     void visitConstant(final OpCode opCode, final float value);
@@ -61,6 +62,10 @@ public interface InstructionVisitor {
 
         @Override
         public void visitConstant(final OpCode opCode, final TypeReference value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final MethodHandle value) {
         }
 
         @Override

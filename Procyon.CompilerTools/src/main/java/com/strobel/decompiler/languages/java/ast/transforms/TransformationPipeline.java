@@ -62,7 +62,9 @@ public final class TransformationPipeline {
             new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
             new RewriteBoxingCastsTransform(context),
             new InsertNecessaryConversionsTransform(context),
+            new MethodHandleConstantRewriter(context),
             new IntroduceStringConcatenationTransform(context),
+            new InvokeDynamicRewriter(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
             new InlineEscapingAssignmentsTransform(context),
             new VarArgsTransform(context),

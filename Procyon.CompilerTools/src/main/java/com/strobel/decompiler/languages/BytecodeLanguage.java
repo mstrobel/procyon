@@ -1584,6 +1584,16 @@ public class BytecodeLanguage extends Language {
         }
 
         @Override
+        public void visitConstant(final OpCode op, final MethodHandle value) {
+            printOpCode(op);
+
+            _output.write(' ');
+            DecompilerHelpers.writeMethodHandle(_output, value);
+
+            _output.writeLine();
+        }
+
+        @Override
         public void visitConstant(final OpCode op, final int value) {
             printOpCode(op);
 

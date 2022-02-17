@@ -64,12 +64,12 @@ public class StackMappingVisitor implements MethodVisitor {
     }
 
     public final FrameValue getStackValue(final int offset) {
-        VerifyArgument.inRange(0, getStackSize(), offset, "offset");
+        VerifyArgument.inRange(0, getStackSize() - 1, offset, "offset");
         return _stack.get(_stack.size() - offset - 1);
     }
 
     public final FrameValue getLocalValue(final int slot) {
-        VerifyArgument.inRange(0, getLocalCount(), slot, "slot");
+        VerifyArgument.inRange(0, getLocalCount() - 1, slot, "slot");
         return _locals.get(slot);
     }
 
@@ -437,6 +437,10 @@ public class StackMappingVisitor implements MethodVisitor {
 
         @Override
         public void visitConstant(final OpCode code, final TypeReference value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final MethodHandle value) {
         }
 
         @Override
@@ -861,6 +865,9 @@ public class StackMappingVisitor implements MethodVisitor {
                             }
                             else if (op instanceof TypeReference) {
                                 push(_factory.makeNamedType("java.lang.Class"));
+                            }
+                            else if (op instanceof MethodHandle) {
+                                push(_factory.makeNamedType("java.lang.invoke.MethodHandle"));
                             }
                             else {
                                 if (op instanceof Long) {

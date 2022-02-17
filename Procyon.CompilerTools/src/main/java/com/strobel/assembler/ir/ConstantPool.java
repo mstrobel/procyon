@@ -403,6 +403,7 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
                 case MethodType:
                     new MethodTypeEntry(pool, b.readUnsignedShort());
                     break;
+                case DynamicConstant:
                 case InvokeDynamicInfo:
                     new InvokeDynamicInfoEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
                     break;
@@ -526,6 +527,7 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         NameAndTypeDescriptor(12),
         MethodHandle(15),
         MethodType(16),
+        DynamicConstant(17),
         InvokeDynamicInfo(18),
         Module(19),
         Package(20);
