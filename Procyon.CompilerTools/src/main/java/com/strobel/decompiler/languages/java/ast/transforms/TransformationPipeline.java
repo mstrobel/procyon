@@ -56,6 +56,7 @@ public final class TransformationPipeline {
             new RemoveRedundantInitializersTransform(context),
             new FlattenElseIfStatementsTransform(context),
             new RewriteSwitchExpressionsTransform(context),
+            new AssertStatementTransform(context), // (again due to switch expression rewriting)
             new FlattenSwitchBlocksTransform(context),
             new IntroduceInitializersTransform(context),
             new MarkReferencedSyntheticsTransform(context),
