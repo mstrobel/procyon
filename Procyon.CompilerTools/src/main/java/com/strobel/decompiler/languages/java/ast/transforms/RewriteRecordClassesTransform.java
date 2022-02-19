@@ -5,13 +5,7 @@ import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.RecordAttribute;
 import com.strobel.assembler.ir.attributes.RecordComponentInfo;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
-import com.strobel.assembler.metadata.CommonTypeReferences;
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.Flags;
-import com.strobel.assembler.metadata.LanguageFeature;
-import com.strobel.assembler.metadata.MetadataHelper;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -177,7 +171,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
             final RecordComponentInfo componentInfo = recordState.recordComponents.get(node.getName());
 
             if (componentInfo != null &&
-                MetadataHelper.isSameType(componentInfo.getType(), node.getReturnType().toTypeReference())) {
+                MetadataHelper.isSameType(componentInfo.getResolvedType(), node.getReturnType().toTypeReference())) {
 
                 recordState.removableAccessors.put(componentInfo, node);
             }
@@ -199,7 +193,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
         final RecordComponentInfo componentInfo = recordState.recordComponents.get(node.getName());
 
         if (componentInfo != null &&
-            MetadataHelper.isSameType(componentInfo.getType(), node.getReturnType().toTypeReference())) {
+            MetadataHelper.isSameType(componentInfo.getResolvedType(), node.getReturnType().toTypeReference())) {
 
             recordState.removableFields.put(componentInfo, node);
         }
@@ -311,6 +305,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
 
             for (final RecordComponentInfo component : recordAttribute.getComponents()) {
                 recordComponents.put(component.getName(), component);
+                component.resolveType(recordDefinition);
             }
 
             this.recordComponents = Collections.unmodifiableMap(recordComponents);
