@@ -715,60 +715,60 @@ public class AstMethodBodyBuilder {
             case InvokeInterface:
                 return transformCall(true, byteCode, arguments);
 
-//            case InvokeDynamic: {
-//                final DynamicCallSite callSite = (DynamicCallSite) operand;
-//                final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
-//
-//                if (CommonTypeReferences.LambdaMetafactory.isEquivalentTo(bootstrapMethod.getDeclaringType()) &&
-//                    ("metafactory".equals(bootstrapMethod.getName()) || "altMetafactory".equals(bootstrapMethod.getName())) &&
-//                    callSite.getBootstrapArguments().size() >= 3 &&
-//                    callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
-//
-//                    final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
-//                    final MethodReference targetMethod = targetMethodHandle.getMethod();
-//                    final TypeReference declaringType = targetMethod.getDeclaringType();
-//                    final String methodName = targetMethod.isConstructor() ? "new" : targetMethod.getName();
-//
-//                    final boolean hasInstanceArgument;
-//
-//                    switch (targetMethodHandle.getHandleType()) {
-//                        case GetField:
-//                        case PutField:
-//                        case InvokeVirtual:
-//                        case InvokeInterface:
-//                        case InvokeSpecial:
-////                            assert arg1 != null;
-//                            hasInstanceArgument = arg1 != null;
-//                            break;
-//
-//                        default:
-//                            hasInstanceArgument = false;
-//                            break;
-//                    }
-//
-//                    final MethodGroupExpression methodGroup = new MethodGroupExpression(
-//                        byteCode.getOffset(),
-//                        hasInstanceArgument ? arg1
-//                                            : new TypeReferenceExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType)),
-//                        methodName
-//                    );
-//
-//                    methodGroup.getClosureArguments().addAll(
-//                        hasInstanceArgument ? arguments.subList(1, arguments.size()) : arguments
-//                    );
-//
-//                    methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
-//                    methodGroup.putUserData(Keys.MEMBER_REFERENCE, targetMethod);
-//
-//                    if (byteCode.getInferredType() != null) {
-//                        methodGroup.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
-//                    }
-//
-//                    return methodGroup;
-//                }
-//
-//                break;
-//            }
+            case InvokeDynamic: {
+                final DynamicCallSite callSite = (DynamicCallSite) operand;
+                final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+                if (CommonTypeReferences.LambdaMetafactory.isEquivalentTo(bootstrapMethod.getDeclaringType()) &&
+                    ("metafactory".equals(bootstrapMethod.getName()) || "altMetafactory".equals(bootstrapMethod.getName())) &&
+                    callSite.getBootstrapArguments().size() >= 3 &&
+                    callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                    final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+                    final MethodReference targetMethod = targetMethodHandle.getMethod();
+                    final TypeReference declaringType = targetMethod.getDeclaringType();
+                    final String methodName = targetMethod.isConstructor() ? "new" : targetMethod.getName();
+
+                    final boolean hasInstanceArgument;
+
+                    switch (targetMethodHandle.getHandleType()) {
+                        case GetField:
+                        case PutField:
+                        case InvokeVirtual:
+                        case InvokeInterface:
+                        case InvokeSpecial:
+//                            assert arg1 != null;
+                            hasInstanceArgument = arg1 != null;
+                            break;
+
+                        default:
+                            hasInstanceArgument = false;
+                            break;
+                    }
+
+                    final MethodGroupExpression methodGroup = new MethodGroupExpression(
+                        byteCode.getOffset(),
+                        hasInstanceArgument ? arg1
+                                            : new TypeReferenceExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType)),
+                        methodName
+                    );
+
+                    methodGroup.getClosureArguments().addAll(
+                        hasInstanceArgument ? arguments.subList(1, arguments.size()) : arguments
+                    );
+
+                    methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
+                    methodGroup.putUserData(Keys.MEMBER_REFERENCE, targetMethod);
+
+                    if (byteCode.getInferredType() != null) {
+                        methodGroup.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
+                    }
+
+                    return methodGroup;
+                }
+
+                break;
+            }
 
             case Bind: {
                 final Lambda lambda = (Lambda) byteCode.getOperand();

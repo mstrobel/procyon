@@ -1,5 +1,6 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
@@ -251,7 +252,80 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
         }
 
         rewrite(switchNode, info);
+
+        if (info.resultVariable.isGenerated()) {
+            new SwitchExpressionInlining(info).tryInline();
+        }
+
         return null;
+    }
+
+    private final class SwitchExpressionInlining extends ContextTrackingVisitor<Void> {
+        private final List<Expression> references = new ArrayList<>();
+        private final SwitchInfo info;
+        private final MethodDefinition currentMethod;
+
+        SwitchExpressionInlining(final SwitchInfo info) {
+            super(new DecompilerContext(RewriteSwitchExpressionsTransform.this.context.getSettings()));
+            this.info = info;
+            this.currentMethod = RewriteSwitchExpressionsTransform.this.context.getCurrentMethod();
+        }
+
+        final void tryInline() {
+            if (currentMethod == null || info.rewrittenExpression == null || (info.rewrittenAssignment == null && info.rewrittenDeclaration == null)) {
+                return;
+            }
+
+            final AstNode parentMethod;
+
+            if (currentMethod.isConstructor()) {
+                parentMethod = info.rewrittenExpression.getParent(ConstructorDeclaration.class);
+            }
+            else {
+                parentMethod = info.rewrittenExpression.getParent(MethodDeclaration.class);
+            }
+
+            if (parentMethod == null) {
+                return;
+            }
+
+            parentMethod.acceptVisitor(this, null);
+
+            if (references.size() == 1) {
+                final Expression target = references.get(0);
+
+                if (info.rewrittenAssignment != null) {
+                    info.rewrittenAssignment.remove();
+                }
+                else if (info.rewrittenDeclaration.getVariables().size() == 1) {
+                    info.rewrittenDeclaration.remove();
+                }
+                else {
+                    final VariableInitializer vi = info.rewrittenDeclaration.getVariable(info.resultIdentifier.getIdentifier());
+                    if (vi == null) {
+                        return;
+                    }
+                    vi.remove();
+                }
+                info.rewrittenExpression.remove();
+                target.replaceWith(info.rewrittenExpression);
+            }
+        }
+
+        @Override
+        public Void visitIdentifierExpression(final IdentifierExpression node, final Void data) {
+            super.visitIdentifierExpression(node, data);
+
+            if (node.getRole() == AssignmentExpression.LEFT_ROLE && node.getParent(ExpressionStatement.class) == info.rewrittenAssignment) {
+                return null;
+            }
+
+            if (node.matches(info.resultIdentifier)) {
+                references.add(node);
+            }
+
+            return null;
+        }
     }
 
     private void rewrite(final SwitchStatement node, final SwitchInfo info) {
@@ -343,12 +417,16 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
         if (m.success() &&
             info.resultVariable == (vi = first(m.<VariableInitializer>get("resultInitializer"))).getUserData(Keys.VARIABLE)) {
 
+            info.rewrittenDeclaration = vi.getParent(VariableDeclarationStatement.class);
             vi.getInitializer().replaceWith(se);
             node.remove();
         }
         else {
-            node.replaceWith(new ExpressionStatement(new AssignmentExpression(info.resultIdentifier.clone(), se)));
+            info.rewrittenAssignment = new ExpressionStatement(new AssignmentExpression(info.resultIdentifier.clone(), se));
+            node.replaceWith(info.rewrittenAssignment);
         }
+
+        info.rewrittenExpression = se;
     }
 
     final static class CaseInfo {
@@ -367,6 +445,9 @@ public class RewriteSwitchExpressionsTransform extends ContextTrackingVisitor<Vo
     final static class SwitchInfo {
         IdentifierExpression resultIdentifier;
         Variable resultVariable;
+        SwitchExpression rewrittenExpression;
+        ExpressionStatement rewrittenAssignment;
+        VariableDeclarationStatement rewrittenDeclaration;
 
         final Map<SwitchSection, CaseInfo> cases = new DefaultMap<>(
             new Supplier<CaseInfo>() {
