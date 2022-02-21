@@ -14,6 +14,7 @@
 package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
@@ -21,21 +22,21 @@ import java.lang.annotation.Annotation;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "DoubleCheckedLocking" })
 final class ErasedType<T> extends Type<T> {
     final static TypeEraser GenericEraser = new TypeEraser();
 
-    private final Type _originalType;
+    private final Type<?> _originalType;
 
     private TypeList _interfaces;
-    private Type _baseType;
+    private Type<?> _baseType;
 
     private FieldList _fields;
     private ConstructorList _constructors;
     private MethodList _methods;
     private TypeList _nestedTypes;
 
-    ErasedType(final Type baseType) {
+    ErasedType(final Type<?> baseType) {
         VerifyArgument.notNull(baseType, "baseType");
         _originalType = baseType.isGenericType() ? baseType.getGenericTypeDefinition() : baseType;
     }
@@ -44,12 +45,12 @@ final class ErasedType<T> extends Type<T> {
         if (_baseType == null) {
             synchronized (CACHE_LOCK) {
                 if (_baseType == null) {
-                    final Type genericBaseType = _originalType.getBaseType();
-                    if (genericBaseType == null || genericBaseType == NullType) {
-                        _baseType = NullType;
+                    final Type<?> genericBaseType = _originalType.getBaseType();
+                    if (genericBaseType == null || genericBaseType == nullType()) {
+                        _baseType = Fences.orderWrites(nullType());
                     }
                     else {
-                        _baseType = GenericEraser.visit(genericBaseType);
+                        _baseType = Fences.orderWrites(GenericEraser.visit(genericBaseType));
                     }
                 }
             }
@@ -60,7 +61,7 @@ final class ErasedType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericEraser.visit(_originalType.getExplicitInterfaces());
+                    _interfaces = Fences.orderWrites(GenericEraser.visit(_originalType.getExplicitInterfaces()));
                 }
             }
         }
@@ -99,7 +100,7 @@ final class ErasedType<T> extends Type<T> {
         if (_fields == null) {
             synchronized (CACHE_LOCK) {
                 if (_fields == null) {
-                    _fields = GenericEraser.visit(
+                    final FieldList fields = GenericEraser.visit(
                         this,
                         _originalType.getFields(BindingFlags.All),
                         TypeBindings.create(
@@ -107,22 +108,26 @@ final class ErasedType<T> extends Type<T> {
                             UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
                         )
                     );
+                    _fields = Fences.orderWrites(fields);
                 }
             }
         }
     }
 
     private void ensureConstructors() {
-        synchronized (CACHE_LOCK) {
-            if (_constructors == null) {
-                _constructors = GenericEraser.visit(
-                    this,
-                    _originalType.getConstructors(BindingFlags.All),
-                    TypeBindings.create(
-                        _originalType.getGenericTypeParameters(),
-                        UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
-                    )
-                );
+        if (_constructors == null) {
+            synchronized (CACHE_LOCK) {
+                if (_constructors == null) {
+                    final ConstructorList constructors = GenericEraser.visit(
+                        this,
+                        _originalType.getConstructors(BindingFlags.All),
+                        TypeBindings.create(
+                            _originalType.getGenericTypeParameters(),
+                            UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
+                        )
+                    );
+                    _constructors = Fences.orderWrites(constructors);
+                }
             }
         }
     }
@@ -131,7 +136,7 @@ final class ErasedType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    _methods = GenericEraser.visit(
+                    final MethodList methods = GenericEraser.visit(
                         this,
                         _originalType.getMethods(BindingFlags.All),
                         TypeBindings.create(
@@ -139,6 +144,7 @@ final class ErasedType<T> extends Type<T> {
                             UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
                         )
                     );
+                    _methods = Fences.orderWrites(methods);
                 }
             }
         }
@@ -148,9 +154,8 @@ final class ErasedType<T> extends Type<T> {
         if (_nestedTypes == null) {
             synchronized (CACHE_LOCK) {
                 if (_nestedTypes == null) {
-                    _nestedTypes = GenericEraser.visit(
-                        _originalType.getDeclaredTypes()
-                    );
+                    final TypeList nestedTypes = GenericEraser.visit(_originalType.getDeclaredTypes());
+                    _nestedTypes = Fences.orderWrites(nestedTypes);
                 }
             }
         }
@@ -202,22 +207,22 @@ final class ErasedType<T> extends Type<T> {
     @Override
     public Type<? super T> getBaseType() {
         ensureBaseType();
-        final Type baseType = _baseType;
-        return baseType == NullType ? null : baseType;
+        final @SuppressWarnings("unchecked") Type<? super T> baseType = (Type<? super T>) _baseType;
+        return baseType == nullType() ? null : baseType;
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         return _originalType;
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _originalType.getDeclaringType();
     }
 
     @Override
-    public final boolean isGenericType() {
+    public boolean isGenericType() {
         return false;
     }
 
@@ -242,8 +247,8 @@ final class ErasedType<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return (T)_originalType.getAnnotation(annotationClass);
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
+        return _originalType.getAnnotation(annotationClass);
     }
 
     @NotNull

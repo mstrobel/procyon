@@ -16,6 +16,9 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
 import com.strobel.decompiler.patterns.INode;
@@ -122,7 +125,7 @@ public abstract class Expression extends AstNode {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
 
@@ -162,8 +165,50 @@ public abstract class Expression extends AstNode {
         return new InvocationExpression(this.getOffset(), mre, arguments);
     }
 
+    public InvocationExpression invoke(final MethodReference methodReference, final Expression... arguments) {
+        return invoke(methodReference, null, arguments);
+    }
+
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<Expression> arguments) {
+        return invoke(methodReference, null, arguments);
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<AstType> typeArguments, final Expression... arguments) {
+        final MemberReferenceExpression mre = new MemberReferenceExpression(this.getOffset(), this, methodReference.getName(), typeArguments);
+        final MethodDefinition methodDefinition = methodReference.resolve();
+
+        mre.putUserData(Keys.MEMBER_REFERENCE, methodReference);
+
+        if (methodDefinition != null) {
+            mre.putUserData(Keys.METHOD_DEFINITION, methodDefinition);
+        }
+
+        return new InvocationExpression(this.getOffset(), mre, arguments);
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
+        final MemberReferenceExpression mre = new MemberReferenceExpression(this.getOffset(), this, methodReference.getName(), typeArguments);
+        final MethodDefinition methodDefinition = methodReference.resolve();
+
+        mre.putUserData(Keys.MEMBER_REFERENCE, methodReference);
+
+        if (methodDefinition != null) {
+            mre.putUserData(Keys.METHOD_DEFINITION, methodDefinition);
+        }
+
+        return new InvocationExpression(this.getOffset(), mre, arguments);
+    }
+
     public MemberReferenceExpression member(final String memberName) {
         return new MemberReferenceExpression(this.getOffset(), this, memberName);
+    }
+
+    public MemberReferenceExpression member(final FieldReference member) {
+        final MemberReferenceExpression r = member(member.getName());
+        r.putUserData(Keys.MEMBER_REFERENCE, member);
+        return r;
     }
 
     public CastExpression cast(final AstType type) {

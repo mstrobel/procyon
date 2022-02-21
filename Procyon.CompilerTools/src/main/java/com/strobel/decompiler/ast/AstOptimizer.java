@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
-@SuppressWarnings("ConstantConditions")
+@SuppressWarnings({ "ConstantConditions", "UnusedReturnValue" })
 public final class AstOptimizer {
     private final static Logger LOG = Logger.getLogger(AstOptimizer.class.getSimpleName());
 
@@ -127,12 +127,12 @@ public final class AstOptimizer {
 
                 modified = false;
 
-                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassInitSecurityChecks)) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassAccessNullChecks)) {
                     done = true;
                     break;
                 }
 
-                modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
+                modified |= runOptimization(block, new RemoveInnerClassAccessNullChecksOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.PreProcessShortCircuitAssignments)) {
                     done = true;
@@ -346,6 +346,7 @@ public final class AstOptimizer {
         LOG.fine("Finished bytecode AST optimization.");
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean shouldPerformStep(final AstOptimizationStep abortBeforeStep, final AstOptimizationStep nextStep) {
         if (abortBeforeStep == nextStep) {
             return false;
@@ -647,6 +648,7 @@ public final class AstOptimizer {
                 lockInfo = null;
             }
 
+            //noinspection UnnecessaryBreak
             break test;
         }
 
@@ -775,7 +777,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
-    @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
+    @SuppressWarnings("StatementWithEmptyBody")
     static void removeRedundantCode(final Block method, final DecompilerSettings settings) {
         final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
 
@@ -1325,6 +1327,7 @@ public final class AstOptimizer {
                             continue;
                     }
 
+                    //noinspection SuspiciousListRemoveInLoop
                     body.remove(i);
                     break;
                 }
@@ -1405,8 +1408,8 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="RemoveInnerClassInitSecurityChecks Step">
 
-    private final static class RemoveInnerClassInitSecurityChecksOptimization extends AbstractExpressionOptimization {
-        protected RemoveInnerClassInitSecurityChecksOptimization(final DecompilerContext context, final Block method) {
+    private final static class RemoveInnerClassAccessNullChecksOptimization extends AbstractExpressionOptimization {
+        protected RemoveInnerClassAccessNullChecksOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
 
@@ -1420,17 +1423,16 @@ public final class AstOptimizer {
             final StrongBox<MethodReference> getClassMethod = new StrongBox<>();
             final List<Expression> arguments = new ArrayList<>();
 
+            // matchGetArgument(previous, AstCode.InvokeStatic, getClassMethod, getClassArgument) && isRequireNonNull(getClassMethod.get())
             if (position > 0) {
                 final Node previous = body.get(position - 1);
-
-                arguments.clear();
 
                 if (matchGetArguments(head, AstCode.InvokeSpecial, constructor, arguments) &&
                     arguments.size() > 1 &&
                     matchGetOperand(arguments.get(0), AstCode.Load, constructorTargetVariable) &&
                     matchGetOperand(arguments.get(1), AstCode.Load, constructorArgumentVariable) &&
-                    matchGetArgument(previous, AstCode.InvokeVirtual, getClassMethod, getClassArgument) &&
-                    isGetClassMethod(getClassMethod.get()) &&
+                    (matchGetArgument(previous, AstCode.InvokeVirtual, getClassMethod, getClassArgument) && isGetClassMethod(getClassMethod.get()) ||
+                     matchGetArgument(previous, AstCode.InvokeStatic, getClassMethod, getClassArgument) && isRequireNonNull(getClassMethod.get())) &&
                     matchGetOperand(getClassArgument.get(), AstCode.Load, getClassArgumentVariable) &&
                     getClassArgumentVariable.get() == constructorArgumentVariable.get()) {
 
@@ -1444,7 +1446,7 @@ public final class AstOptimizer {
                         if (resolvedConstructorTargetType != null &&
                             resolvedConstructorArgumentType != null &&
                             resolvedConstructorTargetType.isNested() &&
-                            !resolvedConstructorTargetType.isStatic() &&
+//                            !resolvedConstructorTargetType.isStatic() &&
                             (!resolvedConstructorArgumentType.isNested() ||
                              isEnclosedBy(resolvedConstructorTargetType, resolvedConstructorArgumentType))) {
 
@@ -1460,7 +1462,13 @@ public final class AstOptimizer {
 
         private static boolean isGetClassMethod(final MethodReference method) {
             return method.getParameters().isEmpty() &&
-                   StringUtilities.equals(method.getName(), "getClass");
+                   "getClass".equals(method.getName());
+        }
+
+        private static boolean isRequireNonNull(final MethodReference method) {
+            return "requireNonNull".equals(method.getName()) &&
+                   "java/util/Objects".equals(method.getDeclaringType().getInternalName()) &&
+                   method.getParameters().size() == 1;
         }
 
         private static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
@@ -3252,14 +3260,15 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="FlattenBasicBlocks Step">
 
-    @SuppressWarnings("StatementWithEmptyBody")
-    private static void flattenBasicBlocks(final Node node) {
+    private static boolean flattenBasicBlocks(final Node node) {
         if (node instanceof Block) {
             final Block block = (Block) node;
             final List<Node> flatBody = new ArrayList<>();
 
+            boolean rerunChildren = false;
+
             for (final Node child : block.getChildren()) {
-                flattenBasicBlocks(child);
+                rerunChildren |= flattenBasicBlocks(child);
 
                 if (child instanceof BasicBlock) {
                     final BasicBlock childBasicBlock = (BasicBlock) child;
@@ -3284,12 +3293,21 @@ public final class AstOptimizer {
             block.setEntryGoto(null);
             block.getBody().clear();
             block.getBody().addAll(flatBody);
+
+            if (rerunChildren) {
+                flattenBasicBlocks(block);
+            }
+
+            return false;
         }
         else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
             }
+            return node instanceof BasicBlock;
         }
+
+        return false;
     }
 
     // </editor-fold>
@@ -3478,6 +3496,10 @@ public final class AstOptimizer {
 
         @Override
         public boolean run(final List<Node> body, final Expression head, final int position) {
+            if (!context.isSupported(LanguageFeature.LAMBDA_EXPRESSIONS)) {
+                return false;
+            }
+
             final StrongBox<DynamicCallSite> c = new StrongBox<>();
             final List<Expression> a = new ArrayList<>();
 
@@ -3545,7 +3567,7 @@ public final class AstOptimizer {
 
                 final MethodBody methodBody = resolvedMethod.getBody();
                 final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
-                final Variable[] parameterMap = new Variable[methodBody.getMaxLocals()];
+//                final Variable[] parameterMap = new Variable[methodBody.getMaxLocals()];
 
                 final List<Node> nodes = new ArrayList<>();
                 final Block body = new Block();
@@ -3563,7 +3585,7 @@ public final class AstOptimizer {
                     variable.setType(context.getCurrentMethod().getDeclaringType());
                     variable.setOriginalParameter(context.getCurrentMethod().getBody().getThisParameter());
 
-                    parameterMap[0] = variable;
+//                    parameterMap[0] = variable;
 
                     lambdaParameters.add(variable);
                 }
@@ -3576,7 +3598,7 @@ public final class AstOptimizer {
                     variable.setOriginalParameter(p);
                     variable.setLambdaParameter(true);
 
-                    parameterMap[p.getSlot()] = variable;
+//                    parameterMap[p.getSlot()] = variable;
 
                     lambdaParameters.add(variable);
                 }
@@ -3600,23 +3622,23 @@ public final class AstOptimizer {
                 nodes.addAll(AstBuilder.build(methodBody, true, innerContext));
                 body.getBody().addAll(nodes);
 
-                for (final Expression e : body.getSelfAndChildrenRecursive(Expression.class)) {
-                    final Object operand = e.getOperand();
-
-                    if (operand instanceof Variable) {
-                        final Variable oldVariable = (Variable) operand;
-
-                        if (oldVariable.isParameter() &&
-                            oldVariable.getOriginalParameter().getMethod() == resolvedMethod) {
-
-                            final Variable newVariable = parameterMap[oldVariable.getOriginalParameter().getSlot()];
-
-                            if (newVariable != null) {
-                                e.setOperand(newVariable);
-                            }
-                        }
-                    }
-                }
+//                for (final Expression e : body.getSelfAndChildrenRecursive(Expression.class)) {
+//                    final Object operand = e.getOperand();
+//
+//                    if (operand instanceof Variable) {
+//                        final Variable oldVariable = (Variable) operand;
+//
+//                        if (oldVariable.isParameter() &&
+//                            oldVariable.getOriginalParameter().getMethod() == resolvedMethod) {
+//
+//                            final Variable newVariable = parameterMap[oldVariable.getOriginalParameter().getSlot()];
+//
+//                            if (newVariable != null) {
+//                                e.setOperand(newVariable);
+//                            }
+//                        }
+//                    }
+//                }
 
                 AstOptimizer.optimize(innerContext, body, AstOptimizationStep.InlineVariables2);
 
@@ -3801,6 +3823,7 @@ public final class AstOptimizer {
     private static abstract class AbstractBasicBlockOptimization implements BasicBlockOptimization {
         protected final static BasicBlock EMPTY_BLOCK = new BasicBlock();
 
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(MutableInteger.SUPPLIER);
         protected final Map<Label, BasicBlock> labelToBasicBlock = new DefaultMap<>(Suppliers.forValue(EMPTY_BLOCK));
 
@@ -4184,6 +4207,7 @@ public final class AstOptimizer {
         return false;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean containsMatch(final Node node, final Expression pattern) {
         for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
             if (e.isEquivalentTo(pattern)) {

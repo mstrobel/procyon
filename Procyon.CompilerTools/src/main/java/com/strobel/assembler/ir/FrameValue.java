@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.ir;
 
+import com.strobel.assembler.metadata.MethodHandle;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
@@ -94,6 +95,10 @@ public final class FrameValue {
 
     public static FrameValue makeReference(final TypeReference type) {
         return new FrameValue(FrameValueType.Reference, VerifyArgument.notNull(type, "type"));
+    }
+
+    public static FrameValue makeMethodHandle(final MethodHandle handle) {
+        return new FrameValue(FrameValueType.Reference, VerifyArgument.notNull(handle, "handle"));
     }
 
     public static FrameValue makeAddress(final Instruction target) {

@@ -59,49 +59,61 @@ public abstract class Node {
 
     public final List<Node> getSelfAndChildrenRecursive() {
         final ArrayList<Node> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, Node.class, null, false);
+        accumulateSelfAndChildrenRecursive(results, Node.class, null, false, false);
         return results;
     }
 
     public final List<Node> getSelfAndChildrenRecursive(final Predicate<Node> predicate) {
         final ArrayList<Node> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, false);
+        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, false, false);
+        return results;
+    }
+
+    public final List<Node> getSelfAndChildrenRecursive(final Predicate<Node> predicate, final boolean skipChildrenOfFilteredNodes) {
+        final ArrayList<Node> results = new ArrayList<>();
+        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, false, skipChildrenOfFilteredNodes);
         return results;
     }
 
     public final <T extends Node> List<T> getSelfAndChildrenRecursive(final Class<T> type) {
         final ArrayList<T> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, type, null, false);
+        accumulateSelfAndChildrenRecursive(results, type, null, false, false);
         return results;
     }
 
-    public final <T extends Node> List<T> getSelfAndChildrenRecursive(final Class<T> type, final Predicate<T> predicate) {
+    public final <T extends Node> List<T> getSelfAndChildrenRecursive(final Class<T> type, final Predicate<? super T> predicate) {
         final ArrayList<T> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, type, predicate, false);
+        accumulateSelfAndChildrenRecursive(results, type, predicate, false, false);
         return results;
     }
 
     public final List<Node> getChildrenAndSelfRecursive() {
         final ArrayList<Node> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, Node.class, null, true);
+        accumulateSelfAndChildrenRecursive(results, Node.class, null, true, false);
         return results;
     }
 
     public final List<Node> getChildrenAndSelfRecursive(final Predicate<Node> predicate) {
         final ArrayList<Node> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, true);
+        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, true, false);
+        return results;
+    }
+
+    public final List<Node> getChildrenAndSelfRecursive(final Predicate<Node> predicate, final boolean skipChildrenOfFilteredNodes) {
+        final ArrayList<Node> results = new ArrayList<>();
+        accumulateSelfAndChildrenRecursive(results, Node.class, predicate, true, skipChildrenOfFilteredNodes);
         return results;
     }
 
     public final <T extends Node> List<T> getChildrenAndSelfRecursive(final Class<T> type) {
         final ArrayList<T> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, type, null, true);
+        accumulateSelfAndChildrenRecursive(results, type, null, true, false);
         return results;
     }
 
-    public final <T extends Node> List<T> getChildrenAndSelfRecursive(final Class<T> type, final Predicate<T> predicate) {
+    public final <T extends Node> List<T> getChildrenAndSelfRecursive(final Class<T> type, final Predicate<? super T> predicate) {
         final ArrayList<T> results = new ArrayList<>();
-        accumulateSelfAndChildrenRecursive(results, type, predicate, true);
+        accumulateSelfAndChildrenRecursive(results, type, predicate, true, false);
         return results;
     }
 
@@ -109,21 +121,28 @@ public abstract class Node {
     private <T extends Node> void accumulateSelfAndChildrenRecursive(
         final List<T> list,
         final Class<T> type,
-        final Predicate<T> predicate,
-        final boolean childrenFirst) {
+        final Predicate<? super T> predicate,
+        final boolean childrenFirst,
+        final boolean skipChildrenOfFilteredNodes) {
+        
+        final boolean passed = type.isInstance(this) && (predicate == null || predicate.test((T) this));
+
+        if (!passed && skipChildrenOfFilteredNodes) {
+            return;
+        }
 
         if (!childrenFirst) {
-            if (type.isInstance(this) && (predicate == null || predicate.test((T) this))) {
+            if (passed) {
                 list.add((T) this);
             }
         }
 
         for (final Node child : getChildren()) {
-            child.accumulateSelfAndChildrenRecursive(list, type, predicate, childrenFirst);
+            child.accumulateSelfAndChildrenRecursive(list, type, predicate, childrenFirst, skipChildrenOfFilteredNodes);
         }
 
         if (childrenFirst) {
-            if (type.isInstance(this) && (predicate == null || predicate.test((T) this))) {
+            if (passed) {
                 list.add((T) this);
             }
         }

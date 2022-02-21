@@ -16,26 +16,51 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.Accumulator;
+import com.strobel.core.VerifyArgument;
+
+import java.util.ArrayList;
 import java.util.List;
+
+import static com.strobel.core.Comparer.coalesce;
 
 /**
  * @author Mike Strobel
  */
-public final class CompoundTypeReference extends TypeReference {
+@SuppressWarnings("DuplicatedCode")
+public final class CompoundTypeReference extends TypeReference implements ICompoundType {
     private final TypeReference _baseType;
     private final List<TypeReference> _interfaces;
+    private final IMetadataResolver _resolver;
 
     public CompoundTypeReference(final TypeReference baseType, final List<TypeReference> interfaces) {
-        _baseType = baseType;
-        _interfaces = interfaces;
+        this(baseType, interfaces, IMetadataResolver.EMPTY);
     }
 
+    public CompoundTypeReference(final TypeReference baseType, final List<TypeReference> interfaces, final IMetadataResolver resolver) {
+        VerifyArgument.noNullElementsAndNotEmpty(interfaces, "interfaces");
+        _baseType = baseType != BuiltinTypes.Null ? baseType : null;
+        _interfaces = interfaces;
+        _resolver = coalesce(resolver, IMetadataResolver.EMPTY);
+    }
+
+    private TypeReference underlyingType0() {
+        return _baseType != null ? _baseType : _interfaces.get(0);
+    }
+
+    @Override
     public final TypeReference getBaseType() {
         return _baseType;
     }
 
+    @Override
     public final List<TypeReference> getInterfaces() {
         return _interfaces;
+    }
+
+    @Override
+    public IMetadataResolver getResolver() {
+        return coalesce(_resolver, IMetadataResolver.EMPTY);
     }
 
     @Override
@@ -44,11 +69,13 @@ public final class CompoundTypeReference extends TypeReference {
     }
 
     @Override
+    public boolean isCompoundType() {
+        return true;
+    }
+
+    @Override
     public String getSimpleName() {
-        if (_baseType != null) {
-            return _baseType.getSimpleName();
-        }
-        return _interfaces.get(0).getSimpleName();
+        return underlyingType0().getSimpleName();
     }
 
     @Override
@@ -70,26 +97,22 @@ public final class CompoundTypeReference extends TypeReference {
 
     @Override
     public String getName() {
-        if (_baseType != null) {
-            return _baseType.getName();
-        }
-        return _interfaces.get(0).getName();
+        return underlyingType0().getName();
     }
 
     @Override
     public String getFullName() {
-        if (_baseType != null) {
-            return _baseType.getFullName();
-        }
-        return _interfaces.get(0).getFullName();
+        return underlyingType0().getFullName();
     }
 
     @Override
     public String getInternalName() {
-        if (_baseType != null) {
-            return _baseType.getInternalName();
-        }
-        return _interfaces.get(0).getInternalName();
+        return underlyingType0().getInternalName();
+    }
+
+    @Override
+    public TypeReference getUnderlyingType() {
+        return underlyingType0();
     }
 
     @Override
@@ -98,97 +121,60 @@ public final class CompoundTypeReference extends TypeReference {
     }
 
     @Override
-    public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        final TypeReference baseType = _baseType;
-        final List<TypeReference> interfaces = _interfaces;
+    protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        return underlyingType0().appendName(sb, fullName, dottedName);
+    }
+
+    static StringBuilder append0(final ICompoundType t, final StringBuilder sb, final String delimiter, final Accumulator<TypeReference, StringBuilder> appender) {
+        final TypeReference baseType = t.getBaseType();
+        final List<TypeReference> interfaces = t.getInterfaces();
 
         StringBuilder s = sb;
 
         if (baseType != null) {
-            s = baseType.appendBriefDescription(s);
+            s = appender.accumulate(s, baseType);
             if (!interfaces.isEmpty()) {
-                s.append(" & ");
+                s.append(delimiter);
             }
         }
 
         for (int i = 0, n = interfaces.size(); i < n; i++) {
             if (i != 0) {
-                s.append(" & ");
+                s.append(delimiter);
             }
-            s = interfaces.get(i).appendBriefDescription(s);
+            s = appender.accumulate(s, interfaces.get(i));
         }
 
         return s;
+    }
+
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        return append0(this, sb, " & ", TypeFunctions.APPEND_BRIEF_DESCRIPTION);
     }
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        final TypeReference baseType = _baseType;
-        final List<TypeReference> interfaces = _interfaces;
-
-        StringBuilder s = sb;
-
-        if (baseType != null) {
-            s = baseType.appendSimpleDescription(s);
-            if (!interfaces.isEmpty()) {
-                s.append(" & ");
-            }
-        }
-
-        for (int i = 0, n = interfaces.size(); i < n; i++) {
-            if (i != 0) {
-                s.append(" & ");
-            }
-            s = interfaces.get(i).appendSimpleDescription(s);
-        }
-
-        return s;
+        return append0(this, sb, " & ", TypeFunctions.APPEND_SIMPLE_DESCRIPTION);
     }
 
     @Override
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        final TypeReference baseType = _baseType;
-        final List<TypeReference> interfaces = _interfaces;
-
-        StringBuilder s = sb;
-
-        if (baseType != null) {
-            s = baseType.appendErasedDescription(s);
-            if (!interfaces.isEmpty()) {
-                s.append(" & ");
-            }
-        }
-
-        for (int i = 0, n = interfaces.size(); i < n; i++) {
-            if (i != 0) {
-                s.append(" & ");
-            }
-            s = interfaces.get(i).appendErasedDescription(s);
-        }
-
-        return s;
+        return append0(this, sb, " & ", TypeFunctions.APPEND_ERASED_DESCRIPTION);
     }
 
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
-        return appendBriefDescription(sb);
+        return append0(this, sb, " & ", TypeFunctions.APPEND_DESCRIPTION);
     }
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
-        StringBuilder s = sb;
+        final int position = sb.length();
+        final StringBuilder s = append0(this, sb, ":", TypeFunctions.APPEND_SIGNATURE);
 
-        if (_baseType != null) {
-            s = _baseType.appendSignature(s);
-        }
-
-        if (_interfaces.isEmpty()) {
-            return s;
-        }
-
-        for (final TypeReference interfaceType : _interfaces) {
-            s.append(':');
-            s = interfaceType.appendSignature(s);
+        if (_baseType == null) {
+            s.insert(position, ':');
         }
 
         return s;
@@ -196,14 +182,33 @@ public final class CompoundTypeReference extends TypeReference {
 
     @Override
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        if (_baseType != null) {
-            return _baseType.appendErasedSignature(sb);
+        return underlyingType0().appendErasedSignature(sb);
+    }
+
+    @Override
+    protected StringBuilder appendErasedClassSignature(final StringBuilder sb) {
+        return underlyingType0().appendErasedClassSignature(sb);
+    }
+
+    @Override
+    public TypeDefinition resolve() {
+        final IMetadataResolver resolver = _resolver;
+        final boolean hasResolver = resolver != IMetadataResolver.EMPTY;
+
+        final TypeDefinition baseResolved = _baseType != null ? hasResolver ? resolver.resolve(_baseType) : _baseType.resolve()
+                                                              : null;
+
+        final List<TypeReference> ifsResolved = new ArrayList<>();
+
+        for (final TypeReference ifType : _interfaces) {
+            final TypeDefinition ifTypeResolved = ifType != null ? hasResolver ? resolver.resolve(ifType) : ifType.resolve()
+                                                                 : null;
+
+            ifsResolved.add(coalesce(ifTypeResolved, ifType));
         }
 
-        if (!_interfaces.isEmpty()) {
-            return _interfaces.get(0).appendErasedSignature(sb);
-        }
-
-        return BuiltinTypes.Object.appendErasedSignature(sb);
+        return new CompoundTypeDefinition(coalesce(baseResolved, _baseType), ifsResolved, resolver);
+//        return null;
     }
 }
+

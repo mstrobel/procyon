@@ -37,6 +37,7 @@ import java.util.List;
 
 import static java.lang.String.format;
 
+@SuppressWarnings("DuplicatedCode")
 public class BytecodeLanguage extends Language {
     @Override
     public String getName() {
@@ -54,23 +55,36 @@ public class BytecodeLanguage extends Language {
         VerifyArgument.notNull(output, "output");
         VerifyArgument.notNull(options, "options");
 
-        if (type.isInterface()) {
-            if (type.isAnnotation()) {
-                output.writeKeyword("@interface");
-            }
-            else {
-                output.writeKeyword("interface");
-            }
-        }
-        else if (type.isEnum()) {
-            output.writeKeyword("enum");
+        final ModuleAttribute moduleAttribute = type.isModule() ? SourceAttribute.<ModuleAttribute>find(AttributeNames.Module, type.getSourceAttributes())
+                                                                : null;
+
+        final boolean isModule = moduleAttribute != null;
+
+        if (isModule) {
+            output.writeKeyword("module");
+            output.write(' ');
+            output.writeReference(moduleAttribute.getModuleName(), moduleAttribute);
         }
         else {
-            output.writeKeyword("class");
+            if (type.isInterface()) {
+                if (type.isAnnotation()) {
+                    output.writeKeyword("@interface");
+                }
+                else {
+                    output.writeKeyword("interface");
+                }
+            }
+            else if (type.isEnum()) {
+                output.writeKeyword("enum");
+            }
+            else {
+                output.writeKeyword("class");
+            }
+
+            output.write(' ');
+            DecompilerHelpers.writeType(output, type, NameSyntax.TYPE_NAME, true);
         }
 
-        output.write(' ');
-        DecompilerHelpers.writeType(output, type, NameSyntax.TYPE_NAME, true);
         output.writeLine();
         output.indent();
 
@@ -95,19 +109,25 @@ public class BytecodeLanguage extends Language {
                 }
             }
 
-            for (final FieldDefinition field : type.getDeclaredFields()) {
+            if (isModule) {
                 output.writeLine();
-                decompileField(field, output, options);
+                writeModuleBody(output, moduleAttribute, false);
             }
-
-            for (final MethodDefinition method : type.getDeclaredMethods()) {
-                output.writeLine();
-
-                try {
-                    decompileMethod(method, output, options);
+            else {
+                for (final FieldDefinition field : type.getDeclaredFields()) {
+                    output.writeLine();
+                    decompileField(field, output, options);
                 }
-                catch (final MethodBodyParseException e) {
-                    writeMethodBodyParseError(output, e);
+
+                for (final MethodDefinition method : type.getDeclaredMethods()) {
+                    output.writeLine();
+
+                    try {
+                        decompileMethod(method, output, options);
+                    }
+                    catch (final MethodBodyParseException e) {
+                        writeMethodBodyParseError(output, e);
+                    }
                 }
             }
         }
@@ -123,6 +143,211 @@ public class BytecodeLanguage extends Language {
         }
 
         return new TypeDecompilationResults(null /*no line number mapping*/);
+    }
+
+    private static boolean newlineIfNeeded(final ITextOutput output, final boolean needNewLine) {
+        if (needNewLine) {
+            output.writeLine();
+        }
+        return false;
+    }
+
+    public static void writeModuleBody(final ITextOutput output, final ModuleAttribute module, final boolean useDottedNames) {
+        final List<ModuleDependency> requires = module.getRequires();
+
+        boolean needNewLine = false;
+        boolean lastHadMultiple = false;
+
+        for (int i = 0, n = requires.size(); i < n; i++) {
+            writeModuleDependency(output, requires.get(i));
+            needNewLine = true;
+        }
+
+        needNewLine = newlineIfNeeded(output, needNewLine);
+
+        final List<PackageInfo> exports = module.getExports();
+
+        for (int i = 0, n = exports.size(); i < n; i++) {
+            final PackageInfo export = exports.get(i);
+            final boolean hasMultiple = export.getModules().size() > 1;
+
+            if (lastHadMultiple || hasMultiple && i > 0) {
+                output.writeLine();
+            }
+
+            writePackageInfo(output, export, useDottedNames, true);
+            lastHadMultiple = hasMultiple;
+            needNewLine = true;
+        }
+
+        needNewLine = newlineIfNeeded(output, needNewLine);
+        lastHadMultiple = false;
+
+        final List<PackageInfo> opens = module.getOpens();
+
+        for (int i = 0, n = opens.size(); i < n; i++) {
+            final PackageInfo open = opens.get(i);
+            final boolean hasMultiple = open.getModules().size() > 1;
+
+            if (lastHadMultiple || hasMultiple && i > 0) {
+                output.writeLine();
+            }
+
+            writePackageInfo(output, open, useDottedNames, false);
+            lastHadMultiple = hasMultiple;
+            needNewLine = true;
+        }
+
+        needNewLine = newlineIfNeeded(output, needNewLine);
+        // lastHadMultiple = false;
+
+        final List<TypeReference> uses = module.getUses();
+
+        for (int i = 0, n = uses.size(); i < n; i++) {
+            final TypeReference reference = uses.get(i);
+
+            output.writeKeyword("uses");
+            output.write(' ');
+            output.writeReference(useDottedNames ? reference.getFullName() : reference.getInternalName(), reference);
+            output.writeDelimiter(";");
+            output.writeLine();
+            needNewLine = true;
+        }
+
+        newlineIfNeeded(output, needNewLine);
+        lastHadMultiple = false;
+
+        final List<ServiceInfo> provides = module.getProvides();
+
+        for (int i = 0, n = provides.size(); i < n; i++) {
+            final ServiceInfo service = provides.get(i);
+            final boolean hasMultiple = service.getImplementations().size() > 1;
+
+            if (lastHadMultiple || hasMultiple && i > 0) {
+                output.writeLine();
+            }
+
+            writeServiceInfo(output, service, useDottedNames);
+            lastHadMultiple = hasMultiple;
+        }
+    }
+
+    private static void writeModuleDependency(final ITextOutput output, final ModuleDependency dependency) {
+        final EnumSet<Flags.Flag> flags = dependency.getFlags();
+
+        output.writeKeyword("requires");
+        output.write(' ');
+
+        if (flags.contains(Flags.Flag.TRANSITIVE)) {
+            output.writeKeyword(Flags.Flag.TRANSITIVE.name);
+            output.write(' ');
+        }
+
+        if (flags.contains(Flags.Flag.STATIC_PHASE)) {
+            output.writeKeyword(Flags.Flag.STATIC_PHASE.name);
+            output.write(' ');
+        }
+
+        output.writeReference(dependency.getName(), dependency);
+
+        if (flags.contains(Flags.Flag.MANDATED)) {
+            output.write(' ');
+            output.writeKeyword(Flags.Flag.MANDATED.name);
+        }
+
+        output.writeDelimiter(";");
+        output.writeLine();
+    }
+
+    private static void writePackageInfo(final ITextOutput output, final PackageInfo export, final boolean useDottedNames, final boolean isExport) {
+        final EnumSet<Flags.Flag> flags = export.getFlags();
+        final int startColumn = output.getColumn();
+
+        output.writeKeyword(isExport ? "exports" : "opens");
+        output.write(' ');
+
+        if (flags.contains(Flags.Flag.TRANSITIVE)) {
+            output.writeKeyword(Flags.Flag.TRANSITIVE.name);
+            output.write(' ');
+        }
+
+        if (flags.contains(Flags.Flag.STATIC_PHASE)) {
+            output.writeKeyword(Flags.Flag.STATIC_PHASE.name);
+            output.write(' ');
+        }
+
+        final String packageName = useDottedNames ? export.getPackage().getFullName() : export.getPackage().getInternalName();
+
+        output.writeReference(packageName, export.getPackage());
+
+        if (flags.contains(Flags.Flag.MANDATED)) {
+            output.write(' ');
+            output.writeKeyword(Flags.Flag.MANDATED.name);
+        }
+
+        final List<ModuleReference> modules = export.getModules();
+
+        if (!modules.isEmpty()) {
+            output.write(' ');
+            output.writeKeyword("to");
+            output.write(' ');
+
+            final int endColumn = output.getColumn();
+            final int padding = endColumn - startColumn;
+            final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+            for (int i = 0, n = modules.size(); i < n; i++) {
+                final ModuleReference module = modules.get(i);
+
+                if (i > 0) {
+                    output.writeDelimiter(",");
+                    output.writeLine();
+                    output.write(paddingText);
+                }
+
+                output.writeReference(module.getName(), module);
+            }
+        }
+
+        output.writeDelimiter(";");
+        output.writeLine();
+    }
+
+    private static void writeServiceInfo(final ITextOutput output, final ServiceInfo service, final boolean useDottedNames) {
+        final List<TypeReference> implementations = service.getImplementations();
+        final int startColumn = output.getColumn();
+
+        output.writeKeyword("provides");
+        output.write(' ');
+
+        final TypeReference serviceInterface = service.getInterface();
+
+        output.writeReference(useDottedNames ? serviceInterface.getFullName() : serviceInterface.getInternalName(), serviceInterface);
+
+        if (!implementations.isEmpty()) {
+            output.write(' ');
+            output.writeKeyword("with");
+            output.write(' ');
+
+            final int endColumn = output.getColumn();
+            final int padding = endColumn - startColumn;
+            final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+            for (int i = 0, n = implementations.size(); i < n; i++) {
+                final TypeReference implementation = implementations.get(i);
+
+                if (i > 0) {
+                    output.writeDelimiter(",");
+                    output.writeLine();
+                    output.write(paddingText);
+                }
+
+                output.writeReference(useDottedNames ? implementation.getFullName() : implementation.getInternalName(), implementation);
+            }
+        }
+
+        output.writeDelimiter(";");
+        output.writeLine();
     }
 
     private void writeMethodBodyParseError(final ITextOutput output, final Throwable error) {
@@ -146,31 +371,33 @@ public class BytecodeLanguage extends Language {
     private void writeTypeAttribute(final ITextOutput output, final TypeDefinition type, final SourceAttribute attribute) {
         if (attribute instanceof BlobAttribute) {
             writeBlobAttribute(output, (BlobAttribute) attribute);
-            return;
         }
 
         switch (attribute.getName()) {
             case AttributeNames.SourceFile: {
-                output.writeAttribute(AttributeNames.SourceFile);
-                output.write(": ");
+                assert attribute instanceof SourceFileAttribute;
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
                 output.writeTextLiteral(((SourceFileAttribute) attribute).getSourceFile());
                 output.writeLine();
                 break;
             }
 
             case AttributeNames.Deprecated: {
-                output.writeAttribute(AttributeNames.Deprecated);
+                output.writeAttribute(attribute.getName());
                 output.writeLine();
                 break;
             }
 
             case AttributeNames.EnclosingMethod: {
+                assert attribute instanceof EnclosingMethodAttribute;
+
                 final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
                 final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
 
                 if (enclosingType != null) {
                     output.writeAttribute("EnclosingType");
-                    output.write(": ");
+                    output.writeDelimiter(": ");
                     output.writeReference(enclosingType.getInternalName(), enclosingType);
                     output.writeLine();
                 }
@@ -178,8 +405,8 @@ public class BytecodeLanguage extends Language {
                 if (enclosingMethod != null) {
                     final TypeReference declaringType = enclosingMethod.getDeclaringType();
 
-                    output.writeAttribute(AttributeNames.EnclosingMethod);
-                    output.write(": ");
+                    output.writeAttribute(attribute.getName());
+                    output.writeDelimiter(": ");
                     output.writeReference(declaringType.getInternalName(), declaringType);
                     output.writeDelimiter(".");
                     output.writeReference(enclosingMethod.getName(), enclosingMethod);
@@ -192,11 +419,14 @@ public class BytecodeLanguage extends Language {
             }
 
             case AttributeNames.InnerClasses: {
+                assert attribute instanceof InnerClassesAttribute;
+
                 final InnerClassesAttribute innerClasses = (InnerClassesAttribute) attribute;
                 final List<InnerClassEntry> entries = innerClasses.getEntries();
 
-                output.writeAttribute(AttributeNames.InnerClasses);
-                output.writeLine(": ");
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+                output.writeLine();
                 output.indent();
 
                 try {
@@ -212,19 +442,22 @@ public class BytecodeLanguage extends Language {
             }
 
             case AttributeNames.Signature: {
-                output.writeAttribute(AttributeNames.Signature);
-                output.write(": ");
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
                 DecompilerHelpers.writeGenericSignature(output, type);
                 output.writeLine();
                 break;
             }
 
             case AttributeNames.BootstrapMethods: {
+                assert attribute instanceof BootstrapMethodsAttribute;
+
                 final BootstrapMethodsAttribute innerClasses = (BootstrapMethodsAttribute) attribute;
                 final List<BootstrapMethodsTableEntry> entries = innerClasses.getBootstrapMethods();
 
-                output.writeAttribute(AttributeNames.BootstrapMethods);
-                output.writeLine(": ");
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+                output.writeLine();
                 output.indent();
 
                 try {
@@ -232,14 +465,98 @@ public class BytecodeLanguage extends Language {
 
                     for (final BootstrapMethodsTableEntry entry : entries) {
                         output.writeLiteral(i++);
-                        output.write(": ");
-                        writeBootstrapMethodEntry(output, type, entry);
+                        output.writeDelimiter(": ");
+                        writeBootstrapMethodEntry(output, entry);
                     }
                 }
                 finally {
                     output.unindent();
                 }
 
+                break;
+            }
+
+            case AttributeNames.ModulePackages: {
+                assert attribute instanceof ModulePackagesAttribute;
+
+                final ModulePackagesAttribute packagesAttribute = (ModulePackagesAttribute) attribute;
+                final List<PackageReference> packages = packagesAttribute.getPackages();
+                final int startColumn = output.getColumn();
+
+                output.writeAttribute(packagesAttribute.getName());
+                output.writeDelimiter(": ");
+
+                if (packages.isEmpty()) {
+                    output.writeLine();
+                    break;
+                }
+
+                final int endColumn = output.getColumn();
+                final int padding = endColumn - startColumn;
+                final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+                for (int i = 0; i < packages.size(); i++) {
+                    if (i > 0) {
+                        output.write(paddingText);
+                    }
+
+                    final PackageReference reference = packages.get(i);
+
+                    output.writeReference(reference.getFullName(), reference);
+                    output.writeLine();
+                }
+
+                break;
+            }
+
+            case AttributeNames.PermittedSubclasses: {
+                assert attribute instanceof PermittedSubclassesAttribute;
+
+                final List<TypeReference> permittedSubclasses = ((PermittedSubclassesAttribute) attribute).getPermittedSubclasses();
+
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+
+                for (int i = 0; i < permittedSubclasses.size(); i++) {
+                    if (i != 0) {
+                        output.write(", ");
+                    }
+
+                    DecompilerHelpers.writeType(output, permittedSubclasses.get(i), NameSyntax.DESCRIPTOR);
+                }
+
+                output.writeLine();
+                break;
+            }
+
+            case AttributeNames.ModuleMainClass: {
+                assert attribute instanceof ModuleMainClassAttribute;
+
+                final ModuleMainClassAttribute mainClass = (ModuleMainClassAttribute) attribute;
+
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+                output.writeLine();
+                DecompilerHelpers.writeType(output, mainClass.getMainClass());
+
+                break;
+            }
+
+            case AttributeNames.ModuleTarget: {
+                assert attribute instanceof ModuleTargetAttribute;
+
+                final ModuleTargetAttribute mainClass = (ModuleTargetAttribute) attribute;
+
+                output.writeAttribute(attribute.getName());
+                output.writeDelimiter(": ");
+                output.writeTextLiteral(mainClass.getPlatform());
+                output.writeLine();
+
+                break;
+            }
+
+            case AttributeNames.Module: {
+                // Write during type output.
                 break;
             }
         }
@@ -265,7 +582,7 @@ public class BytecodeLanguage extends Language {
         output.writeLine();
     }
 
-    private void writeBootstrapMethodEntry(final ITextOutput output, final TypeDefinition type, final BootstrapMethodsTableEntry entry) {
+    private void writeBootstrapMethodEntry(final ITextOutput output, final BootstrapMethodsTableEntry entry) {
         DecompilerHelpers.writeMethodHandle(output, entry.getMethodHandle());
 
         output.writeLine();
@@ -437,7 +754,7 @@ public class BytecodeLanguage extends Language {
         try {
             if (formattingOptions.showFieldFlags) {
                 output.writeAttribute("Flags");
-                output.write(": ");
+                output.writeDelimiter(": ");
 
                 for (int i = 0; i < flagStrings.size(); i++) {
                     if (i != 0) {
@@ -472,7 +789,7 @@ public class BytecodeLanguage extends Language {
                 final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
 
                 output.writeAttribute("ConstantValue");
-                output.write(": ");
+                output.writeDelimiter(": ");
 
                 if (constantValue != null) {
                     final String typeDescriptor = constantValue.getClass().getName().replace('.', '/');
@@ -496,7 +813,7 @@ public class BytecodeLanguage extends Language {
 
             case AttributeNames.Signature: {
                 output.writeAttribute("Signature");
-                output.write(": ");
+                output.writeDelimiter(": ");
                 DecompilerHelpers.writeType(output, field.getFieldType(), NameSyntax.SIGNATURE, false);
                 output.writeLine();
                 break;
@@ -636,7 +953,7 @@ public class BytecodeLanguage extends Language {
 
             try {
                 output.writeAttribute("Flags");
-                output.write(": ");
+                output.writeDelimiter(": ");
 
                 for (int i = 0; i < flagStrings.size(); i++) {
                     if (i != 0) {
@@ -990,7 +1307,7 @@ public class BytecodeLanguage extends Language {
         }
     }
 
-    @SuppressWarnings({ "ConstantConditions", "UnusedParameters" })
+    @SuppressWarnings("UnusedParameters")
     private void writeMethodEnd(final ITextOutput output, final MethodDefinition method, final DecompilationOptions options) {
         final MethodBody body = method.getBody();
 
@@ -1262,6 +1579,16 @@ public class BytecodeLanguage extends Language {
             _output.write(' ');
             DecompilerHelpers.writeType(_output, value, NameSyntax.ERASED_SIGNATURE);
             _output.write(".class");
+
+            _output.writeLine();
+        }
+
+        @Override
+        public void visitConstant(final OpCode op, final MethodHandle value) {
+            printOpCode(op);
+
+            _output.write(' ');
+            DecompilerHelpers.writeMethodHandle(_output, value);
 
             _output.writeLine();
         }

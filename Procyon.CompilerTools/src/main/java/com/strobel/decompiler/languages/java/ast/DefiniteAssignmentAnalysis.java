@@ -128,7 +128,7 @@ public class DefiniteAssignmentAnalysis {
             final LambdaExpression lambda = (LambdaExpression) node;
 
             if (lambda.getBody() instanceof Statement) {
-                @SuppressWarnings("unchecked")
+                @SuppressWarnings({ "unchecked", "rawtypes" })
                 final List<? extends DefiniteAssignmentNode> nodes = (List) builder.buildControlFlowGraph(
                     (Statement) lambda.getBody(),
                     resolver
@@ -299,6 +299,7 @@ public class DefiniteAssignmentAnalysis {
                 //
             }
 
+            //noinspection fallthrough
             case LoopCondition: {
                 if (node.getNextStatement() instanceof ForEachStatement) {
                     final ForEachStatement forEach = (ForEachStatement) node.getNextStatement();
@@ -525,7 +526,13 @@ public class DefiniteAssignmentAnalysis {
 
         @Override
         public DefiniteAssignmentStatus visitTryCatchStatement(final TryCatchStatement node, final DefiniteAssignmentStatus data) {
-            return data;
+            DefiniteAssignmentStatus status = data;
+
+            for (final VariableDeclarationStatement resource : node.getDeclaredResources()) {
+                status = mergeStatus(status, resource.acceptVisitor(this, data));
+            }
+
+            return status;
         }
 
         @Override
@@ -550,11 +557,12 @@ public class DefiniteAssignmentAnalysis {
 
         @Override
         public DefiniteAssignmentStatus visitLambdaExpression(final LambdaExpression node, final DefiniteAssignmentStatus data) {
-            if (node.getBody() instanceof Statement) {
-                changeNodeStatus(beginNodeMap.get(node.getBody()), data);
+            final AstNode body = node.getBody();
+            if (body instanceof Statement) {
+                changeNodeStatus(beginNodeMap.get(body), data);
             }
             else {
-                node.getBody().acceptVisitor(this, data);
+                body.acceptVisitor(this, data);
             }
             return data;
         }
@@ -784,7 +792,7 @@ public class DefiniteAssignmentAnalysis {
 
     // <editor-fold defaultstate="collapsed" desc="DefiniteAssignmentNode Class">
 
-    final class DefiniteAssignmentNode extends ControlFlowNode {
+    final static class DefiniteAssignmentNode extends ControlFlowNode {
         private int _index;
         private DefiniteAssignmentStatus _nodeStatus;
 
@@ -822,7 +830,7 @@ public class DefiniteAssignmentAnalysis {
 
     // <editor-fold defaultstate="collapsed" desc="DerivedControlFlowGraphBuilder Class">
 
-    final class DerivedControlFlowGraphBuilder extends ControlFlowGraphBuilder {
+    final static class DerivedControlFlowGraphBuilder extends ControlFlowGraphBuilder {
         @Override
         protected ControlFlowNode createNode(
             final Statement previousStatement,

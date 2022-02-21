@@ -25,6 +25,7 @@ import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
+@SuppressWarnings("DuplicatedCode")
 public class JavaResolver implements Function<AstNode, ResolveResult> {
     private final DecompilerContext _context;
 
@@ -305,11 +306,11 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return leftType;
             }
 
-            if (StringUtilities.equals(leftType.getInternalName(), "java/lang/String")) {
+            if (CommonTypeReferences.String.isEquivalentTo(leftType)) {
                 return leftType;
             }
 
-            if (StringUtilities.equals(rightType.getInternalName(), "java/lang/String")) {
+            if (CommonTypeReferences.String.isEquivalentTo(rightType)) {
                 return rightType;
             }
 
@@ -331,11 +332,11 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             leftType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftType);
             rightType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(rightType);
 
-            if (StringUtilities.equals(leftType.getInternalName(), "java/lang/String")) {
+            if (CommonTypeReferences.String.isEquivalentTo(leftType)) {
                 return leftType;
             }
 
-            if (StringUtilities.equals(rightType.getInternalName(), "java/lang/String")) {
+            if (CommonTypeReferences.String.isEquivalentTo(rightType)) {
                 return rightType;
             }
 
@@ -353,7 +354,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 final TypeDefinition currentType = context.getCurrentType();
                 final IMetadataResolver resolver = currentType != null ? currentType.getResolver() : MetadataSystem.instance();
 
-                primitiveType = resolver.lookupType("java/lang/String");
+                primitiveType = CommonTypeReferences.String;
             }
             else if (value instanceof Number) {
                 if (value instanceof Byte) {

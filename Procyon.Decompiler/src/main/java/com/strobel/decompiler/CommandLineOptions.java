@@ -17,6 +17,7 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.Parameter;
+import com.strobel.assembler.metadata.CompilerTarget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,12 +38,6 @@ public class CommandLineOptions {
                       "but at the expense of inlining and useful naming.  This feature is experimental and " +
                       "may be removed or become the standard behavior in future releases.")
     private boolean _mergeVariables;
-
-    @Parameter(
-        names = { "-ei", "--explicit-imports" },
-        description = "[DEPRECATED] Explicit imports are now enabled by default.  " +
-                      "This option will be removed in a future release.")
-    private boolean _forceExplicitImports;
 
     @Parameter(
         names = { "-ci", "--collapse-imports" },
@@ -165,6 +160,15 @@ public class CommandLineOptions {
         description = "Simplify type-qualified member references in Java output [EXPERIMENTAL].")
     private boolean _simplifyMemberReferences;
 
+    @Parameter(
+        names = { "--text-block-line-min" },
+        description = "Specify the minimum number of line breaks before string literals are rendered as text blocksDefault is 3; set to 0 to disable text blocks.")
+    private int _textBlockLineMinimum = 3;
+
+    @Parameter(
+        names = { "--compiler-target" },
+        description = "Explicitly specify the language version to decompile for, e.g., 1.7, 1.8, 8, 9, etc. [EXPERIMENTAL, INCOMPLETE]")
+    private String _compilerTargetOverride;
 
     @Parameter(
         names = { "-fq", "--force-qualified-references" },
@@ -413,5 +417,28 @@ public class CommandLineOptions {
 
     public final void setSuppressBanner(final boolean suppressBanner) {
         _suppressBanner = suppressBanner;
+    }
+
+    public final int getTextBlockLineMinimum() {
+        return _textBlockLineMinimum;
+    }
+
+    public final void setTextBlockLineMinimum(final int textBlockLineMinimum) {
+        _textBlockLineMinimum = textBlockLineMinimum;
+    }
+
+    public final CompilerTarget getCompilerTargetOverride() {
+        if (_compilerTargetOverride != null) {
+            return CompilerTarget.lookup(_compilerTargetOverride);
+        }
+        return null;
+    }
+
+    public final void setCompilerTargetOverride(final String compilerTargetOverride) {
+        _compilerTargetOverride = compilerTargetOverride;
+    }
+
+    public final void setCompilerTargetOverride(final CompilerTarget compilerTargetOverride) {
+        _compilerTargetOverride = compilerTargetOverride != null ? compilerTargetOverride.name : null;
     }
 }

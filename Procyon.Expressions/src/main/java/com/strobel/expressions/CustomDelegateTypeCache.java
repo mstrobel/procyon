@@ -176,7 +176,7 @@ final class CustomDelegateTypeCache {
             genericParameterTypes
         );
 
-        return typeBuilder.createType();
+        return typeBuilder. createType();
     }
 
     private static String generateName(final Type<?> returnType, final TypeList parameterTypes) {

@@ -14,5 +14,5 @@
 package com.strobel.functions;
 
 public interface Function<T, R> {
-    public R apply(final T input);
+    R apply(final T input);
 }

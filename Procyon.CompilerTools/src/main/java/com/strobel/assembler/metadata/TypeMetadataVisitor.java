@@ -25,11 +25,12 @@ public interface TypeMetadataVisitor<P, R> {
     R visitGenericParameter(final GenericParameter t, final P p);
     R visitWildcard(final WildcardType t, final P p);
     R visitCapturedType(final CapturedType t, final P p);
-    R visitCompoundType(final CompoundTypeReference t, final P p);
+    <C extends TypeReference & ICompoundType> R visitCompoundType(final C t, final P p);
     R visitParameterizedType(final TypeReference t, final P p);
     R visitPrimitiveType(final PrimitiveType t, final P p);
     R visitClassType(final TypeReference t, final P p);
     R visitNullType(final TypeReference t, final P p);
     R visitBottomType(final TypeReference t, final P p);
     R visitRawType(final RawType t, final P p);
+    <U extends TypeReference & IUnionType> R visitUnionType(final U t, final P p);
 }

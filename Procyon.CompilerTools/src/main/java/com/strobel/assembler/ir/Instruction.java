@@ -16,13 +16,7 @@
 
 package com.strobel.assembler.ir;
 
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.Label;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.SwitchInfo;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
@@ -529,6 +523,9 @@ public final class Instruction implements Comparable<Instruction> {
                 }
                 else if (_operand instanceof TypeReference) {
                     visitor.visitConstant(_opCode, (TypeReference) _operand);
+                }
+                else if (_operand instanceof MethodHandle) {
+                    visitor.visitConstant(_opCode, (MethodHandle) _operand);
                 }
                 else {
                     final Number number = (Number) _operand;

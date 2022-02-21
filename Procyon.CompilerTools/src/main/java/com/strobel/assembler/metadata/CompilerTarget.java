@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,10 +49,56 @@ public enum CompilerTarget {
     /**
      * JDK 8.
      */
-    JDK1_8("1.8", 52, 0);
+    JDK1_8("1.8", 52, 0),
+
+    /**
+     * JDK 9.
+     */
+    JDK9("9", 53, 0),
+
+    /**
+     * JDK 10.
+     */
+    JDK10("10", 54, 0),
+
+    /**
+     * JDK 11.
+     */
+    JDK11("11", 55, 0),
+
+    /**
+     * JDK 12.
+     */
+    JDK12("12", 56, 0),
+
+    /**
+     * JDK 13.
+     */
+    JDK13("13", 57, 0),
+
+    /**
+     * JDK 14.
+     */
+    JDK14("14", 58, 0),
+
+    /**
+     * JDK 15.
+     */
+    JDK15("15", 59, 0),
+
+    /**
+     * JDK 16.
+     */
+    JDK16("16", 60, 0),
+
+    /**
+     * JDK 16.
+     */
+    JDK17("17", 61, 0);
 
     private static final CompilerTarget[] VALUES = values();
     private static final CompilerTarget MIN = VALUES[0];
+    private static final CompilerTarget MIN_DEFAULT = JDK1_7;
     private static final CompilerTarget MAX = VALUES[VALUES.length - 1];
 
     public static CompilerTarget MIN() {
@@ -83,10 +131,21 @@ public enum CompilerTarget {
         this.minorVersion = minorVersion;
     }
 
-    public static final CompilerTarget DEFAULT = JDK1_8;
+    public static final CompilerTarget DEFAULT;
+
+    static {
+        final CompilerTarget target = tryParseVersion(System.getProperty("java.version"));
+        DEFAULT = target != null ? target : MIN_DEFAULT;
+    }
 
     public static CompilerTarget lookup(final String name) {
-        return tab.get(name);
+        final CompilerTarget target = tab.get(name);
+
+        if (target != null) {
+            return target;
+        }
+
+        return tryParseVersion(name);
     }
 
     public static CompilerTarget lookup(final int majorVersion, final int minorVersion) {
@@ -100,6 +159,44 @@ public enum CompilerTarget {
             }
         }
         return MAX;
+    }
+
+    @Nullable
+    private static CompilerTarget tryParseVersion(final String s) {
+        final int end = s.length();
+        final int minorDelimiter = s.indexOf('.');
+
+        if (minorDelimiter < 0) {
+            if (end < 1 || !Character.isDigit(s.charAt(0))) {
+                return null;
+            }
+            return tab.get(s);
+        }
+        else {
+            final int finalDelimiter = minorDelimiter < end - 1 ? s.indexOf('.', minorDelimiter + 1) : end;
+
+            if (finalDelimiter > minorDelimiter) {
+                final CompilerTarget majorMinor = tab.get(s.substring(0, finalDelimiter));
+
+                if (majorMinor != null) {
+                    return majorMinor;
+                }
+            }
+
+            return tab.get(s.substring(0, minorDelimiter));
+        }
+    }
+
+    private static int parse(final String s, final int start, final int end) {
+        try {
+            if (start > 0 || end < s.length() - 1)
+                return Integer.parseInt(s.substring(start, end));
+
+            return Integer.parseInt(s);
+        }
+        catch (final NumberFormatException e) {
+            return -1;
+        }
     }
 
     /**
@@ -319,5 +416,64 @@ public enum CompilerTarget {
      */
     public boolean hasEnclosingMethodAttribute() {
         return compareTo(JDK1_5) >= 0;
+    }
+
+    /**
+     * Does the target VM expect MethodParameters attributes?
+     */
+    public boolean hasMethodParameters() {
+        return compareTo(JDK1_8) >= 0;
+    }
+
+    /**
+     * Does the target JDK contain StringConcatFactory class?
+     */
+    public boolean hasStringConcatFactory() {
+        return compareTo(JDK9) >= 0;
+    }
+
+    /**
+     * Value of platform release used to access multi-release jar files
+     */
+    public String multiReleaseValue() {
+        return Integer.toString(this.ordinal() - JDK1_1.ordinal() + 1);
+    }
+
+    /**
+     * All modules that export an API are roots when compiling code in the unnamed
+     * module and targeting 11 or newer.
+     */
+    public boolean allApiModulesAreRoots() {
+        return compareTo(JDK11) >= 0;
+    }
+
+    /**
+     * Does the target VM support nestmate access?
+     */
+    public boolean hasNestmateAccess() {
+        return compareTo(JDK11) >= 0;
+    }
+
+    /**
+     * language runtime uses nest-based access.
+     * e.g. lambda and string concat spin dynamic proxy class as a nestmate
+     * of the target class
+     */
+    public boolean runtimeUseNestAccess() {
+        return compareTo(JDK15) >= 0;
+    }
+
+    /**
+     * Does the target VM support virtual private invocations?
+     */
+    public boolean hasVirtualPrivateInvoke() {
+        return compareTo(JDK11) >= 0;
+    }
+
+    /**
+     * Does the target VM support sealed types
+     */
+    public boolean hasSealedClasses() {
+        return compareTo(JDK15) >= 0;
     }
 }

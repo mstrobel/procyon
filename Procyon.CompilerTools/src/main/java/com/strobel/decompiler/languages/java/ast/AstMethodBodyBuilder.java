@@ -21,12 +21,11 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Predicate;
-import com.strobel.core.StringComparison;
+import com.strobel.core.Predicates;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
 import com.strobel.decompiler.ast.Label;
@@ -37,15 +36,10 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.semantics.ResolveResult;
+import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
-import javax.lang.model.element.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 
@@ -98,7 +92,7 @@ public class AstMethodBodyBuilder {
             final AstMethodBodyBuilder builder = new AstMethodBodyBuilder(astBuilder, method, context);
             return builder.createMethodBody(parameters);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             return createErrorBlock(astBuilder, context, method, t);
         }
         finally {
@@ -106,7 +100,6 @@ public class AstMethodBodyBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private static BlockStatement createErrorBlock(
         final AstBuilder astBuilder,
         final DecompilerContext context,
@@ -183,7 +176,7 @@ public class AstMethodBodyBuilder {
                 )
             );
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
             block.add(new EmptyStatement());
         }
 
@@ -197,7 +190,6 @@ public class AstMethodBodyBuilder {
         _parser = new MetadataParser(method.getDeclaringType());
     }
 
-    @SuppressWarnings("ConstantConditions")
     private BlockStatement createMethodBody(final Iterable<ParameterDeclaration> parameters) {
         final MethodBody body = _method.getBody();
 
@@ -213,71 +205,62 @@ public class AstMethodBodyBuilder {
 
         AstOptimizer.optimize(_context, method);
 
-        final Set<ParameterDefinition> unmatchedParameters = new LinkedHashSet<>(_method.getParameters());
-        final Set<Variable> methodParameters = new LinkedHashSet<>();
-        final Set<Variable> localVariables = new LinkedHashSet<>();
+        final MethodVariables mv = new MethodVariables(_method);
 
-        final List<com.strobel.decompiler.ast.Expression> expressions = method.getSelfAndChildrenRecursive(
-            com.strobel.decompiler.ast.Expression.class
-        );
+        populateVariables(mv, method);
+        updateParameterDeclarations(mv.methodVariables, parameters);
 
-        for (final com.strobel.decompiler.ast.Expression e : expressions) {
-            final Object operand = e.getOperand();
+        final BlockStatement astBlock = transformBlock(method);
 
-            if (operand instanceof Variable) {
-                final Variable variable = (Variable) operand;
+        CommentStatement.replaceAll(astBlock);
 
-                if (variable.isParameter()) {
-                    methodParameters.add(variable);
-                    unmatchedParameters.remove(variable.getOriginalParameter());
-                }
-                else {
-                    localVariables.add(variable);
-                }
-            }
-        }
+        declareVariables(mv.methodVariables, astBlock);
 
-        final List<Variable> orderedParameters = new ArrayList<>();
-
-        for (final ParameterDefinition p : unmatchedParameters) {
-            final Variable v = new Variable();
-            v.setName(p.getName());
-            v.setOriginalParameter(p);
-            v.setType(p.getParameterType());
-            orderedParameters.add(v);
-        }
-
-        for (final Variable parameter : methodParameters) {
-            orderedParameters.add(parameter);
-        }
-
-        Collections.sort(
-            orderedParameters,
-            new Comparator<Variable>() {
+        astBlock.acceptVisitor(
+            new DepthFirstAstVisitor<MethodVariables, Void>() {
                 @Override
-                public int compare(@NotNull final Variable p1, @NotNull final Variable p2) {
-                    return Integer.compare(p1.getOriginalParameter().getSlot(), p2.getOriginalParameter().getSlot());
+                public Void visitLambdaExpression(final LambdaExpression node, final MethodVariables mv) {
+                    super.visitLambdaExpression(node, mv);
+
+                    final AstNode lambdaBody = node.getBody();
+                    final DynamicCallSite callSite = node.getUserData(Keys.DYNAMIC_CALL_SITE);
+                    final Lambda lambda = mv.lambdas.get(callSite);
+
+                    if (lambda == null || !(lambdaBody instanceof BlockStatement)) {
+                        return null;
+                    }
+
+                    final VariableInfo<Lambda> vi = mv.lambdaVariables.get(lambda);
+                    final AstNodeCollection<ParameterDeclaration> parameterDeclarations = node.getParameters();
+
+                    declareVariables(vi, (BlockStatement) lambdaBody);
+                    updateParameterDeclarations(vi, parameterDeclarations);
+
+                    final Match m = LAMBDA_BODY_PATTERN.match(lambdaBody);
+
+                    if (m.success()) {
+                        final AstNode bodyNode = first(m.<AstNode>get("body"));
+                        bodyNode.remove();
+                        node.setBody(bodyNode);
+
+                        if (EMPTY_LAMBDA_BODY_PATTERN.matches(bodyNode)) {
+                            bodyNode.getChildrenByRole(BlockStatement.STATEMENT_ROLE).clear();
+                        }
+                    }
+
+                    return null;
                 }
-            }
+            },
+            mv
         );
 
-        final List<CatchBlock> catchBlocks = method.getSelfAndChildrenRecursive(
-            CatchBlock.class
-        );
+        return astBlock;
+    }
 
-        for (final CatchBlock catchBlock : catchBlocks) {
-            final Variable exceptionVariable = catchBlock.getExceptionVariable();
-
-            if (exceptionVariable != null) {
-                localVariables.add(exceptionVariable);
-            }
-        }
-
-        NameVariables.assignNamesToVariables(_context, orderedParameters, localVariables, method);
-
-        for (final Variable p : orderedParameters) {
+    private void updateParameterDeclarations(final VariableInfo<?> vi, final Iterable<ParameterDeclaration> parameterDeclarations) {
+        for (final Variable p : vi.methodParameters) {
             final ParameterDeclaration declaration = firstOrDefault(
-                parameters,
+                parameterDeclarations,
                 new Predicate<ParameterDeclaration>() {
                     @Override
                     public boolean test(final ParameterDeclaration pd) {
@@ -290,15 +273,17 @@ public class AstMethodBodyBuilder {
                 declaration.setName(p.getName());
             }
         }
+    }
 
-        final BlockStatement astBlock = transformBlock(method);
-
-        CommentStatement.replaceAll(astBlock);
-
+    private void declareVariables(final VariableInfo<?> vi, final BlockStatement astBlock) {
         final AstNodeCollection<Statement> statements = astBlock.getStatements();
         final Statement insertionPoint = firstOrDefault(statements);
 
         for (final Variable v : _localVariablesToDefine) {
+            if (!vi.localVariables.contains(v)) {
+                continue;
+            }
+
             TypeReference variableType = v.getType();
 
             final TypeDefinition resolvedType = variableType.resolve();
@@ -319,7 +304,7 @@ public class AstMethodBodyBuilder {
             statements.insertBefore(insertionPoint, declaration);
         }
 
-        return astBlock;
+        astBlock.putUserData(Keys.NAME_VARIABLES, vi.nv);
     }
 
     private BlockStatement transformBlock(final Block block) {
@@ -495,9 +480,10 @@ public class AstMethodBodyBuilder {
 
             for (final CatchBlock catchBlock : catchBlocks) {
                 final CatchClause catchClause = new CatchClause(transformBlock(catchBlock));
+                final AstNodeCollection<AstType> exceptionTypes = catchClause.getExceptionTypes();
 
                 for (final TypeReference caughtType : catchBlock.getCaughtTypes()) {
-                    catchClause.getExceptionTypes().add(_astBuilder.convertType(caughtType));
+                    exceptionTypes.add(_astBuilder.convertType(caughtType));
                 }
 
                 final Variable exceptionVariable = catchBlock.getExceptionVariable();
@@ -515,6 +501,14 @@ public class AstMethodBodyBuilder {
             }
 
             return tryCatch;
+        }
+
+        if (node instanceof BasicBlock) {
+            final BasicBlock b = (BasicBlock) node;
+            if (b.getChildren().size() == 1 && b.getChildren().get(0) instanceof Label) {
+                final Label label = (Label) b.getChildren().get(0);
+                return new LabelStatement(Expression.MYSTERY_OFFSET, label.getName());
+            }
         }
 
         throw new IllegalArgumentException("Unknown node type: " + node);
@@ -569,6 +563,10 @@ public class AstMethodBodyBuilder {
                 if (operand instanceof TypeReference) {
                     operandType.getChildrenByRole(Roles.TYPE_ARGUMENT).clear();
                     return new ClassOfExpression(byteCode.getOffset(), operandType);
+                }
+
+                if (operand instanceof MethodHandle) {
+                    return new MethodHandlePlaceholder((MethodHandle) operand);
                 }
 
                 final TypeReference type = byteCode.getInferredType() != null ? byteCode.getInferredType()
@@ -721,9 +719,8 @@ public class AstMethodBodyBuilder {
                 final DynamicCallSite callSite = (DynamicCallSite) operand;
                 final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
 
-                if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
-                    (StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) ||
-                     StringUtilities.equals("altMetafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase)) &&
+                if (CommonTypeReferences.LambdaMetafactory.isEquivalentTo(bootstrapMethod.getDeclaringType()) &&
+                    ("metafactory".equals(bootstrapMethod.getName()) || "altMetafactory".equals(bootstrapMethod.getName())) &&
                     callSite.getBootstrapArguments().size() >= 3 &&
                     callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
 
@@ -792,26 +789,13 @@ public class AstMethodBodyBuilder {
                     declarations.add(d);
 
                     if (p.isFinal()) {
-                        EntityDeclaration.addModifier(d, Modifier.FINAL);
+                        EntityDeclaration.addModifier(d, Flags.Flag.FINAL);
                     }
                 }
 
                 final BlockStatement body = transformBlock(lambda.getBody());
-                final Match m = LAMBDA_BODY_PATTERN.match(body);
 
-                if (m.success()) {
-                    final AstNode bodyNode = first(m.<AstNode>get("body"));
-                    bodyNode.remove();
-                    lambdaExpression.setBody(bodyNode);
-
-                    if (EMPTY_LAMBDA_BODY_PATTERN.matches(bodyNode)) {
-                        bodyNode.getChildrenByRole(BlockStatement.STATEMENT_ROLE).clear();
-                    }
-                }
-                else {
-                    lambdaExpression.setBody(body);
-                }
-
+                lambdaExpression.setBody(body);
                 lambdaExpression.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
 
                 final DynamicCallSite callSite = lambda.getCallSite();
@@ -1070,14 +1054,17 @@ public class AstMethodBodyBuilder {
 
         final Expression inlinedAssembly = inlineAssembly(byteCode, arguments);
 
+        if (operand instanceof DynamicCallSite) {
+            inlinedAssembly.putUserData(Keys.DYNAMIC_CALL_SITE, (DynamicCallSite) operand);
+        }
+
         if (isTopLevel) {
-            return new CommentStatement(" " + inlinedAssembly.toString());
+            return new ExpressionStatement(inlinedAssembly);
         }
 
         return inlinedAssembly;
     }
 
-    @SuppressWarnings("ConstantConditions")
     private Expression transformCall(
         final boolean isVirtual,
         final com.strobel.decompiler.ast.Expression byteCode,
@@ -1236,7 +1223,7 @@ public class AstMethodBodyBuilder {
             if (declaringType.isNested()) {
                 final TypeDefinition resolvedType = declaringType.resolve();
 
-                if (resolvedType != null) {
+                if (resolvedType != null && !resolvedType.isEnum()) {
                     if (resolvedType.isLocalClass()) {
                         return arguments;
                     }
@@ -1344,6 +1331,7 @@ public class AstMethodBodyBuilder {
         return arguments.subList(first, last + 1);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType, final boolean exactMatch) {
         if (targetType == null || sourceType == null) {
             return false;
@@ -1361,20 +1349,151 @@ public class AstMethodBodyBuilder {
     }
 
     private static Expression inlineAssembly(final com.strobel.decompiler.ast.Expression byteCode, final List<Expression> arguments) {
-        if (byteCode.getOperand() != null) {
-            arguments.add(0, new IdentifierExpression( byteCode.getOffset(),
-                    formatByteCodeOperand(byteCode.getOperand())));
-        }
-        return new IdentifierExpression( byteCode.getOffset(), byteCode.getCode().getName()).invoke(arguments);
+        return new InlinedBytecodeExpression(byteCode.getOffset(), byteCode.getCode(), byteCode.getOperand()).invoke(arguments);
     }
 
-    private static String formatByteCodeOperand(final Object operand) {
-        if (operand == null) {
-            return StringUtilities.EMPTY;
+    private final static class MethodVariables {
+        final MethodDefinition method;
+        final VariableInfo<MethodDefinition> methodVariables;
+        final Map<DynamicCallSite, Lambda> lambdas;
+        final @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Map<Lambda, VariableInfo<Lambda>> lambdaVariables;
+
+        private MethodVariables(final MethodDefinition method) {
+            this.method = VerifyArgument.notNull(method, "method");
+            this.methodVariables = new VariableInfo<>(method, method.getParameters());
+            this.lambdas = new LinkedHashMap<>();
+
+            this.lambdaVariables = new DefaultMap<>(
+                new Function<Lambda, VariableInfo<Lambda>>() {
+                    @Override
+                    public VariableInfo<Lambda> apply(final Lambda lambda) {
+                        return new VariableInfo<>(lambda, lambda.getMethod().getParameters());
+                    }
+                }
+            );
+        }
+    }
+
+    private final static class VariableInfo<T> {
+        final T owner;
+        final List<ParameterDefinition> parameters;
+        final Set<Variable> methodParameters = new LinkedHashSet<>();
+        final Set<Variable> localVariables = new LinkedHashSet<>();
+        final Set<ParameterDefinition> unmatchedParameters;
+
+        NameVariables nv;
+
+        public VariableInfo(final T owner, final List<ParameterDefinition> parameters) {
+            this.owner = VerifyArgument.notNull(owner, "owner");
+            this.parameters = VerifyArgument.notNull(parameters, "parameters");
+            this.unmatchedParameters = new LinkedHashSet<>(parameters);
+        }
+    }
+
+    private void populateVariables(final MethodVariables mv, final Block body) {
+        final VariableInfo<?> vi = mv.methodVariables;
+
+        populateVariables0(vi, body);
+
+        for (final Lambda lambda : body.getSelfAndChildrenRecursive(Lambda.class)) {
+            if (mv.lambdas.put(lambda.getCallSite(), lambda) == null) {
+                populateVariables0(mv.lambdaVariables.get(lambda), lambda.getBody());
+            }
         }
 
-        final PlainTextOutput output = new PlainTextOutput();
-        DecompilerHelpers.writeOperand(output, operand);
-        return output.toString();
+        final List<String> contextReservedNames = _context.getReservedVariableNames();
+        final List<String> oldReservedVariables = new ArrayList<>(contextReservedNames);
+        final Set<String> reservedNames = new HashSet<>(oldReservedVariables);
+
+        nameVariables(body, vi, reservedNames);
+
+        for (final Lambda lambda : mv.lambdas.values()) {
+            nameVariables(lambda.getBody(), mv.lambdaVariables.get(lambda), reservedNames);
+        }
+
+        contextReservedNames.clear();
+        contextReservedNames.addAll(oldReservedVariables);
+    }
+
+    private <T> void populateVariables0(final VariableInfo<T> vi, final Block body) {
+        final List<Node> nodes = body.getSelfAndChildrenRecursive(Predicates.negate(Predicates.<Node>instanceOf(Lambda.class)), true);
+
+        for (final Node n : nodes) {
+            if (n instanceof com.strobel.decompiler.ast.Expression) {
+                final com.strobel.decompiler.ast.Expression e = (com.strobel.decompiler.ast.Expression) n;
+                final Object operand = e.getOperand();
+
+                if (operand instanceof Variable) {
+                    final Variable variable = (Variable) operand;
+
+                    if (variable.isParameter()) {
+                        vi.methodParameters.add(variable);
+                        vi.unmatchedParameters.remove(variable.getOriginalParameter());
+                    }
+                    else {
+                        vi.localVariables.add(variable);
+                    }
+                }
+
+            }
+            else if (n instanceof CatchBlock) {
+                final CatchBlock catchBlock = (CatchBlock) n;
+                final Variable exceptionVariable = catchBlock.getExceptionVariable();
+
+                if (exceptionVariable != null) {
+                    vi.localVariables.add(exceptionVariable);
+                }
+            }
+        }
+
+        final List<Variable> orderedParameters = new ArrayList<>();
+
+        for (final ParameterDefinition p : vi.unmatchedParameters) {
+            final Variable v = new Variable();
+            v.setName(p.getName());
+            v.setOriginalParameter(p);
+            v.setType(p.getParameterType());
+            orderedParameters.add(v);
+        }
+
+        orderedParameters.addAll(vi.methodParameters);
+
+        Collections.sort(
+            orderedParameters,
+            new Comparator<Variable>() {
+                @Override
+                @SuppressWarnings("ConstantConditions")
+                public int compare(@NotNull final Variable p1, @NotNull final Variable p2) {
+                    return Integer.compare(p1.getOriginalParameter().getSlot(), p2.getOriginalParameter().getSlot());
+                }
+            }
+        );
+
+        vi.methodParameters.clear();
+        vi.methodParameters.addAll(orderedParameters);
+    }
+
+    private void nameVariables(final Block body, final VariableInfo<?> vi, final Set<String> reservedNames) {
+        final List<String> contextReservedNames = _context.getReservedVariableNames();
+
+        contextReservedNames.clear();
+        contextReservedNames.addAll(reservedNames);
+
+        vi.nv = NameVariables.assignNamesToVariables(_context, vi.methodParameters, vi.localVariables, body);
+
+        for (final Variable variable : vi.localVariables) {
+            final String n = variable.getName();
+
+            if (n != null) {
+                reservedNames.add(n);
+            }
+        }
+        for (final Variable variable : vi.methodParameters) {
+            final String n = variable.getName();
+
+            if (n != null) {
+                reservedNames.add(n);
+            }
+        }
     }
 }

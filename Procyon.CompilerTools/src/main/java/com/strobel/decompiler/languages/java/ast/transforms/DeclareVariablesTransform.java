@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
@@ -28,7 +29,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,7 +48,6 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
     public void run(final AstNode node) {
         run(node, null);
 
@@ -57,30 +56,38 @@ public class DeclareVariablesTransform implements IAstTransform {
             final AssignmentExpression replacedAssignment = v.getReplacedAssignment();
 
             if (replacedAssignment == null) {
-                final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
+                final BlockStatement block = v.isCatchVariable() ? v.getCatchClause().getBody() : (BlockStatement) v.getInsertionPoint().getParent();
                 final AnalysisResult analysisResult = analyze(v, block);
-                final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName(), Expression.MYSTERY_OFFSET);
 
-                if (variable != null) {
-                    declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
+                if (v.isCatchVariable()) {
+                    if (!analysisResult.isAssigned) {
+                        v.getCatchClause().addVariableModifier(Flags.Flag.FINAL);
+                    }
                 }
+                else {
+                    final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName());
 
-                if (analysisResult.isSingleAssignment) {
-                    declaration.addModifier(Modifier.FINAL);
+                    if (variable != null) {
+                        declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
+                    }
+
+                    if (analysisResult.isSingleAssignment) {
+                        declaration.addModifier(Flags.Flag.FINAL);
+                    }
+                    else if (analysisResult.needsInitializer && variable != null) {
+                        declaration.getVariables().firstOrNullObject().setInitializer(
+                            AstBuilder.makeDefaultValue(variable.getType())
+                        );
+                    }
+
+                    Statement insertionPoint = v.getInsertionPoint();
+
+                    while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
+                        insertionPoint = (Statement) insertionPoint.getPreviousSibling();
+                    }
+
+                    block.getStatements().insertBefore(insertionPoint, declaration);
                 }
-                else if (analysisResult.needsInitializer && variable != null) {
-                    declaration.getVariables().firstOrNullObject().setInitializer(
-                        AstBuilder.makeDefaultValue(variable.getType())
-                    );
-                }
-
-                Statement insertionPoint = v.getInsertionPoint();
-
-                while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
-                    insertionPoint = (Statement) insertionPoint.getPreviousSibling();
-                }
-
-                block.getStatements().insertBefore(insertionPoint, declaration);
             }
         }
 
@@ -117,7 +124,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 if (parent instanceof ExpressionStatement) {
                     if (analysisResult.isSingleAssignment) {
-                        declaration.addModifier(Modifier.FINAL);
+                        declaration.addModifier(Flags.Flag.FINAL);
                     }
 
                     declaration.putUserDataIfAbsent(Keys.MEMBER_REFERENCE, parent.getUserData(Keys.MEMBER_REFERENCE));
@@ -126,7 +133,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 }
                 else {
                     if (analysisResult.isSingleAssignment) {
-                        declaration.addModifier(Modifier.FINAL);
+                        declaration.addModifier(Flags.Flag.FINAL);
                     }
 
                     replacedAssignment.replaceWith(declaration);
@@ -145,6 +152,9 @@ public class DeclareVariablesTransform implements IAstTransform {
             final Statement parentStatement = v.getInsertionPoint();
             analysis.setAnalyzedRange(parentStatement, block);
         }
+        else if (v.isCatchVariable()) {
+            analysis.setAnalyzedRange(block, block);
+        }
         else {
             final ExpressionStatement parentStatement = (ExpressionStatement) v.getReplacedAssignment().getParent();
             analysis.setAnalyzedRange(parentStatement, block);
@@ -157,15 +167,17 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         scope.acceptVisitor(isSingleAssignmentVisitor, null);
 
-        return new AnalysisResult(isSingleAssignmentVisitor.isSingleAssignment(), needsInitializer);
+        return new AnalysisResult(isSingleAssignmentVisitor.isAssigned(), isSingleAssignmentVisitor.isSingleAssignment(), needsInitializer);
     }
 
     private final static class AnalysisResult {
+        final boolean isAssigned;
         final boolean isSingleAssignment;
         final boolean needsInitializer;
 
-        private AnalysisResult(final boolean singleAssignment, final boolean needsInitializer) {
-            isSingleAssignment = singleAssignment;
+        private AnalysisResult(final boolean isAssigned, final boolean singleAssignment, final boolean needsInitializer) {
+            this.isAssigned = isAssigned;
+            this.isSingleAssignment = singleAssignment;
             this.needsInitializer = needsInitializer;
         }
     }
@@ -231,8 +243,20 @@ public class DeclareVariablesTransform implements IAstTransform {
             for (final ParameterDefinition definition : unassignedParameters) {
                 final ParameterDeclaration declaration = declarationMap.get(definition);
 
-                if (declaration != null && !declaration.hasModifier(Modifier.FINAL)) {
-                    declaration.addChild(new JavaModifierToken(Modifier.FINAL), EntityDeclaration.MODIFIER_ROLE);
+                if (declaration != null && !declaration.hasModifier(Flags.Flag.FINAL)) {
+                    declaration.addChild(new JavaModifierToken(Flags.Flag.FINAL), EntityDeclaration.MODIFIER_ROLE);
+                }
+            }
+        }
+
+        if (node instanceof CatchClause) {
+            final Variable v = node.getUserData(Keys.VARIABLE);
+
+            if (v != null) {
+                final AstBuilder builder = context.getUserData(Keys.AST_BUILDER);
+
+                if (builder != null) {
+                    variablesToDeclare.add(new VariableToDeclare(builder.convertType(v.getType()), v.getName(), v, (CatchClause) node));
                 }
             }
         }
@@ -259,7 +283,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void declareVariableInBlock(
         final DefiniteAssignmentAnalysis analysis,
         final BlockStatement block,
@@ -432,6 +455,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         return true;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean canMoveVariableIntoSubBlock(
         final DefiniteAssignmentAnalysis analysis,
         final BlockStatement block,
@@ -533,8 +557,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             // into the resource list.
             //
 
-            if (!tryCatch.getResources().isEmpty()) {
-                for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            if (!tryCatch.getDeclaredResources().isEmpty()) {
+                for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                     if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                         return true;
                     }
@@ -624,7 +648,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof TryCatchStatement) {
             final TryCatchStatement tryCatch = (TryCatchStatement) node;
 
-            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                 if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                     //
                     // No need to introduce the variable here.
@@ -706,7 +730,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof TryCatchStatement) {
             final TryCatchStatement tryCatch = (TryCatchStatement) node;
 
-            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                 if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                     return true;
                 }
@@ -797,6 +821,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         private final Statement _insertionPoint;
         private final AssignmentExpression _replacedAssignment;
         private final BlockStatement _block;
+        private final CatchClause _catchClause;
 
         public VariableToDeclare(
             final AstType type,
@@ -811,6 +836,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             _insertionPoint = insertionPoint;
             _replacedAssignment = null;
             _block = block;
+            _catchClause = CatchClause.NULL;
         }
 
         public VariableToDeclare(
@@ -826,10 +852,37 @@ public class DeclareVariablesTransform implements IAstTransform {
             _insertionPoint = null;
             _replacedAssignment = replacedAssignment;
             _block = block;
+            _catchClause = CatchClause.NULL;
+        }
+
+        public VariableToDeclare(
+            final AstType type,
+            final String name,
+            final Variable variable,
+            final CatchClause catchClause) {
+
+            _type = type;
+            _name = name;
+            _variable = variable;
+            _insertionPoint = null;
+            _replacedAssignment = null;
+            _block = null;
+            _catchClause = catchClause != null ? catchClause : CatchClause.NULL;
+        }
+
+        public boolean isCatchVariable() {
+            return !_catchClause.isNull();
+        }
+
+        public CatchClause getCatchClause() {
+            return _catchClause;
         }
 
         public BlockStatement getBlock() {
-            return _block;
+            if (_catchClause.isNull()) {
+                return _block;
+            }
+            return _catchClause.getBody();
         }
 
         public AstType getType() {
@@ -868,7 +921,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     // <editor-fold defaultstate="collapsed" desc="IsSingleAssignmentVisitor Class">
 
-    private final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+    private static final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final String _variableName;
         private final AssignmentExpression _replacedAssignment;
         private boolean _abort;
@@ -1086,7 +1139,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     // <editor-fold defaultstate="collapsed" desc="ParameterAssignmentVisitor Class">
 
-    private final class ParameterAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+    private static final class ParameterAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final Set<ParameterDefinition> _unassignedParameters;
         private final Map<String, ParameterDefinition> _parametersByName;
 

@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.decompiler.DecompilerContext;
@@ -91,7 +92,7 @@ public class EclipseStringSwitchRewriterTransform extends ContextTrackingVisitor
     // </editor-fold>
 
     @Override
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings("DuplicatedCode")
     public Void visitSwitchStatement(final SwitchStatement node, final Void data) {
         super.visitSwitchStatement(node, data);
 
@@ -110,9 +111,7 @@ public class EclipseStringSwitchRewriterTransform extends ContextTrackingVisitor
         final InvocationExpression hashCodeCall = first(m2.<InvocationExpression>get("hashCodeCall"));
         final MemberReference hashCodeMethod = hashCodeCall.getUserData(Keys.MEMBER_REFERENCE);
 
-        if (!(hashCodeMethod instanceof MethodReference &&
-              "java/lang/String".equals(hashCodeMethod.getDeclaringType().getInternalName()))) {
-
+        if (!(hashCodeMethod instanceof MethodReference && CommonTypeReferences.String.isEquivalentTo(hashCodeMethod.getDeclaringType()))) {
             return null;
         }
 

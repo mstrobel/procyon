@@ -29,7 +29,6 @@ import com.strobel.decompiler.ast.PatternMatching;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,28 +49,28 @@ public class NameVariables {
         final Map<String, String> methodNameMappings = new LinkedHashMap<>();
 
         builtInTypeNames.put(BuiltinTypes.Boolean.getInternalName(), "b");
-        builtInTypeNames.put("java/lang/Boolean", "b");
+        builtInTypeNames.put(CommonTypeReferences.Boolean.getInternalName(), "b");
         builtInTypeNames.put(BuiltinTypes.Byte.getInternalName(), "b");
-        builtInTypeNames.put("java/lang/Byte", "b");
+        builtInTypeNames.put(CommonTypeReferences.Byte.getInternalName(), "b");
         builtInTypeNames.put(BuiltinTypes.Short.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Short", "n");
+        builtInTypeNames.put(CommonTypeReferences.Short.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Integer.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Integer", "n");
+        builtInTypeNames.put(CommonTypeReferences.Integer.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Long.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Long", "n");
+        builtInTypeNames.put(CommonTypeReferences.Long.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Float.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Float", "n");
+        builtInTypeNames.put(CommonTypeReferences.Float.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Double", "n");
+        builtInTypeNames.put(CommonTypeReferences.Double.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
-        builtInTypeNames.put("java/lang/Number", "n");
+        builtInTypeNames.put(CommonTypeReferences.Number.getInternalName(), "n");
         builtInTypeNames.put("java/io/Serializable", "s");
-        builtInTypeNames.put("java/lang/Character", "c");
-        builtInTypeNames.put("java/lang/Object", "o");
-        builtInTypeNames.put("java/lang/String", "s");
-        builtInTypeNames.put("java/lang/StringBuilder", "sb");
-        builtInTypeNames.put("java/lang/StringBuffer", "sb");
-        builtInTypeNames.put("java/lang/Class", "clazz");
+        builtInTypeNames.put(CommonTypeReferences.Character.getInternalName(), "c");
+        builtInTypeNames.put(CommonTypeReferences.Object.getInternalName(), "o");
+        builtInTypeNames.put(CommonTypeReferences.String.getInternalName(), "s");
+        builtInTypeNames.put(CommonTypeReferences.StringBuilder.getInternalName(), "sb");
+        builtInTypeNames.put(CommonTypeReferences.StringBuffer.getInternalName(), "sb");
+        builtInTypeNames.put(CommonTypeReferences.Class.getInternalName(), "clazz");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
 
@@ -80,15 +79,9 @@ public class NameVariables {
         METHOD_NAME_MAPPINGS = methodNameMappings;
     }
 
-    private final ArrayList<String> _fieldNamesInCurrentType;
     private final Map<String, Integer> _typeNames = new HashMap<>();
 
     public NameVariables(final DecompilerContext context) {
-        _fieldNamesInCurrentType = new ArrayList<>();
-
-        for (final FieldDefinition field : context.getCurrentType().getDeclaredFields()) {
-            _fieldNamesInCurrentType.add(field.getName());
-        }
     }
 
     public final void addExistingName(final String name) {
@@ -124,7 +117,7 @@ public class NameVariables {
         return name;
     }
 
-    public static void assignNamesToVariables(
+    public static NameVariables assignNamesToVariables(
         final DecompilerContext context,
         final Iterable<Variable> parameters,
         final Iterable<Variable> variables,
@@ -161,13 +154,6 @@ public class NameVariables {
                 final VariableDefinition originalVariable = v.getOriginalVariable();
 
                 if (originalVariable != null) {
-/*
-                    if (originalVariable.isFromMetadata() && originalVariable.hasName()) {
-                        v.setName(originalVariable.getName());
-                        continue;
-                    }
-*/
-
                     final String varName = originalVariable.getName();
 
                     if (StringUtilities.isNullOrEmpty(varName) || varName.startsWith("V_") || !isValidName(varName)) {
@@ -184,7 +170,8 @@ public class NameVariables {
         }
 
         for (final Variable p : parameters) {
-            if (!p.getOriginalParameter().hasName()) {
+            final ParameterDefinition op = p.getOriginalParameter();
+            if (op != null && !op.hasName()) {
                 p.setName(nv.generateNameForVariable(p, methodBody));
             }
         }
@@ -198,6 +185,8 @@ public class NameVariables {
                 varDef.setName(nv.generateNameForVariable(varDef, methodBody));
             }
         }
+
+        return nv;
     }
 
     static boolean isValidName(final String name) {
@@ -257,7 +246,6 @@ public class NameVariables {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private String generateNameForVariable(final Variable variable, final Block methodBody) {
         String proposedName = null;
 
@@ -357,19 +345,10 @@ public class NameVariables {
         }
 
         if (StringUtilities.isNullOrEmpty(proposedName)) {
-            proposedName = getNameForType(variable.getType());
+            proposedName = getNameForType0(variable.getType());
         }
 
         return this.getAlternativeName(proposedName);
-/*
-        while (true) {
-            proposedName = this.getAlternativeName(proposedName);
-
-            if (!_fieldNamesInCurrentType.contains(proposedName)) {
-                return proposedName;
-            }
-        }
-*/
     }
 
     private static String cleanUpVariableName(final String s) {
@@ -530,7 +509,12 @@ public class NameVariables {
         return null;
     }
 
-    private String getNameForType(final TypeReference type) {
+    public String getNameForType(final TypeReference type) {
+        final String baseName = getNameForType0(type);
+        return getAlternativeName(baseName);
+    }
+
+    private String getNameForType0(final TypeReference type) {
 
         TypeReference nameSource = type;
 
@@ -539,7 +523,7 @@ public class NameVariables {
         if (nameSource.isArray()) {
             name = "array";
         }
-        else if (StringUtilities.equals(nameSource.getInternalName(), "java/lang/Throwable")) {
+        else if (CommonTypeReferences.Throwable.isEquivalentTo(nameSource)) {
             name = "t";
         }
         else if (StringUtilities.endsWith(nameSource.getName(), "Exception")) {

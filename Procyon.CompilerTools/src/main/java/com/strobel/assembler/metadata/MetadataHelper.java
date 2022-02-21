@@ -29,7 +29,9 @@ import com.strobel.core.VerifyArgument;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.Comparer.*;
 
+@SuppressWarnings({ "PointlessNullCheck", "ConstantConditions" })
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
         return t != null && t.getCompilerMajorVersion() >= 49;
@@ -97,6 +99,7 @@ public final class MetadataHelper {
                innerResolved != null && isEnclosedBy(innerResolved.getBaseType(), outer);
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean canReferenceTypeVariablesOf(final TypeReference declaringType, final TypeReference referenceSite) {
         if (declaringType == null || referenceSite == null) {
             return false;
@@ -295,9 +298,67 @@ public final class MetadataHelper {
 //        return current;
     }
 
-    public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
+    public static ConversionType getConversionType(final ICompoundType targetType, final TypeReference source) {
+        VerifyArgument.notNull(targetType, "targetType");
         VerifyArgument.notNull(source, "source");
+
+        ConversionType bestConversion = ConversionType.EXPLICIT;
+
+        final TypeReference baseType = targetType.getBaseType();
+
+        if (baseType != null) {
+            bestConversion = min(bestConversion, conversionType0(baseType, source, false));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        for (final TypeReference ifType : targetType.getInterfaces()) {
+            bestConversion = min(bestConversion, conversionType0(ifType, source, false));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        return bestConversion;
+    }
+
+    public static ConversionType getConversionType(final TypeReference targetType, final ICompoundType source) {
+        VerifyArgument.notNull(targetType, "targetType");
+        VerifyArgument.notNull(source, "source");
+
+        ConversionType bestConversion = ConversionType.EXPLICIT;
+
+        final TypeReference baseType = source.getBaseType();
+
+        if (baseType != null) {
+            bestConversion = min(bestConversion, conversionType0(targetType, baseType, true));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        for (final TypeReference ifType : source.getInterfaces()) {
+            bestConversion = min(bestConversion, conversionType0(targetType, ifType, true));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        return bestConversion;
+    }
+
+    public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
+        return conversionType0(target, source, true);
+    }
+
+    private static ConversionType conversionType0(final TypeReference target, final TypeReference source, final boolean processCompoundTypes) {
         VerifyArgument.notNull(target, "target");
+        VerifyArgument.notNull(source, "source");
 
         final TypeReference underlyingTarget = getUnderlyingPrimitiveTypeOrSelf(target);
         final TypeReference underlyingSource = getUnderlyingPrimitiveTypeOrSelf(source);
@@ -316,6 +377,27 @@ public final class MetadataHelper {
 
         if (isAssignableFrom(target, source, false)) {
             return ConversionType.IMPLICIT;
+        }
+
+        if (processCompoundTypes) {
+            if (underlyingTarget.isCompoundType() && underlyingTarget instanceof ICompoundType) {
+                return getConversionType((ICompoundType) underlyingTarget, underlyingSource);
+            }
+            if (underlyingSource.isCompoundType() && underlyingSource instanceof ICompoundType) {
+                return getConversionType(underlyingTarget, (ICompoundType) underlyingSource);
+            }
+        }
+
+        if (source.isGenericParameter()) {
+            final TypeReference bound = source.getExtendsBound();
+
+            if (bound != null && !BuiltinTypes.Object.isEquivalentTo(bound) && !isSameType(source, bound)) {
+                final ConversionType boundConversion = conversionType0(target, bound, processCompoundTypes);
+
+                if (compare(boundConversion, ConversionType.EXPLICIT) < 0) {
+                    return boundConversion;
+                }
+            }
         }
 
         int targetRank = 0;
@@ -422,8 +504,8 @@ public final class MetadataHelper {
                 if (sourceJvmType == JvmType.Character) {
                     return ConversionType.EXPLICIT;
                 }
-                // fall through
             }
+            // fall through
 
             case Integer:
             case Long: {
@@ -545,9 +627,7 @@ public final class MetadataHelper {
         }
         else if (!isRawType(s)) {
             final TypeReference t2 = asSuper(s, t);
-            if (t2 != null && isRawType(t2)) {
-                return true;
-            }
+            return t2 != null && isRawType(t2);
         }
 
         return false;
@@ -566,6 +646,32 @@ public final class MetadataHelper {
         VerifyArgument.notNull(baseType, "baseType");
 
         return isSubType(type, baseType, true);
+    }
+
+    public static boolean isBytecodeCastAssignable(final TypeReference target, final TypeReference castType) {
+        final TypeReference erasedCast = eraseRecursive(castType);
+        final TypeReference upper = getUpperBound(target);
+
+        if (upper instanceof ICompoundType) {
+            final ICompoundType c = (ICompoundType) upper;
+            final TypeReference baseType = c.getBaseType();
+
+            if (baseType != null && (baseType != BuiltinTypes.Null || castType == BuiltinTypes.Null)) {
+                if (isSubType(erasedCast, baseType, true)) {
+                    return true;
+                }
+            }
+
+            for (final TypeReference ifType : c.getInterfaces()) {
+                if (isSubType(erasedCast, ifType, true)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return isSubType(erasedCast, upper, true);
     }
 
     public static boolean isPrimitiveBoxType(final TypeReference type) {
@@ -727,7 +833,6 @@ public final class MetadataHelper {
         return AS_SUPER_VISITOR.visit(subType, type);
     }
 
-    @SuppressWarnings("ConstantConditions")
     public static Map<TypeReference, TypeReference> getGenericSubTypeMappings(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
@@ -968,7 +1073,7 @@ public final class MetadataHelper {
             return typeArguments;
         }
 
-        final TypeReference[] adjustedTypeArguments = typeArguments.toArray(new TypeReference[typeArguments.size()]);
+        final TypeReference[] adjustedTypeArguments = typeArguments.toArray(TypeReference.EMPTY_REFERENCES);
 
         for (int i = 0; i < adjustedTypeArguments.length; i++) {
             final TypeReference t = adjustedTypeArguments[i];
@@ -1277,10 +1382,11 @@ public final class MetadataHelper {
             return false;
         }
 
-        if (baseType instanceof CompoundTypeReference) {
-            final CompoundTypeReference c = (CompoundTypeReference) baseType;
+        if (baseType instanceof ICompoundType) {
+            final ICompoundType c = (ICompoundType) baseType;
+            final TypeReference superType = getSuperType(baseType);
 
-            if (!isSubType(type, getSuperType(c), capture)) {
+            if (!isSameType(superType, (TypeReference) c) && !isSubType(type, superType, capture)) {
                 return false;
             }
 
@@ -1551,7 +1657,8 @@ public final class MetadataHelper {
                 if (serializable != null) {
                     return new CompoundTypeReference(
                         null,
-                        ArrayUtilities.asUnmodifiableList(cloneable, serializable)
+                        ArrayUtilities.asUnmodifiableList(cloneable, serializable),
+                        resolved.getResolver()
                     );
                 }
                 return cloneable;
@@ -1785,6 +1892,19 @@ public final class MetadataHelper {
 
             return t;
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Void ignored) {
+            final List<TypeReference> alternatives = t.getAlternatives();
+
+            TypeReference u = alternatives.get(0);
+
+            for (int i = 1, n = alternatives.size(); i < n; i++) {
+                u = asSuper(u, alternatives.get(i));
+            }
+
+            return u;
+        }
     };
 
     private final static TypeMapper<Void> LOWER_BOUND_VISITOR = new TypeMapper<Void>() {
@@ -1860,13 +1980,35 @@ public final class MetadataHelper {
                    //     Vector<? extends Object> vec = new Vector<String>();
                    // which means that subtype checking must be done
                    // here instead of same-type checking (via containsType).
-                   (!(s instanceof IGenericInstance) || containsTypeRecursive(s, superType)) &&
+                   (!(s instanceof IGenericInstance) || containsTypeRecursive(s, superType) || isRawType(superType)) &&
                    isSubTypeNoCapture(superType.getDeclaringType(), s.getDeclaringType());
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final TypeReference s) {
-            return super.visitCompoundType(t, s);
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final TypeReference s) {
+            final TypeReference baseType = t.getBaseType();
+
+            if (baseType != null && isSubTypeNoCapture(baseType, s)) {
+                return true;
+            }
+
+            for (final TypeReference ifType : t.getInterfaces()) {
+                if (isSubTypeNoCapture(ifType, s)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                if (isSubTypeNoCapture(alternative, s)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override
@@ -1989,6 +2131,16 @@ public final class MetadataHelper {
                    (t.hasExtendsBound() || isSubTypeNoCapture(L(t), getLowerBound(s))) &&
                    (t.hasSuperBound() || isSubTypeNoCapture(getUpperBound(s), U(t)));
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                if (isSameType(alternative, s)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     };
 
     private final static TypeMapper<TypeReference> AS_SUPER_VISITOR = new TypeMapper<TypeReference>() {
@@ -2035,6 +2187,19 @@ public final class MetadataHelper {
 
             return null;
         }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final TypeReference s) {
+            for (final TypeReference alternative : t.getAlternatives()) {
+                final TypeReference asSuper = asSuper(alternative, s);
+
+                if (asSuper != null) {
+                    return asSuper;
+                }
+            }
+            return null;
+        }
+
 
         @Override
         public TypeReference visitGenericParameter(final GenericParameter t, final TypeReference s) {
@@ -2095,7 +2260,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitCompoundType(final CompoundTypeReference t, final Void ignored) {
+        public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Void ignored) {
             //
             // TODO: Is this correct?
             //
@@ -2107,6 +2272,19 @@ public final class MetadataHelper {
             }
 
             return t;
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Void ignored) {
+            final List<TypeReference> alternatives = t.getAlternatives();
+
+            TypeReference u = alternatives.get(0);
+
+            for (int i = 1, n = alternatives.size(); i < n; i++) {
+                u = asSuper(u, alternatives.get(i));
+            }
+
+            return u;
         }
 
         @Override
@@ -2387,7 +2565,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final TypeReference s) {
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final TypeReference s) {
             if (!s.isCompoundType()) {
                 return false;
             }
@@ -2396,13 +2574,26 @@ public final class MetadataHelper {
                 return false;
             }
 
-            final HashSet<TypeReference> set = new HashSet<>();
-
-            for (final TypeReference i : getInterfaces(t)) {
-                set.add(i);
-            }
+            final HashSet<TypeReference> set = new HashSet<>(getInterfaces(t));
 
             for (final TypeReference i : getInterfaces(s)) {
+                if (!set.remove(i)) {
+                    return false;
+                }
+            }
+
+            return set.isEmpty();
+        }
+
+        @Override
+        public <U extends TypeReference & IUnionType> Boolean visitUnionType(final U t, final TypeReference s) {
+            if (!(s instanceof UnionType)) {
+                return false;
+            }
+
+            final HashSet<TypeReference> set = new HashSet<>(t.getAlternatives());
+
+            for (final TypeReference i : ((UnionType) s).getAlternatives()) {
                 if (!set.remove(i)) {
                     return false;
                 }
@@ -2686,6 +2877,11 @@ public final class MetadataHelper {
 
                 return Collections.emptyList();
             }
+
+            @Override
+            public <C extends TypeReference & ICompoundType> List<TypeReference> visitCompoundType(final C t, final Void unused) {
+                return t.getInterfaces();
+            }
         };
 
     private final static TypeMapper<TypeReference> AS_SUBTYPE_VISITOR = new TypeMapper<TypeReference>() {
@@ -2787,7 +2983,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitCompoundType(final CompoundTypeReference t, final Boolean recurse) {
+        public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Boolean recurse) {
             final TypeReference baseType = t.getBaseType();
             return erase(baseType != null ? baseType : first(t.getInterfaces()), recurse);
         }
@@ -2826,6 +3022,7 @@ public final class MetadataHelper {
         }
     };
 
+    @SuppressWarnings("unused")
     private static final DefaultTypeVisitor<Void, Boolean> IS_DECLARED_TYPE = new DefaultTypeVisitor<Void, Boolean>() {
         @Override
         public Boolean visitWildcard(final WildcardType t, final Void ignored) {
@@ -2853,7 +3050,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final Void ignored) {
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final Void ignored) {
             return false;
         }
 

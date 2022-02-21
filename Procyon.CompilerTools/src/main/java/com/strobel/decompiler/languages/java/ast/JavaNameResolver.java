@@ -32,6 +32,49 @@ import java.util.Set;
 import static com.strobel.core.CollectionUtilities.any;
 
 public final class JavaNameResolver {
+    public static boolean isStaticContext(final AstNode node) {
+        return isStaticContext(node, false, true);
+    }
+
+    public static boolean isStaticContext(final AstNode node, final boolean topLevelAreStatic, final boolean considerMethods) {
+        for (AstNode n = node;
+             n != null && !n.isNull();
+             n = n.getParent()) {
+
+            if (considerMethods && n instanceof MethodDeclaration) {
+                final MethodDefinition method = n.getUserData(Keys.METHOD_DEFINITION);
+
+                if (method != null) {
+                    return method.isStatic();
+                }
+                else {
+                    for (final JavaModifierToken modifier : ((MethodDeclaration) n).getModifiers()) {
+                        if (modifier.getModifier() == Flags.Flag.STATIC) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            if (n instanceof TypeDeclaration) {
+                final TypeDefinition type = n.getUserData(Keys.TYPE_DEFINITION);
+
+                if (type != null) {
+                    return type.isStatic() || topLevelAreStatic && !type.isInnerClass();
+                }
+                else {
+                    for (final JavaModifierToken modifier : ((TypeDeclaration) n).getModifiers()) {
+                        if (modifier.getModifier() == Flags.Flag.STATIC) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     public static NameResolveResult resolve(final String name, final AstNode node) {
         return new Result(
             NameResolveMode.EXPRESSION,
@@ -62,7 +105,7 @@ public final class JavaNameResolver {
 
     private final static class FindDeclarationVisitor implements IAstVisitor<String, Set<Object>> {
         private final NameResolveMode _mode;
-        private boolean _isStaticContext = false;
+        private boolean _isStaticContext;
 
         FindDeclarationVisitor(final NameResolveMode mode, final boolean isStaticContext) {
             _mode = VerifyArgument.notNull(mode, "mode");
@@ -342,31 +385,6 @@ public final class JavaNameResolver {
             return Collections.emptySet();
         }
 
-        private static boolean isStaticContext(final AstNode node) {
-            for (AstNode n = node;
-                 n != null && !n.isNull();
-                 n = n.getParent()) {
-
-                if (n instanceof MethodDeclaration) {
-                    final MethodDefinition method = n.getUserData(Keys.METHOD_DEFINITION);
-
-                    if (method != null) {
-                        return method.isStatic();
-                    }
-                }
-
-                if (n instanceof TypeDeclaration) {
-                    final TypeDefinition type = n.getUserData(Keys.TYPE_DEFINITION);
-
-                    if (type != null) {
-                        return type.isStatic();
-                    }
-                }
-            }
-
-            return false;
-        }
-
         @Override
         public Set<Object> visitComment(final Comment node, final String name) {
             return Collections.emptySet();
@@ -483,6 +501,16 @@ public final class JavaNameResolver {
         }
 
         @Override
+        public Set<Object> visitSwitchExpression(final SwitchExpression node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitSwitchExpressionArm(final SwitchExpressionArm node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
         public Set<Object> visitCaseLabel(final CaseLabel node, final String name) {
             return Collections.emptySet();
         }
@@ -544,7 +572,9 @@ public final class JavaNameResolver {
         public Set<Object> visitImportDeclaration(final ImportDeclaration node, final String name) {
             final TypeReference importedType = node.getUserData(Keys.TYPE_REFERENCE);
 
-            if (importedType != null && StringUtilities.equals(importedType.getSimpleName(), name)) {
+            if (importedType != null &&
+                (StringUtilities.equals(importedType.getSimpleName(), name) || StringUtilities.equals(importedType.getFullName(), name))) {
+
                 return Collections.<Object>singleton(importedType);
             }
 
@@ -556,6 +586,16 @@ public final class JavaNameResolver {
             if (StringUtilities.equals(node.getIdentifier(), name)) {
                 return Collections.<Object>singleton(node.toTypeReference());
             }
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitIntersectionType(final IntersectionType node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitUnionType(final UnionType node, final String data) {
             return Collections.emptySet();
         }
 
@@ -708,6 +748,11 @@ public final class JavaNameResolver {
         }
 
         @Override
+        public Set<Object> visitModuleDeclaration(final ModuleDeclaration node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
         public Set<Object> visitLocalTypeDeclarationStatement(final LocalTypeDeclarationStatement node, final String name) {
             final TypeDeclaration typeDeclaration = node.getTypeDeclaration();
 
@@ -729,6 +774,16 @@ public final class JavaNameResolver {
                 new LinkedHashSet<String>(),
                 true
             );
+        }
+
+        @Override
+        public Set<Object> visitInlinedBytecode(final InlinedBytecodeExpression node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitBytecodeConstant(final BytecodeConstant node, final String data) {
+            return Collections.emptySet();
         }
 
         @Override
@@ -807,6 +862,13 @@ public final class JavaNameResolver {
 
         @Override
         public Set<Object> visitInstanceOfExpression(final InstanceOfExpression node, final String name) {
+            if (_mode == NameResolveMode.EXPRESSION && StringUtilities.equals(node.getIdentifier().getName(), name)) {
+                final Variable variable = node.getUserData(Keys.VARIABLE);
+
+                if (variable != null) {
+                    return Collections.<Object>singleton(variable);
+                }
+            }
             return Collections.emptySet();
         }
 

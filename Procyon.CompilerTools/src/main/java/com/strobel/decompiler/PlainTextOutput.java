@@ -24,6 +24,8 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.UndeclaredThrowableException;
 
+import static com.strobel.core.Comparer.coalesce;
+
 public class PlainTextOutput implements ITextOutput {
     private final static String NULL_TEXT = String.valueOf((Object) null);
 
@@ -73,7 +75,7 @@ public class PlainTextOutput implements ITextOutput {
                 try {
                     _writer.write(indentToken);
                 }
-                catch (IOException e) {
+                catch (final IOException e) {
                     throw new UndeclaredThrowableException(e);
                 }
             }
@@ -98,6 +100,11 @@ public class PlainTextOutput implements ITextOutput {
     }
 
     @Override
+    public int indentDepth() {
+        return _indent;
+    }
+
+    @Override
     public void unindent() {
         --_indent;
     }
@@ -114,7 +121,7 @@ public class PlainTextOutput implements ITextOutput {
             }
             column++;
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw new UndeclaredThrowableException(e);
         }
     }
@@ -134,9 +141,10 @@ public class PlainTextOutput implements ITextOutput {
         writeIndent();
 
         try {
-            final int length = text != null ? text.length() : NULL_TEXT.length();
+            final String effectiveText = coalesce(text, NULL_TEXT);
+            final int length = effectiveText.length();
 
-            _writer.write(text);
+            _writer.write(effectiveText);
 
             column += length;
 
@@ -157,7 +165,7 @@ public class PlainTextOutput implements ITextOutput {
                 }
             }
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw new UndeclaredThrowableException(e);
         }
     }
@@ -215,7 +223,7 @@ public class PlainTextOutput implements ITextOutput {
         try {
             _writer.write("\n");
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw new UndeclaredThrowableException(e);
         }
         _needsIndent = true;

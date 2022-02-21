@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.Accumulator;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -25,7 +26,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("DuplicatedCode")
 public abstract class TypeReference extends MemberReference implements IGenericParameterProvider, IGenericContext {
+    public final static TypeReference[] EMPTY_REFERENCES = new TypeReference[0];
+
     private String _name;
     private TypeReference _declaringType;
     private ArrayType _arrayType;
@@ -135,7 +139,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         VerifyArgument.notNull(typeArguments, "typeArguments");
 
         return makeGenericType(
-            typeArguments.toArray(new TypeReference[typeArguments.size()])
+            typeArguments.toArray(EMPTY_REFERENCES)
         );
     }
 
@@ -180,11 +184,15 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return false;
     }
 
+    public boolean isUnionType() {
+        return false;
+    }
+
     public boolean isBoundedType() {
         return this.isGenericParameter() ||
                this.isWildcardType() ||
                this instanceof ICapturedType ||
-               this instanceof CompoundTypeReference;
+               this instanceof ICompoundType;
     }
 
     public boolean isUnbounded() {
@@ -329,9 +337,9 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         final String simpleName = getSimpleName();
-        final TypeReference declaringType = getDeclaringType();
+        final TypeReference declaringType;
 
-        if (dottedName && simpleName != null && declaringType != null) {
+        if (dottedName && simpleName != null && (declaringType = getDeclaringType()) != null) {
             return declaringType.appendName(sb, fullName, true).append('.').append(simpleName);
         }
 
@@ -503,7 +511,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
             if (count > 0) {
                 s.append('<');
-                //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
                     s = typeArguments.get(i).appendGenericSignature(s);
                 }
@@ -561,7 +568,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
             if (count > 0) {
                 s.append('<');
-                //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
                     s = typeArguments.get(i).appendErasedClassSignature(s);
                 }
@@ -641,4 +647,77 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     // </editor-fold>
+
+    @SuppressWarnings("unused")
+    protected final static class TypeFunctions {
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendDescription(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_BRIEF_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendBriefDescription(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_CLASS_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendClassDescription(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_SIMPLE_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendSimpleDescription(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_ERASED_DESCRIPTION = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendErasedDescription(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_SIGNATURE = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendSignature(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_GENERIC_SIGNATURE = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendGenericSignature(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_CLASS_SIGNATURE = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendClassSignature(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_ERASED_SIGNATURE = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendErasedSignature(builder);
+            }
+        };
+
+        public final static Accumulator<TypeReference, StringBuilder> APPEND_ERASED_CLASS_SIGNATURE = new Accumulator<TypeReference, StringBuilder>() {
+            @Override
+            public StringBuilder accumulate(final StringBuilder builder, final TypeReference item) {
+                return item.appendErasedClassSignature(builder);
+            }
+        };
+    }
 }

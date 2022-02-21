@@ -23,7 +23,6 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -282,11 +281,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final MethodDeclaration setAccessor = new MethodDeclaration();
 
         getAccessor.setName(Pattern.ANY_STRING);
-        getAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        getAccessor.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
         getAccessor.setReturnType(new AnyNode("returnType").toType());
 
         setAccessor.setName(Pattern.ANY_STRING);
-        setAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        setAccessor.getModifiers().add(new JavaModifierToken(Flags.Flag.STATIC));
         setAccessor.setReturnType(new AnyNode("returnType").toType());
 
         final ParameterDeclaration getParameter = new ParameterDeclaration(
@@ -390,7 +389,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
             new AnyNode("value").toExpression()
         );
 
-        tempVariable.addModifier(Modifier.FINAL);
+        tempVariable.addModifier(Flags.Flag.FINAL);
 
         altSetAccessor.setBody(
             new BlockStatement(
@@ -516,7 +515,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration node, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration node, final Void p) {
             final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
 
             if (type != null) {
@@ -525,11 +524,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 }
             }
 
-            return super.visitTypeDeclaration(node, p);
+            return super.visitTypeDeclarationOverride(node, p);
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (method != null) {
@@ -540,7 +539,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 }
             }
 
-            return super.visitMethodDeclaration(node, p);
+            return super.visitMethodDeclarationOverride(node, p);
         }
 
         private boolean tryMatchAccessor(final MethodDeclaration node) {

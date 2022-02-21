@@ -18,12 +18,16 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.BooleanBox;
 import com.strobel.core.SafeCloseable;
+import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.ArrayList;
@@ -33,15 +37,17 @@ import java.util.List;
 import java.util.Map;
 
 public class EnumSwitchRewriterTransform implements IAstTransform {
-    private final DecompilerContext _context;
-
     public EnumSwitchRewriterTransform(final DecompilerContext context) {
         _context = VerifyArgument.notNull(context, "context");
     }
 
+    private final DecompilerContext _context;
+
     @Override
     public void run(final AstNode compilationUnit) {
-        compilationUnit.acceptVisitor(new Visitor(_context), null);
+        if (_context.isSupported(LanguageFeature.ENUM_CLASSES)) {
+            compilationUnit.acceptVisitor(new Visitor(_context), null);
+        }
     }
 
     private final static class Visitor extends ContextTrackingVisitor<Void> {
@@ -57,6 +63,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
             }
         }
 
+        private final StrongBox<Expression> _scratch = new StrongBox<>();
         private final Map<String, SwitchMapInfo> _switchMaps = new LinkedHashMap<>();
         private boolean _isSwitchMapWrapper;
 
@@ -65,7 +72,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             final boolean oldIsSwitchMapWrapper = _isSwitchMapWrapper;
             final TypeDefinition typeDefinition = typeDeclaration.getUserData(Keys.TYPE_DEFINITION);
             final boolean isSwitchMapWrapper = isSwitchMapWrapper(typeDefinition);
@@ -85,7 +92,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
             _isSwitchMapWrapper = isSwitchMapWrapper;
 
             try {
-                super.visitTypeDeclaration(typeDeclaration, p);
+                super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _isSwitchMapWrapper = oldIsSwitchMapWrapper;
@@ -97,45 +104,95 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
         }
 
         @Override
+        public Void visitIndexerExpression(final IndexerExpression node, final Void data) {
+            super.visitIndexerExpression(node, data);
+
+            if (node.getParent(Statement.class) instanceof SwitchStatement) {
+                return null;
+            }
+
+            //
+            // If an enum was used in an empty switch statement, the test condition would have been
+            // emitted as just an indexer into the switch map.  This isn't valid code, so rewrite it
+            // back into a switch.
+            //
+            final AstNode parent = node.getParent();
+            final AstNode grandparent = parent != null && !parent.isNull() ? parent.getParent() : null;
+
+            if ((parent instanceof ExpressionStatement || node.getRole() == AssignmentExpression.RIGHT_ROLE && grandparent instanceof ExpressionStatement) &&
+                isSwitchMapLookup(node, _scratch)) {
+
+                final Expression enumValue = _scratch.value;
+                final AstNode replacementTarget;
+
+                if (parent instanceof ExpressionStatement) {
+                    replacementTarget = parent;
+                }
+                else {
+                    final MethodDeclaration md = grandparent.getParent(MethodDeclaration.class);
+                    final Expression left = parent.getChildByRole(AssignmentExpression.LEFT_ROLE);
+
+                    if (md == null || !(left instanceof IdentifierExpression)) {
+                        return null;
+                    }
+
+                    final Variable v = left.getUserData(Keys.VARIABLE);
+
+                    if (v == null) {
+                        return null;
+                    }
+
+                    final BooleanBox foundReference = new BooleanBox(false);
+
+                    md.acceptVisitor(
+                        new ContextTrackingVisitor<Void>(context) {
+                            @Override
+                            protected Void visitChildren(final AstNode node, final Void data) {
+                                if (foundReference.value) {
+                                    return null;
+                                }
+                                return super.visitChildren(node, data);
+                            }
+
+                            @Override
+                            public Void visitIdentifierExpression(final IdentifierExpression node, final Void data) {
+                                if (node != left && node.getUserData(Keys.VARIABLE) == v) {
+                                    foundReference.set(true);
+                                }
+                                return super.visitIdentifierExpression(node, data);
+                            }
+                        },
+                        null
+                    );
+
+                    if (foundReference.value) {
+                        return null;
+                    }
+
+                    replacementTarget = grandparent;
+                }
+
+                enumValue.remove();
+                replacementTarget.replaceWith(new SwitchStatement(enumValue));
+            }
+
+            return null;
+        }
+
+        @Override
         public Void visitSwitchStatement(final SwitchStatement node, final Void data) {
             final Expression test = node.getExpression();
 
-            if (test instanceof IndexerExpression) {
+            if (isSwitchMapLookup(test, _scratch)) {
                 final IndexerExpression indexer = (IndexerExpression) test;
                 final Expression array = indexer.getTarget();
-                final Expression argument = indexer.getArgument();
-
-                if (!(array instanceof MemberReferenceExpression)) {
-                    return super.visitSwitchStatement(node, data);
-                }
 
                 final MemberReferenceExpression arrayAccess = (MemberReferenceExpression) array;
                 final Expression arrayOwner = arrayAccess.getTarget();
                 final String mapName = arrayAccess.getMemberName();
 
-                if (mapName == null || !mapName.startsWith("$SwitchMap$") || !(arrayOwner instanceof TypeReferenceExpression)) {
-                    return super.visitSwitchStatement(node, data);
-                }
-
                 final TypeReferenceExpression enclosingTypeExpression = (TypeReferenceExpression) arrayOwner;
                 final TypeReference enclosingType = enclosingTypeExpression.getType().getUserData(Keys.TYPE_REFERENCE);
-
-                if (!isSwitchMapWrapper(enclosingType) || !(argument instanceof InvocationExpression)) {
-                    return super.visitSwitchStatement(node, data);
-                }
-
-                final InvocationExpression invocation = (InvocationExpression) argument;
-                final Expression invocationTarget = invocation.getTarget();
-
-                if (!(invocationTarget instanceof MemberReferenceExpression)) {
-                    return super.visitSwitchStatement(node, data);
-                }
-
-                final MemberReferenceExpression memberReference = (MemberReferenceExpression) invocationTarget;
-
-                if (!"ordinal".equals(memberReference.getMemberName())) {
-                    return super.visitSwitchStatement(node, data);
-                }
 
                 final String enclosingTypeName = enclosingType.getInternalName();
 
@@ -153,7 +210,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
                             astBuilder = new AstBuilder(context);
                         }
 
-                        try (final SafeCloseable importSuppression = astBuilder.suppressImports()) {
+                        try (final SafeCloseable ignored = astBuilder.suppressImports()) {
                             final TypeDeclaration declaration = astBuilder.createType(resolvedType);
 
                             declaration.acceptVisitor(this, data);
@@ -171,6 +228,52 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
             }
 
             return super.visitSwitchStatement(node, data);
+        }
+
+        private boolean isSwitchMapLookup(final Expression e, final StrongBox<Expression> enumValue) {
+            if (!(e instanceof IndexerExpression)) {
+                return false;
+            }
+
+            final IndexerExpression indexer = (IndexerExpression) e;
+            final Expression array = indexer.getTarget();
+            final Expression argument = indexer.getArgument();
+
+            if (!(array instanceof MemberReferenceExpression)) {
+                return false;
+            }
+
+            final MemberReferenceExpression arrayAccess = (MemberReferenceExpression) array;
+            final Expression arrayOwner = arrayAccess.getTarget();
+            final String mapName = arrayAccess.getMemberName();
+
+            if (mapName == null || !mapName.startsWith("$SwitchMap$") || !(arrayOwner instanceof TypeReferenceExpression)) {
+                return false;
+            }
+
+            final TypeReferenceExpression enclosingTypeExpression = (TypeReferenceExpression) arrayOwner;
+            final TypeReference enclosingType = enclosingTypeExpression.getType().getUserData(Keys.TYPE_REFERENCE);
+
+            if (!isSwitchMapWrapper(enclosingType) || !(argument instanceof InvocationExpression)) {
+                return false;
+            }
+
+            final InvocationExpression invocation = (InvocationExpression) argument;
+            final Expression invocationTarget = invocation.getTarget();
+
+            if (!(invocationTarget instanceof MemberReferenceExpression)) {
+                return false;
+            }
+
+            final MemberReferenceExpression memberReference = (MemberReferenceExpression) invocationTarget;
+
+            if ("ordinal".equals(memberReference.getMemberName()) && !memberReference.getTarget().isNull()) {
+                enumValue.set(memberReference.getTarget());
+                return true;
+            }
+
+            enumValue.set(null);
+            return false;
         }
 
         @Override

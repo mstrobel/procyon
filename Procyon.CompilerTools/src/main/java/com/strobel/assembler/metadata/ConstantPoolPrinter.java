@@ -289,6 +289,20 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     }
 
     @Override
+    public void visitModule(final ConstantPool.ModuleEntry info) {
+        _output.writeDelimiter("#");
+        _output.writeLiteral(format("%1$-14d", info.nameIndex));
+        _output.writeComment(format("//  %1$s", StringUtilities.escape(info.getName(), false, _settings.isUnicodeOutputEnabled())));
+    }
+
+    @Override
+    public void visitPackage(final ConstantPool.PackageEntry info) {
+        _output.writeDelimiter("#");
+        _output.writeLiteral(format("%1$-14d", info.nameIndex));
+        _output.writeComment(format("//  %1$s", StringUtilities.escape(info.getName(), false, _settings.isUnicodeOutputEnabled())));
+    }
+
+    @Override
     public void visitEnd() {
     }
 }

@@ -292,6 +292,15 @@ public final class VerifyArgument {
         );
     }
 
+    public static String notBlank(final String value, final String parameterName) {
+        if (!StringUtilities.isNullOrWhitespace(value)) {
+            return value;
+        }
+        throw new IllegalArgumentException(
+            format("Argument '%s' must be a non-null, non-empty string.", parameterName)
+        );
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // NUMERIC PRECONDITIONS                                                                                              //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

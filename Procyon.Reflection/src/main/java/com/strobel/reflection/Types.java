@@ -30,18 +30,10 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 
+import static com.strobel.reflection.Type.of;
 /**
  * @author Mike Strobel
  */
@@ -50,7 +42,9 @@ public final class Types {
     private Types() {}
 
     public static final Type<Object> Object;
+    public static final Type<java.util.Objects> Objects;
 
+    public static final Type<Type> Type;
     public static final Type<Enum> Enum;
     public static final Type<Number> Number;
     public static final Type<Boolean> Boolean;
@@ -74,6 +68,8 @@ public final class Types {
     public static final Type<Throwable> Throwable;
     public static final Type<Exception> Exception;
     public static final Type<RuntimeException> RuntimeException;
+    public static final Type<IllegalStateException> IllegalStateException;
+    public static final Type<IllegalArgumentException> IllegalArgumentException;
 
     public static final Type<StringBuilder> StringBuilder;
     public static final Type<StringBuffer> StringBuffer;
@@ -114,68 +110,72 @@ public final class Types {
     public static final Type<DoubleBox> DoubleBox;
 
     static {
-        Object = Type.of(Object.class);
-        Enum = Type.of(Enum.class);
-        Number = Type.of(Number.class);
-        Boolean = Type.of(Boolean.class);
-        Byte = Type.of(Byte.class);
-        Character = Type.of(Character.class);
-        Short = Type.of(Short.class);
-        Integer = Type.of(Integer.class);
-        Long = Type.of(Long.class);
-        Float = Type.of(Float.class);
-        Double = Type.of(Double.class);
-        String = Type.of(String.class);
-        Date = Type.of(Date.class);
-        UUID = Type.of(UUID.class);
+        Type = of(Type.class);
+        Objects = of(Objects.class);
+        Object = of(Object.class);
+        Enum = of(Enum.class);
+        Number = of(Number.class);
+        Boolean = of(Boolean.class);
+        Byte = of(Byte.class);
+        Character = of(Character.class);
+        Short = of(Short.class);
+        Integer = of(Integer.class);
+        Long = of(Long.class);
+        Float = of(Float.class);
+        Double = of(Double.class);
+        String = of(String.class);
+        Date = of(Date.class);
+        UUID = of(UUID.class);
 
-        Comparer = Type.of(Comparer.class);
+        Comparer = of(Comparer.class);
 
-        Runnable = Type.of(Runnable.class);
-        Callable = Type.of(Callable.class);
+        Runnable = of(Runnable.class);
+        Callable = of(Callable.class);
 
-        Error = Type.of(java.lang.Error.class);
-        Throwable = Type.of(Throwable.class);
-        Exception = Type.of(Exception.class);
-        RuntimeException = Type.of(RuntimeException.class);
+        Error = of(java.lang.Error.class);
+        Throwable = of(Throwable.class);
+        Exception = of(Exception.class);
+        RuntimeException = of(RuntimeException.class);
+        IllegalStateException = of(IllegalStateException.class);
+        IllegalArgumentException = of(IllegalArgumentException.class);
 
-        StringBuffer = Type.of(StringBuffer.class);
-        StringBuilder = Type.of(StringBuilder.class);
+        StringBuffer = of(StringBuffer.class);
+        StringBuilder = of(StringBuilder.class);
 
-        BigInteger = Type.of(BigInteger.class);
-        BigDecimal = Type.of(BigDecimal.class);
+        BigInteger = of(BigInteger.class);
+        BigDecimal = of(BigDecimal.class);
 
-        System = Type.of(System.class);
+        System = of(System.class);
 
-        Annotation = Type.of(Annotation.class);
-        Class = Type.of(Class.class);
-        ClassLoader = Type.of(ClassLoader.class);
+        Annotation = of(Annotation.class);
+        Class = of(Class.class);
+        ClassLoader = of(ClassLoader.class);
 
-        Serializable = Type.of(Serializable.class);
-        Cloneable = Type.of(Cloneable.class);
-        Comparable = Type.of(Comparable.class);
+        Serializable = of(Serializable.class);
+        Cloneable = of(Cloneable.class);
+        Comparable = of(Comparable.class);
 
-        Iterable = Type.of(Iterable.class);
-        Iterator = Type.of(Iterator.class);
-        Collection = Type.of(Collection.class);
-        List = Type.of(List.class);
-        Set = Type.of(Set.class);
-        Map = Type.of(Map.class);
-        ArrayList = Type.of(ArrayList.class);
-        HashMap = Type.of(HashMap.class);
-        HashSet = Type.of(HashSet.class);
+        Iterable = of(Iterable.class);
+        Iterator = of(Iterator.class);
+        Collection = of(Collection.class);
+        List = of(List.class);
+        Set = of(Set.class);
+        Map = of(Map.class);
+        ArrayList = of(ArrayList.class);
+        HashMap = of(HashMap.class);
+        HashSet = of(HashSet.class);
 
-        MethodHandle = Type.of(MethodHandle.class);
+        MethodHandle = of(MethodHandle.class);
 
-        StrongBox = Type.of(StrongBox.class);
-        BooleanBox = Type.of(BooleanBox.class);
-        CharacterBox = Type.of(CharacterBox.class);
-        ByteBox = Type.of(ByteBox.class);
-        ShortBox = Type.of(ShortBox.class);
-        IntegerBox = Type.of(IntegerBox.class);
-        LongBox = Type.of(LongBox.class);
-        FloatBox = Type.of(FloatBox.class);
-        DoubleBox = Type.of(DoubleBox.class);
+        StrongBox = of(StrongBox.class);
+        BooleanBox = of(BooleanBox.class);
+        CharacterBox = of(CharacterBox.class);
+        ByteBox = of(ByteBox.class);
+        ShortBox = of(ShortBox.class);
+        IntegerBox = of(IntegerBox.class);
+        LongBox = of(LongBox.class);
+        FloatBox = of(FloatBox.class);
+        DoubleBox = of(DoubleBox.class);
     }
 
     static void ensureRegistered() {

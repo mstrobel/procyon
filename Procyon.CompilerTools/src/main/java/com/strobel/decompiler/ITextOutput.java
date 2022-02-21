@@ -26,6 +26,8 @@ public interface ITextOutput {
     void indent();
     void unindent();
 
+    int indentDepth();
+
     void write(final char ch);
     void write(final String text);
 

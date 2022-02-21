@@ -15,13 +15,13 @@ import java.util.List;
     "UnusedParameters",
     "UnusedAssignment",
     "UnusedDeclaration",
-    "LocalCanBeFinal",
     "ConstantConditions",
     "ReturnInsideFinallyBlock",
     "UnnecessaryBreak",
     "ContinueOrBreakFromFinallyBlock",
     "InfiniteLoopStatement",
-    "finally"
+    "finally",
+    "divzero"
 })
 public class HandlerTests extends DecompilerTest {
     private static class A {
@@ -44,16 +44,16 @@ public class HandlerTests extends DecompilerTest {
                 try {
                     throw new UnsupportedOperationException();
                 }
-                catch (RuntimeException e) {
+                catch (final RuntimeException e) {
                     rethrow(e);
                     return;
                 }
             }
-            catch (UnsupportedOperationException e) {
+            catch (final UnsupportedOperationException e) {
                 System.out.println("unchecked");
                 return;
             }
-            catch (Throwable e) {
+            catch (final Throwable e) {
                 System.out.println("checked");
                 return;
             }
@@ -65,13 +65,13 @@ public class HandlerTests extends DecompilerTest {
             try {
                 throw new Exception();
             }
-            catch (Exception ex) {
+            catch (final Exception ex) {
             }
             finally {
                 try {
                     throw new Exception();
                 }
-                catch (Exception ex) {
+                catch (final Exception ex) {
                 }
             }
         }
@@ -82,27 +82,26 @@ public class HandlerTests extends DecompilerTest {
             try {
                 throw new Exception();
             }
-            catch (Exception ex) {
+            catch (final Exception ex) {
             }
             finally {
                 try {
                     int k = 0;
                     k = 1 / k;
                 }
-                catch (Exception ex) {
+                catch (final Exception ex) {
                 }
             }
         }
     }
 
-    @SuppressWarnings("LocalCanBeFinal")
     private static class E {
         void test(final String[] path) {
             try {
                 final File file = new File(path[0]);
                 final FileInputStream fileInputStream = new FileInputStream(file);
             }
-            catch (FileNotFoundException e) {
+            catch (final FileNotFoundException e) {
                 System.out.println("File Not found");
                 for (final String s : path) {
                     System.out.println(s);
@@ -111,7 +110,6 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings("LocalCanBeFinal")
     private static class F {
         private static boolean tryEnter(final Object o) {
             return true;
@@ -131,7 +129,7 @@ public class HandlerTests extends DecompilerTest {
                 doSomething();
                 result = true;
             }
-            catch (FileNotFoundException t) {
+            catch (final FileNotFoundException t) {
                 result = false;
             }
             finally {
@@ -150,7 +148,7 @@ public class HandlerTests extends DecompilerTest {
                 try {
                     System.out.println("inner try");
                 }
-                catch (RuntimeException e) {
+                catch (final RuntimeException e) {
                     System.out.println("inner catch");
                 }
                 finally {
@@ -158,7 +156,7 @@ public class HandlerTests extends DecompilerTest {
                 }
                 System.out.println("end of outer try");
             }
-            catch (RuntimeException e) {
+            catch (final RuntimeException e) {
                 System.out.println("catch");
                 return;
             }
@@ -185,7 +183,7 @@ public class HandlerTests extends DecompilerTest {
                     return "unreachable";
                 }
             }
-            catch (RuntimeException e) {
+            catch (final RuntimeException e) {
                 System.out.println("catch");
                 return "error";
             }
@@ -211,7 +209,7 @@ public class HandlerTests extends DecompilerTest {
                     return "unreachable";
                 }
             }
-            catch (RuntimeException e) {
+            catch (final RuntimeException e) {
                 System.out.println("catch");
                 return "error";
             }
@@ -264,7 +262,7 @@ public class HandlerTests extends DecompilerTest {
                             return zero();
                         }
                     }
-                    catch (Throwable t) {
+                    catch (final Throwable t) {
                         System.out.println("inner catch");
                         return "inner error";
                     }
@@ -274,7 +272,7 @@ public class HandlerTests extends DecompilerTest {
                     return "unreachable";
                 }
             }
-            catch (RuntimeException e) {
+            catch (final RuntimeException e) {
                 System.out.println("catch");
                 return "error";
             }
@@ -292,7 +290,7 @@ public class HandlerTests extends DecompilerTest {
                     System.out.print(3);
                     throw new NoSuchFieldException();
                 }
-                catch (NoSuchFieldException ex) {
+                catch (final NoSuchFieldException ex) {
                 }
             }
             finally {
@@ -329,7 +327,7 @@ public class HandlerTests extends DecompilerTest {
                 try {
                     return callWhichThrows();
                 }
-                catch (Throwable t) {
+                catch (final Throwable t) {
                 }
                 finally {
                     break bob;
@@ -354,12 +352,12 @@ public class HandlerTests extends DecompilerTest {
                             f();
                             System.out.print(3);
                         }
-                        catch (IllegalStateException e) {
+                        catch (final IllegalStateException e) {
                             System.out.print(4);
                         }
                         System.out.print(5);
                     }
-                    catch (RuntimeException e) {
+                    catch (final RuntimeException e) {
                         System.out.print(6);
                     }
                     System.out.print(7);
@@ -426,8 +424,20 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    private static class R {
+        public void test(final String className, final String fieldName) {
+            try {
+                System.out.println(Class.forName(className).getField(fieldName));
+                throw new IOException();
+            }
+            catch (final NoSuchFieldException | ClassNotFoundException | IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     @Test
-    public void testThrowsSignatures() throws Throwable {
+    public void testThrowsSignatures() {
         verifyOutput(
             A.class,
             defaultSettings(),
@@ -443,7 +453,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testMultipleCatchHandlers() throws Throwable {
+    public void testMultipleCatchHandlers() {
         verifyOutput(
             B.class,
             defaultSettings(),
@@ -456,14 +466,14 @@ public class HandlerTests extends DecompilerTest {
             "            try {\n" +
             "                throw new UnsupportedOperationException();\n" +
             "            }\n" +
-            "            catch (RuntimeException e) {\n" +
+            "            catch (final RuntimeException e) {\n" +
             "                rethrow(e);\n" +
             "            }\n" +
             "        }\n" +
-            "        catch (UnsupportedOperationException e2) {\n" +
+            "        catch (final UnsupportedOperationException e2) {\n" +
             "            System.out.println(\"unchecked\");\n" +
             "        }\n" +
-            "        catch (Throwable e3) {\n" +
+            "        catch (final Throwable e3) {\n" +
             "            System.out.println(\"checked\");\n" +
             "        }\n" +
             "    }\n" +
@@ -472,7 +482,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testSimpleNestedHandlerInFinally() throws Throwable {
+    public void testSimpleNestedHandlerInFinally() {
         verifyOutput(
             C.class,
             defaultSettings(),
@@ -481,12 +491,12 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception ex) {}\n" +
+            "        catch (final Exception ex) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                throw new Exception();\n" +
             "            }\n" +
-            "            catch (Exception ex2) {}\n" +
+            "            catch (final Exception ex2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -494,7 +504,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testEmptyCatchWithinFinally() throws Throwable {
+    public void testEmptyCatchWithinFinally() {
         verifyOutput(
             D.class,
             defaultSettings(),
@@ -503,13 +513,13 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception ex) {}\n" +
+            "        catch (final Exception ex) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception ex2) {}\n" +
+            "            catch (final Exception ex2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -517,7 +527,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testLoopInCatchClause() throws Throwable {
+    public void testLoopInCatchClause() {
         verifyOutput(
             E.class,
             defaultSettings(),
@@ -527,7 +537,7 @@ public class HandlerTests extends DecompilerTest {
             "            final File file = new File(path[0]);\n" +
             "            final FileInputStream fileInputStream = new FileInputStream(file);\n" +
             "        }\n" +
-            "        catch (FileNotFoundException e) {\n" +
+            "        catch (final FileNotFoundException e) {\n" +
             "            System.out.println(\"File Not found\");\n" +
             "            for (final String s : path) {\n" +
             "                System.out.println(s);\n" +
@@ -539,7 +549,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
+    public void testSimpleTryCatchFinallyControlFlow() {
         verifyOutput(
             F.class,
             defaultSettings(),
@@ -558,7 +568,7 @@ public class HandlerTests extends DecompilerTest {
             "            doSomething();\n" +
             "            result = true;\n" +
             "        }\n" +
-            "        catch (FileNotFoundException t) {\n" +
+            "        catch (final FileNotFoundException t) {\n" +
             "            result = false;\n" +
             "        }\n" +
             "        finally {\n" +
@@ -573,7 +583,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testNestedTryCatchFinally() throws Throwable {
+    public void testNestedTryCatchFinally() {
         verifyOutput(
             G.class,
             defaultSettings(),
@@ -584,7 +594,7 @@ public class HandlerTests extends DecompilerTest {
             "            try {\n" +
             "                System.out.println(\"inner try\");\n" +
             "            }\n" +
-            "            catch (RuntimeException e) {\n" +
+            "            catch (final RuntimeException e) {\n" +
             "                System.out.println(\"inner catch\");\n" +
             "            }\n" +
             "            finally {\n" +
@@ -592,7 +602,7 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            System.out.println(\"end of outer try\");\n" +
             "        }\n" +
-            "        catch (RuntimeException e) {\n" +
+            "        catch (final RuntimeException e) {\n" +
             "            System.out.println(\"catch\");\n" +
             "            return;\n" +
             "        }\n" +
@@ -606,7 +616,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testTryCatchFinallyWithNestedConditions() throws Throwable {
+    public void testTryCatchFinallyWithNestedConditions() {
         verifyOutput(
             H.class,
             defaultSettings(),
@@ -624,7 +634,7 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            return \"unreachable\";\n" +
             "        }\n" +
-            "        catch (RuntimeException e) {\n" +
+            "        catch (final RuntimeException e) {\n" +
             "            System.out.println(\"catch\");\n" +
             "            return \"error\";\n" +
             "        }\n" +
@@ -637,7 +647,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testTryCatchFinallyWithNestedConditionsAndThrowingFinally() throws Throwable {
+    public void testTryCatchFinallyWithNestedConditionsAndThrowingFinally() {
         verifyOutput(
             I.class,
             defaultSettings(),
@@ -655,7 +665,7 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            return \"unreachable\";\n" +
             "        }\n" +
-            "        catch (RuntimeException e) {\n" +
+            "        catch (final RuntimeException e) {\n" +
             "            System.out.println(\"catch\");\n" +
             "            return \"error\";\n" +
             "        }\n" +
@@ -669,7 +679,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testTryFinallyWhereFinallyOverridesReturn() throws Throwable {
+    public void testTryFinallyWhereFinallyOverridesReturn() {
         verifyOutput(
             J.class,
             defaultSettings(),
@@ -687,7 +697,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testComplexNestedTryCatchFinallyWithThrowingOuterFinally() throws Throwable {
+    public void testComplexNestedTryCatchFinallyWithThrowingOuterFinally() {
         verifyOutput(
             K.class,
             defaultSettings(),
@@ -717,7 +727,7 @@ public class HandlerTests extends DecompilerTest {
             "                    zero();\n" +
             "                }\n" +
             "            }\n" +
-            "            catch (Throwable t) {\n" +
+            "            catch (final Throwable t) {\n" +
             "                System.out.println(\"inner catch\");\n" +
             "            }\n" +
             "            finally {\n" +
@@ -725,7 +735,7 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            return \"unreachable\";\n" +
             "        }\n" +
-            "        catch (RuntimeException e) {\n" +
+            "        catch (final RuntimeException e) {\n" +
             "            System.out.println(\"catch\");\n" +
             "            return \"error\";\n" +
             "        }\n" +
@@ -739,7 +749,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testFinallyEatingIntoCatch() throws Throwable {
+    public void testFinallyEatingIntoCatch() {
         verifyOutput(
             L.class,
             defaultSettings(),
@@ -749,7 +759,7 @@ public class HandlerTests extends DecompilerTest {
             "            System.out.print(3);\n" +
             "            throw new NoSuchFieldException();\n" +
             "        }\n" +
-            "        catch (NoSuchFieldException ex) {}\n" +
+            "        catch (final NoSuchFieldException ex) {}\n" +
             "        finally {\n" +
             "            System.out.print(\"finally\");\n" +
             "        }\n" +
@@ -760,7 +770,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testBreakOutOfFinally() throws Throwable {
+    public void testBreakOutOfFinally() {
         verifyOutput(
             M.class,
             defaultSettings(),
@@ -774,7 +784,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testBreakOutOfFinallyWithPossibleThrowInTry() throws Throwable {
+    public void testBreakOutOfFinallyWithPossibleThrowInTry() {
         verifyOutput(
             N.class,
             defaultSettings(),
@@ -786,7 +796,7 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            this.callWhichThrows();\n" +
             "        }\n" +
-            "        catch (Throwable t) {}\n" +
+            "        catch (final Throwable t) {}\n" +
             "        System.out.println(\"TEST!\");\n" +
             "        return 1;\n" +
             "    }\n" +
@@ -795,7 +805,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testNestedTryCatchFinallyInLoop() throws Throwable {
+    public void testNestedTryCatchFinallyInLoop() {
         verifyOutput(
             O.class,
             defaultSettings(),
@@ -812,12 +822,12 @@ public class HandlerTests extends DecompilerTest {
             "                        f();\n" +
             "                        System.out.print(3);\n" +
             "                    }\n" +
-            "                    catch (IllegalStateException e) {\n" +
+            "                    catch (final IllegalStateException e) {\n" +
             "                        System.out.print(4);\n" +
             "                    }\n" +
             "                    System.out.print(5);\n" +
             "                }\n" +
-            "                catch (RuntimeException e2) {\n" +
+            "                catch (final RuntimeException e2) {\n" +
             "                    System.out.print(6);\n" +
             "                }\n" +
             "                System.out.print(7);\n" +
@@ -832,7 +842,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testFinallyWithinFinally() throws Throwable {
+    public void testFinallyWithinFinally() {
         verifyOutput(
             P.class,
             defaultSettings(),
@@ -859,7 +869,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testFinallyWithinFinallyFourLevels() throws Throwable {
+    public void testFinallyWithinFinallyFourLevels() {
         verifyOutput(
             Q.class,
             defaultSettings(),
@@ -893,5 +903,23 @@ public class HandlerTests extends DecompilerTest {
             "    }\n" +
             "}\n"
         );
+    }
+
+    @Test
+    public void testCatchUnionType() {
+        verifyOutput(
+            R.class,
+            defaultSettings(),
+            "private static class R {\n" +
+            "    public void test(final String className, final String fieldName) {\n" +
+            "        try {\n" +
+            "            System.out.println(Class.forName(className).getField(fieldName));\n" +
+            "            throw new IOException();\n" +
+            "        }\n" +
+            "        catch (final NoSuchFieldException | ClassNotFoundException | IOException e) {\n" +
+            "            e.printStackTrace();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}");
     }
 }

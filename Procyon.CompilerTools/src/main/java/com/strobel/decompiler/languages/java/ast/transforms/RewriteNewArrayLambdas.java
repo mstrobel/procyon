@@ -23,7 +23,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
-import com.strobel.decompiler.patterns.IdentifierExpressionBackReference;
+import com.strobel.decompiler.patterns.IdentifierBackReference;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.OptionalNode;
@@ -64,7 +64,7 @@ public class RewriteNewArrayLambdas extends ContextTrackingVisitor<Void> {
 
                 final ArrayCreationExpression arrayCreation = new ArrayCreationExpression(Expression.MYSTERY_OFFSET);
 
-                arrayCreation.getDimensions().add(new IdentifierExpressionBackReference("size").toExpression());
+                arrayCreation.getDimensions().add(new IdentifierBackReference("size").toExpression());
                 arrayCreation.setType(new NamedNode("type", new AnyNode()).toType());
 
                 pattern.setBody(arrayCreation);

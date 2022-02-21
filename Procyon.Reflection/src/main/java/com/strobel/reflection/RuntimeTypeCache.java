@@ -43,6 +43,7 @@ enum MemberListType {
 /**
  * @author strobelm
  */
+@SuppressWarnings("DoubleCheckedLocking")
 final class RuntimeTypeCache<T> {
     private enum WhatsCached {
         Nothing,
@@ -98,6 +99,7 @@ final class RuntimeTypeCache<T> {
         return _erasedClass;
     }
 
+    @SuppressWarnings("deprecation")
     Package getPackage() {
         if (_package == null) {
             final String fullName = _runtimeType.getClassFullName();
@@ -236,7 +238,7 @@ final class RuntimeTypeCache<T> {
         if (_methodCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_methodCache == null) {
-                    _methodCache = new MemberInfoCache<>(this);
+                    _methodCache = Fences.orderWrites(new MemberInfoCache<RuntimeMethodInfo>(this));
                 }
             }
         }
@@ -248,7 +250,7 @@ final class RuntimeTypeCache<T> {
         if (_constructorCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_constructorCache == null) {
-                    _constructorCache = new MemberInfoCache<>(this);
+                    _constructorCache = Fences.orderWrites(new MemberInfoCache<RuntimeConstructorInfo>(this));
                 }
             }
         }
@@ -260,7 +262,7 @@ final class RuntimeTypeCache<T> {
         if (_fieldCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_fieldCache == null) {
-                    _fieldCache = new MemberInfoCache<>(this);
+                    _fieldCache = Fences.orderWrites(new MemberInfoCache<RuntimeFieldInfo>(this));
                 }
             }
         }
@@ -268,11 +270,12 @@ final class RuntimeTypeCache<T> {
         return _fieldCache.getMemberList(listType, name, CacheType.Field);
     }
 
+    @SuppressWarnings("SameParameterValue")
     ArrayList<Type<?>> getInterfaceList(final MemberListType listType, final String name) {
         if (_interfaceCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_interfaceCache == null) {
-                    _interfaceCache = new MemberInfoCache<>(this);
+                    _interfaceCache = Fences.orderWrites(new MemberInfoCache<Type<?>>(this));
                 }
             }
         }
@@ -284,7 +287,7 @@ final class RuntimeTypeCache<T> {
         if (_nestedTypeCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_nestedTypeCache == null) {
-                    _nestedTypeCache = new MemberInfoCache<>(this);
+                    _nestedTypeCache = Fences.orderWrites(new MemberInfoCache<Type<?>>(this));
                 }
             }
         }
@@ -296,7 +299,7 @@ final class RuntimeTypeCache<T> {
         if (_methodCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_methodCache == null) {
-                    _methodCache = new MemberInfoCache<>(this);
+                    _methodCache = Fences.orderWrites(new MemberInfoCache<RuntimeMethodInfo>(this));
                 }
             }
         }
@@ -308,7 +311,7 @@ final class RuntimeTypeCache<T> {
         if (_constructorCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_constructorCache == null) {
-                    _constructorCache = new MemberInfoCache<>(this);
+                    _constructorCache = Fences.orderWrites(new MemberInfoCache<RuntimeConstructorInfo>(this));
                 }
             }
         }
@@ -320,7 +323,7 @@ final class RuntimeTypeCache<T> {
         if (_fieldCache == null) {
             synchronized (Type.CACHE_LOCK) {
                 if (_fieldCache == null) {
-                    _fieldCache = new MemberInfoCache<>(this);
+                    _fieldCache = Fences.orderWrites(new MemberInfoCache<RuntimeFieldInfo>(this));
                 }
             }
         }
@@ -369,7 +372,7 @@ final class RuntimeTypeCache<T> {
             }
         }
 
-        final ArrayList<T> getMemberList(final MemberListType listType, final String name, final CacheType cacheType) {
+        ArrayList<T> getMemberList(final MemberListType listType, final String name, final CacheType cacheType) {
             final ArrayList<T> list;
 
             switch (listType) {
@@ -408,7 +411,7 @@ final class RuntimeTypeCache<T> {
             }
         }
 
-        final ArrayList<T> insert(final ArrayList<T> list, final String name, final MemberListType listType) {
+        ArrayList<T> insert(final ArrayList<T> list, final String name, final MemberListType listType) {
             boolean preallocationComplete = false;
 
             ArrayList<T> result = list;
@@ -471,7 +474,7 @@ final class RuntimeTypeCache<T> {
             return result;
         }
 
-        final MethodBase addMethod(final Type<?> declaringType, final MethodBase method, final CacheType cacheType) {
+        MethodBase addMethod(final Type<?> declaringType, final MethodBase method, final CacheType cacheType) {
             final ArrayList<T> list;
 
             final int modifiers = VerifyArgument.notNull(method, "method").getModifiers();
@@ -524,12 +527,12 @@ final class RuntimeTypeCache<T> {
             return (MethodBase) insert(list, null, MemberListType.HandleToInfo).get(0);
         }
 
-        final FieldInfo addField(final FieldInfo field) {
+        FieldInfo addField(final FieldInfo field) {
             final ArrayList<T> list = new ArrayList<>(1);
             final int modifiers = VerifyArgument.notNull(field, "field").getModifiers();
             final boolean isPublic = Modifier.isPublic(modifiers);
             final boolean isStatic = Modifier.isStatic(modifiers);
-            final Type declaringType = field.getDeclaringType();
+            final Type<?> declaringType = field.getDeclaringType();
             final boolean isInherited = !Comparer.equals(declaringType, getReflectedType());
             final Set<BindingFlags> bindingFlags = Type.filterPreCalculate(isPublic, isInherited, isStatic);
 
@@ -554,8 +557,8 @@ final class RuntimeTypeCache<T> {
             final ArrayList<RuntimeFieldInfo> list) {
             final Type<?> reflectedType = getReflectedType();
 
-            assert declaringType != Type.NullType;
-            assert reflectedType != Type.NullType;
+            assert declaringType != Type.nullType();
+            assert reflectedType != Type.nullType();
 
             final boolean isInherited = !declaringType.equals(reflectedType);
 
@@ -566,7 +569,7 @@ final class RuntimeTypeCache<T> {
                     continue;
                 }
 
-                assert declaredField.getFieldType() != Type.NullType;
+                assert declaredField.getFieldType() != Type.nullType();
 
                 final int fieldModifiers = declaredField.getModifiers();
 
@@ -602,7 +605,7 @@ final class RuntimeTypeCache<T> {
                 declaringType = declaringType.getExtendsBound();
             }
 
-            while (declaringType != null && declaringType != Type.NullType) {
+            while (declaringType != null && declaringType != Type.nullType()) {
                 populateRuntimeFields(filter, declaringType.getDeclaredFields(), declaringType, list);
                 declaringType = declaringType.getBaseType();
             }
@@ -620,7 +623,6 @@ final class RuntimeTypeCache<T> {
             return list;
         }
 
-        @SuppressWarnings("ConstantConditions")
         private ArrayList<RuntimeMethodInfo> populateMethods(final Filter filter) {
             final HashMap<String, ArrayList<RuntimeMethodInfo>> nameLookup = new HashMap<>();
             final ArrayList<RuntimeMethodInfo> list = new ArrayList<>();
@@ -649,13 +651,11 @@ final class RuntimeTypeCache<T> {
                         continue;
                     }
 
-                    assert method.getReturnType() != Type.NullType;
+                    assert method.getReturnType() != Type.nullType();
 
                     final int methodModifiers = method.getModifiers();
 
-                    if (isInterface) {
-                        assert !Modifier.isFinal(methodModifiers);
-                    }
+                    assert !isInterface || !Modifier.isFinal(methodModifiers);
 
                     final boolean isVirtual = !Modifier.isFinal(methodModifiers);
                     final boolean isPrivate = Modifier.isPrivate(methodModifiers);
@@ -671,9 +671,7 @@ final class RuntimeTypeCache<T> {
                         continue;
                     }
 
-                    if (!isVirtual) {
-                        assert !Modifier.isAbstract(methodModifiers);
-                    }
+                    assert isVirtual || !Modifier.isAbstract(methodModifiers);
 
                     final boolean isPublic = Modifier.isPublic(methodModifiers);
                     final boolean isStatic = Modifier.isStatic(methodModifiers);
@@ -706,7 +704,7 @@ final class RuntimeTypeCache<T> {
                     final Type<?> baseType = declaringType.getBaseType();
 
                     if (baseType != null &&
-                        baseType != Type.NullType &&
+                        baseType != Type.nullType() &&
                         included.add(baseType.getInternalName())) {
 
                         stack.addLast(baseType);
@@ -756,7 +754,7 @@ final class RuntimeTypeCache<T> {
 
                 final int modifiers = constructor.getModifiers();
 
-                assert constructor.getDeclaringType() != Type.NullType;
+                assert constructor.getDeclaringType() != Type.nullType();
 
                 final boolean isPublic = Modifier.isPublic(modifiers);
                 final boolean isStatic = false;
@@ -785,7 +783,7 @@ final class RuntimeTypeCache<T> {
             final HashSet<Type<?>> set = new HashSet<>();
             final ImmutableList<Type<?>> interfaceList = Helper.interfaces(reflectedType);
 
-            for (final Type interfaceType : interfaceList) {
+            for (final Type<?> interfaceType : interfaceList) {
                 final String name = interfaceType.getFullName();
 
                 if (filter.match(name) && set.add(interfaceType)) {
@@ -807,7 +805,7 @@ final class RuntimeTypeCache<T> {
                 }
             }
 
-            if (declaringType == Type.NullType) {
+            if (declaringType == Type.nullType()) {
                 return list;
             }
 
@@ -915,12 +913,12 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
 */
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _reflectedTypeCache.getRuntimeType();
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedTypeCache.getRuntimeType();
     }
 
@@ -1025,12 +1023,12 @@ final class RuntimeMethodInfo extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedTypeCache.getRuntimeType();
     }
 
@@ -1179,12 +1177,12 @@ final class ErasedMethod extends MethodInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _baseMethod.getReflectedType();
     }
 
@@ -1302,12 +1300,12 @@ final class RuntimeFieldInfo extends FieldInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedTypeCache.getRuntimeType();
     }
 
@@ -1393,12 +1391,12 @@ final class ErasedField extends FieldInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _baseField.getReflectedType();
     }
 
@@ -1440,6 +1438,7 @@ final class ErasedField extends FieldInfo {
     }
 }
 
+@SuppressWarnings("DoubleCheckedLocking")
 final class RuntimeType<T> extends Type<T> {
     final static TypeBinder GenericBinder = new TypeBinder();
 
@@ -1465,7 +1464,7 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _reflectedType;
     }
 
@@ -1474,12 +1473,12 @@ final class RuntimeType<T> extends Type<T> {
         if (_baseType == null) {
             synchronized (CACHE_LOCK) {
                 if (_baseType == null) {
-                    final Type genericBaseType = _basedOn.getBaseType();
-                    if (genericBaseType == null || genericBaseType == NullType) {
-                        _baseType = (Type<? super T>) NullType;
+                    final Type<?> genericBaseType = _basedOn.getBaseType();
+                    if (genericBaseType == null || genericBaseType == nullType()) {
+                        _baseType = Fences.orderWrites((Type<? super T>) nullType());
                     }
                     else {
-                        _baseType = (Type<? super T>) GenericBinder.visit(genericBaseType, _allBindings);
+                        _baseType = Fences.orderWrites((Type<? super T>) GenericBinder.visit(genericBaseType, _allBindings));
                     }
                 }
             }
@@ -1490,7 +1489,8 @@ final class RuntimeType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericBinder.visit(_basedOn.getExplicitInterfaces(), _allBindings);
+                    final TypeList interfaces = GenericBinder.visit(_basedOn.getExplicitInterfaces(), _allBindings);
+                    _interfaces = Fences.orderWrites(interfaces);
                 }
             }
         }
@@ -1500,7 +1500,8 @@ final class RuntimeType<T> extends Type<T> {
         if (_fields == null) {
             synchronized (CACHE_LOCK) {
                 if (_fields == null) {
-                    _fields = GenericBinder.visit(this, _basedOn.getDeclaredFields(), _allBindings);
+                    final FieldList fields = GenericBinder.visit(this, _basedOn.getDeclaredFields(), _allBindings);
+                    _fields = Fences.orderWrites(fields);
                 }
             }
         }
@@ -1510,7 +1511,8 @@ final class RuntimeType<T> extends Type<T> {
         if (_constructors == null) {
             synchronized (CACHE_LOCK) {
                 if (_constructors == null) {
-                    _constructors = GenericBinder.visit(this, _basedOn.getDeclaredConstructors(), _allBindings);
+                    final ConstructorList constructors = GenericBinder.visit(this, _basedOn.getDeclaredConstructors(), _allBindings);
+                    _constructors = Fences.orderWrites(constructors);
                 }
             }
         }
@@ -1520,7 +1522,8 @@ final class RuntimeType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    _methods = GenericBinder.visit(this, _basedOn.getDeclaredMethods(), _allBindings);
+                    final MethodList methods = GenericBinder.visit(this, _basedOn.getDeclaredMethods(), _allBindings);
+                    _methods = Fences.orderWrites(methods);
                 }
             }
         }
@@ -1530,7 +1533,7 @@ final class RuntimeType<T> extends Type<T> {
         if (_nestedTypes == null) {
             synchronized (CACHE_LOCK) {
                 if (_nestedTypes == null) {
-                    _nestedTypes = Helper.map(
+                    final TypeList nestedTypes = Helper.map(
                         _basedOn.getDeclaredTypes(),
                         new TypeMapping() {
                             @Override
@@ -1539,13 +1542,13 @@ final class RuntimeType<T> extends Type<T> {
                             }
                         }
                     );
+                    _nestedTypes = Fences.orderWrites(nestedTypes);
                 }
             }
         }
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Class<T> getErasedClass() {
         return _erasedClass;
     }
@@ -1560,11 +1563,11 @@ final class RuntimeType<T> extends Type<T> {
     public Type<? super T> getBaseType() {
         ensureBaseType();
         final Type<? super T> baseType = _baseType;
-        return baseType == NullType ? null : baseType;
+        return baseType == nullType() ? null : baseType;
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         return _basedOn;
     }
 
@@ -1575,12 +1578,12 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _basedOn.getDeclaringType();
     }
 
     @Override
-    public final boolean isGenericType() {
+    public boolean isGenericType() {
         return true;
     }
 
@@ -1600,7 +1603,7 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
         return _basedOn.getAnnotation(annotationClass);
     }
 
@@ -1646,7 +1649,7 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public boolean isEquivalentTo(final Type other) {
+    public boolean isEquivalentTo(final Type<?> other) {
         if (other == this) {
             return true;
         }

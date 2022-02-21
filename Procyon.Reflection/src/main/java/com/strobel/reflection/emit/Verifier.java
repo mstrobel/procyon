@@ -176,7 +176,7 @@ final class Verifier {
 
                 throw new VerificationException(
                     typeVariableOutOfScopeError(type, scope),
-                    frames.toArray(new VerifierFrame[frames.size()])
+                    frames.toArray(VerifierFrame.EMPTY_FRAMES)
                 );
             }
 
@@ -352,8 +352,6 @@ final class Verifier {
 
         @Override
         public Boolean visitClassType(final Type<?> type, final Type<?> s) {
-            Boolean result;
-
             if (type.containsGenericParameter(s)) {
                 return Boolean.TRUE;
             }
@@ -370,7 +368,7 @@ final class Verifier {
 
             final Type<?> declaringType = type.getDeclaringType();
 
-            if (declaringType != null && declaringType != Type.NullType) {
+            if (declaringType != null && declaringType != Type.nullType()) {
                 return visit(declaringType, s);
             }
 
@@ -418,6 +416,8 @@ final class Verifier {
     }
 
     final static class VerifierFrame {
+        private final static VerifierFrame[] EMPTY_FRAMES = new VerifierFrame[0];
+
         private final FrameType _frameType;
         private final MemberInfo _member;
         private final Object _location;

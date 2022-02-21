@@ -116,14 +116,14 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             final TypeDefinition type = typeDeclaration.getUserData(Keys.TYPE_DEFINITION);
 
             if (type != null && (isLocalOrAnonymous(type) || type.isAnonymous())) {
                 _localTypes.put(type, typeDeclaration);
             }
 
-            return super.visitTypeDeclaration(typeDeclaration, p);
+            return super.visitTypeDeclarationOverride(typeDeclaration, p);
         }
     }
 }

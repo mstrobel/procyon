@@ -16,7 +16,9 @@ package com.strobel.reflection;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("InstantiationOfUtilityClass")
 public final class Missing {
     public static final Missing Value = new Missing();
-    Missing() {}
+
+    private Missing() {}
 }

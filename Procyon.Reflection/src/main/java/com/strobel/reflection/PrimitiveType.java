@@ -64,7 +64,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
@@ -78,17 +78,17 @@ final class PrimitiveType<T> extends Type<T> {
         final String name,
         final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
-        final Type... parameterTypes) {
+        final Type<?>... parameterTypes) {
         return null;
     }
 
     @Override
-    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
+    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention, final Type<?>... parameterTypes) {
         return null;
     }
 
     @Override
-    public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<?> getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
@@ -136,7 +136,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
@@ -151,7 +151,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
         return _class.getAnnotation(annotationClass);
     }
 

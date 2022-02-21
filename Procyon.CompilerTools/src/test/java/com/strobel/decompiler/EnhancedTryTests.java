@@ -13,12 +13,13 @@
 
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
+import com.strobel.assembler.metadata.CompilerTarget;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringWriter;
 
+@SuppressWarnings("ALL")
 public class EnhancedTryTests extends DecompilerTest {
     private static final class A {
         public void test() throws IOException {
@@ -78,7 +79,7 @@ public class EnhancedTryTests extends DecompilerTest {
                 writer1.write("This is only a test.");
                 writer2.write("This is also a test.");
             }
-            catch (Throwable t) {
+            catch (final Throwable t) {
                 t.printStackTrace();
             }
         }
@@ -91,7 +92,7 @@ public class EnhancedTryTests extends DecompilerTest {
                 writer1.write("This is only a test.");
                 writer2.write("This is also a test.");
             }
-            catch (RuntimeException e) {
+            catch (final RuntimeException e) {
                 e.printStackTrace();
             }
         }
@@ -104,7 +105,7 @@ public class EnhancedTryTests extends DecompilerTest {
                     writer1.write("This is only a test.");
                     writer2.write("This is also a test.");
                 }
-                catch (Throwable t) {
+                catch (final Throwable t) {
                     t.printStackTrace();
                 }
             }
@@ -118,7 +119,7 @@ public class EnhancedTryTests extends DecompilerTest {
                     writer1.write("This is only a test.");
                     writer2.write("This is also a test.");
                 }
-                catch (RuntimeException e) {
+                catch (final RuntimeException e) {
                     e.printStackTrace();
                 }
             }
@@ -237,7 +238,7 @@ public class EnhancedTryTests extends DecompilerTest {
             "            writer1.write(\"This is only a test.\");\n" +
             "            writer2.write(\"This is also a test.\");\n" +
             "        }\n" +
-            "        catch (Throwable t) {\n" +
+            "        catch (final Throwable t) {\n" +
             "            t.printStackTrace();\n" +
             "        }\n" +
             "    }\n" +
@@ -257,7 +258,7 @@ public class EnhancedTryTests extends DecompilerTest {
             "            writer1.write(\"This is only a test.\");\n" +
             "            writer2.write(\"This is also a test.\");\n" +
             "        }\n" +
-            "        catch (RuntimeException e) {\n" +
+            "        catch (final RuntimeException e) {\n" +
             "            e.printStackTrace();\n" +
             "        }\n" +
             "    }\n" +
@@ -277,7 +278,7 @@ public class EnhancedTryTests extends DecompilerTest {
             "                writer1.write(\"This is only a test.\");\n" +
             "                writer2.write(\"This is also a test.\");\n" +
             "            }\n" +
-            "            catch (Throwable t) {\n" +
+            "            catch (final Throwable t) {\n" +
             "                t.printStackTrace();\n" +
             "            }\n" +
             "        }\n" +
@@ -298,7 +299,7 @@ public class EnhancedTryTests extends DecompilerTest {
             "                writer1.write(\"This is only a test.\");\n" +
             "                writer2.write(\"This is also a test.\");\n" +
             "            }\n" +
-            "            catch (RuntimeException e) {\n" +
+            "            catch (final RuntimeException e) {\n" +
             "                e.printStackTrace();\n" +
             "            }\n" +
             "        }\n" +
@@ -308,31 +309,34 @@ public class EnhancedTryTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testEnhancedTryEmptyBody() throws Throwable {
+        if (classVersion(J.class).compareTo(CompilerTarget.JDK13) < 0) {
+            return;
+        }
         verifyOutput(
             J.class,
             defaultSettings(),
             "private static final class J {\n" +
             "    public void test() throws IOException {\n" +
-            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
-            "        }\n" +
+            "        final StringWriter writer1 = new StringWriter();\n" +
+            "        writer1.close();\n" +
             "    }\n" +
             "}\n"
         );
     }
 
     @Test
-    @Ignore
     public void testEnhancedTryTwoResourcesEmptyBody() throws Throwable {
+        if (classVersion(K.class).compareTo(CompilerTarget.JDK13) < 0) {
+            return;
+        }
         verifyOutput(
             K.class,
             defaultSettings(),
             "private static final class K {\n" +
             "    public void test() throws IOException {\n" +
             "        try (final StringWriter writer1 = new StringWriter();\n" +
-            "             final StringWriter writer2 = new StringWriter()) {\n" +
-            "        }\n" +
+            "             final StringWriter writer2 = new StringWriter()) {}\n" +
             "    }\n" +
             "}\n"
         );

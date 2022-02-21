@@ -20,10 +20,12 @@ import com.strobel.annotations.NotNull;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.EmptyArrayCache;
 
 import java.util.AbstractCollection;
 import java.util.Arrays;
@@ -137,9 +139,8 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
     }
 
     @Override
-    @SuppressWarnings("NullableProblems")
     public Object[] toArray() {
-        return toArray(new Object[size()]);
+        return toArray(EmptyArrayCache.EMPTY_OBJECT_ARRAY);
     }
 
     @NotNull
@@ -241,6 +242,19 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
         );
     }
 
+    public final boolean anyMatch(final INode other) {
+        return anyMatch(other, Match.createNew());
+    }
+
+    public final boolean anyMatch(final INode other, final Match match) {
+        for (final AstNode child : this) {
+            if (other.matches(child, match)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public int hashCode() {
         return _node.hashCode() ^ _role.hashCode();
@@ -249,7 +263,7 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
     @Override
     public boolean equals(final Object obj) {
         if (obj instanceof AstNodeCollection<?>) {
-            final AstNodeCollection<?> other = (AstNodeCollection) obj;
+            final AstNodeCollection<?> other = (AstNodeCollection<?>) obj;
 
             return other._node == _node &&
                    other._role == _role;
@@ -267,9 +281,7 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
             return;
         }
 
-        for (final T node : nodeList) {
-            add(node);
-        }
+        addAll(nodeList);
     }
 
     public final void insertAfter(final T existingItem, final T newItem) {

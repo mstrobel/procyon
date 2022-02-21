@@ -96,7 +96,6 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     public abstract <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data);
 
     @Override
-    @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
     public AstNode clone() {
         try {
             final AstNode clone = (AstNode) super.clone();
@@ -120,7 +119,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
             return clone;
         }
-        catch (CloneNotSupportedException e) {
+        catch (final CloneNotSupportedException e) {
             throw new UndeclaredThrowableException(e);
         }
     }
@@ -374,7 +373,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     @NotNull
     @SuppressWarnings("unchecked")
-    public final <T extends AstNode> T getChildByRole(final Role<T> role) {
+    public final <T extends AstNode> T getChildByRole(final Role<? extends T> role) {
         VerifyArgument.notNull(role, "role");
 
         final int roleIndex = role.getIndex();
@@ -389,11 +388,13 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @NotNull
-    public final <T extends AstNode> AstNodeCollection<T> getChildrenByRole(final Role<T> role) {
-        return new AstNodeCollection<>(this, role);
+    public final <T extends AstNode> AstNodeCollection<T> getChildrenByRole(final Role<? extends T> role) {
+        @SuppressWarnings("unchecked")
+        final Role<T> r = (Role<T>) role;
+        return new AstNodeCollection<>(this, r);
     }
 
-    protected final <T extends AstNode> void setChildByRole(final Role<T> role, final T newChild) {
+    protected final <T extends AstNode> void setChildByRole(final Role<? extends T> role, final T newChild) {
         final T oldChild = getChildByRole(role);
 
         if (oldChild.isNull()) {
@@ -450,7 +451,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SafeVarargs
-    public final <T extends AstNode> void insertChildrenBefore(final AstNode nextSibling, final Role<T> role, final T... children) {
+    public final <T extends AstNode> void insertChildrenBefore(final AstNode nextSibling, final Role<? extends T> role, final T... children) {
         VerifyArgument.notNull(children, "children");
 
         for (final T child : children) {
@@ -458,7 +459,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final <T extends AstNode> void insertChildBefore(final AstNode nextSibling, final T child, final Role<T> role) {
+    public final <T extends AstNode> void insertChildBefore(final AstNode nextSibling, final T child, final Role<? extends T> role) {
         VerifyArgument.notNull(role, "role");
 
         if (nextSibling == null || nextSibling.isNull()) {
@@ -488,7 +489,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SafeVarargs
-    public final <T extends AstNode> void insertChildrenAfter(final AstNode nextSibling, final Role<T> role, final T... children) {
+    public final <T extends AstNode> void insertChildrenAfter(final AstNode nextSibling, final Role<? extends T> role, final T... children) {
         VerifyArgument.notNull(children, "children");
 
         for (final T child : children) {
@@ -496,7 +497,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final <T extends AstNode> void insertChildAfter(final AstNode previousSibling, final T child, final Role<T> role) {
+    public final <T extends AstNode> void insertChildAfter(final AstNode previousSibling, final T child, final Role<? extends T> role) {
         insertChildBefore(
             previousSibling == null || previousSibling.isNull() ? _firstChild : previousSibling._nextSibling,
             child,
@@ -571,15 +572,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         verifyNotFrozen();
 
-        final Role role = getRole();
+        final Role<?> role = getRole();
 
         if (!role.isValid(newNode)) {
             throw new IllegalArgumentException(
-                String.format(
-                    "The new node '%s' is not valid for role '%s'.",
-                    newNode.getClass().getName(),
-                    role.toString()
-                )
+                String.format("The new node '%s' is not valid for role '%s'.", newNode.getClass().getName(), role)
             );
         }
 
@@ -638,7 +635,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         final AstNode oldParent = _parent;
         final AstNode oldSuccessor = _nextSibling;
-        final Role oldRole = this.getRole();
+        final Role<?> oldRole = this.getRole();
 
         remove();
 
@@ -751,7 +748,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     @Override
     public boolean matchesCollection(
-        final Role role,
+        final Role<?> role,
         final INode position,
         final Match match,
         final BacktrackingInfo backtrackingInfo) {
@@ -797,7 +794,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
     }
@@ -888,7 +885,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         final String text = StringUtilities.trimRight(getText())/*.replace("\t", "").replace("\n", " ")*/;
 
-        return text.length() > 1000 ? text.substring(0, 97) + "..." : text;
+        return text.length() > 10000 ? text.substring(0, 9997) + "..." : text; // TODO: <== REVERT THIS
     }
 
     @Override

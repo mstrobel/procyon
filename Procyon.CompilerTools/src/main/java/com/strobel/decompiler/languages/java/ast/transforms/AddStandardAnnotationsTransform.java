@@ -40,10 +40,10 @@ public final class AddStandardAnnotationsTransform extends ContextTrackingVisito
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+    protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
         tryAddOverrideAnnotation(node);
         tryAddDeprecatedAnnotationToMember(node);
-        return super.visitMethodDeclaration(node, p);
+        return super.visitMethodDeclarationOverride(node, p);
     }
 
     @Override
@@ -65,9 +65,9 @@ public final class AddStandardAnnotationsTransform extends ContextTrackingVisito
     }
 
     @Override
-    public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+    protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
         tryAddDeprecatedAnnotationToType(typeDeclaration);
-        return super.visitTypeDeclaration(typeDeclaration, p);
+        return super.visitTypeDeclarationOverride(typeDeclaration, p);
     }
 
     private void tryAddOverrideAnnotation(final MethodDeclaration node) {

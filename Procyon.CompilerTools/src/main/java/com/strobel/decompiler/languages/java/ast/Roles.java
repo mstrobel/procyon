@@ -28,6 +28,7 @@ public final class Roles {
     public final static Role<AstType> TYPE = new Role<>("Type", AstType.class, AstType.NULL);
     public final static Role<AstType> BASE_TYPE = new Role<>("BaseType", AstType.class, AstType.NULL);
     public final static Role<AstType> IMPLEMENTED_INTERFACE = new Role<>("ImplementedInterface", AstType.class, AstType.NULL);
+    public final static Role<AstType> PERMITTED_SUBCLASSES = new Role<>("PermittedSubclasses", AstType.class, AstType.NULL);
     public final static Role<AstType> TYPE_ARGUMENT = new Role<>("TypeArgument", AstType.class, AstType.NULL);
     public final static Role<AstType> EXTENDS_BOUND = new Role<>("ExtendsBound", AstType.class, AstType.NULL);
     public final static Role<AstType> SUPER_BOUND = new Role<>("SuperBound", AstType.class, AstType.NULL);
@@ -45,6 +46,7 @@ public final class Roles {
     public final static Role<Annotation> ANNOTATION = new Role<>("Annotation", Annotation.class);
     public final static Role<VariableInitializer> VARIABLE = new Role<>("Variable", VariableInitializer.class, VariableInitializer.NULL);
     public final static Role<EntityDeclaration> TYPE_MEMBER = new Role<>("TypeMember", EntityDeclaration.class);
+    public final static Role<ModuleDeclaration> MODULE = new Role<>("Module", ModuleDeclaration.class, ModuleDeclaration.NULL);
     public final static Role<TypeDeclaration> TOP_LEVEL_TYPE_ROLE = new Role<>("TopLevelType", TypeDeclaration.class, TypeDeclaration.NULL);
     public final static Role<TypeDeclaration> LOCAL_TYPE_DECLARATION = new Role<>("LocalTypeDeclaration", TypeDeclaration.class, TypeDeclaration.NULL);
     public final static Role<AstType> THROWN_TYPE = new Role<>("ThrownType", AstType.class, AstType.NULL);
@@ -80,9 +82,12 @@ public final class Roles {
     public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
     public final static TokenRole PACKAGE_KEYWORD = new TokenRole("package", TokenRole.FLAG_KEYWORD);
     public final static TokenRole ENUM_KEYWORD = new TokenRole("enum", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole RECORD_KEYWORD = new TokenRole("record", TokenRole.FLAG_KEYWORD);
     public final static TokenRole INTERFACE_KEYWORD = new TokenRole("interface", TokenRole.FLAG_KEYWORD);
     public final static TokenRole CLASS_KEYWORD = new TokenRole("class", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole MODULE_KEYWORD = new TokenRole("module", TokenRole.FLAG_KEYWORD);
     public final static TokenRole ANNOTATION_KEYWORD = new TokenRole("@interface", TokenRole.FLAG_KEYWORD);
     public final static TokenRole EXTENDS_KEYWORD = new TokenRole("extends", TokenRole.FLAG_KEYWORD);
     public final static TokenRole IMPLEMENTS_KEYWORD = new TokenRole("implements", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole PERMITS_KEYWORD = new TokenRole("permits", TokenRole.FLAG_KEYWORD);
 }

@@ -50,7 +50,7 @@ public final class ParameterReferenceNode extends Pattern {
 
             if (variable != null &&
                 variable.isParameter() &&
-                variable.getOriginalParameter().getPosition() == _parameterPosition) {
+                (_parameterPosition < 0 || variable.getOriginalParameter().getPosition() == _parameterPosition)) {
 
                 if (_groupName != null) {
                     match.add(_groupName, identifier);

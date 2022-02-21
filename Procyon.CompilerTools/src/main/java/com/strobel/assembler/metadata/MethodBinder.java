@@ -579,7 +579,7 @@ public final class MethodBinder {
         }
 
         @Override
-        public Void visitCompoundType(final CompoundTypeReference t, final Map<TypeReference, TypeReference> map) {
+        public <C extends TypeReference & ICompoundType> Void visitCompoundType(final C t, final Map<TypeReference, TypeReference> map) {
             return null;
         }
 
