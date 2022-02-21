@@ -42,6 +42,8 @@ public interface IAstVisitor<T, R> {
     R visitReturnStatement(ReturnStatement node, T data);
     R visitSwitchStatement(SwitchStatement node, T data);
     R visitSwitchSection(SwitchSection node, T data);
+    R visitSwitchExpression(SwitchExpression node, T data);
+    R visitSwitchExpressionArm(SwitchExpressionArm node, T data);
     R visitCaseLabel(CaseLabel node, T data);
     R visitThrowStatement(ThrowStatement node, T data);
     R visitCatchClause(CatchClause node, T data);
@@ -59,10 +61,13 @@ public interface IAstVisitor<T, R> {
     R visitParameterDeclaration(ParameterDeclaration node, T data);
     R visitFieldDeclaration(FieldDeclaration node, T data);
     R visitTypeDeclaration(TypeDeclaration node, T data);
+    R visitModuleDeclaration(ModuleDeclaration node, T data);
     R visitCompilationUnit(CompilationUnit node, T data);
     R visitPackageDeclaration(PackageDeclaration node, T data);
     R visitArraySpecifier(ArraySpecifier node, T data);
     R visitComposedType(ComposedType node, T data);
+    R visitIntersectionType(IntersectionType node, T data);
+    R visitUnionType(UnionType node, T data);
     R visitWhileStatement(WhileStatement node, T data);
     R visitPrimitiveExpression(PrimitiveExpression node, T data);
     R visitCastExpression(CastExpression node, T data);
@@ -89,4 +94,6 @@ public interface IAstVisitor<T, R> {
     R visitAssertStatement(AssertStatement node, T data);
     R visitLambdaExpression(LambdaExpression node, T data);
     R visitLocalTypeDeclarationStatement(LocalTypeDeclarationStatement node, T data);
+    R visitInlinedBytecode(InlinedBytecodeExpression node, T data);
+    R visitBytecodeConstant(BytecodeConstant node, T data);
 }

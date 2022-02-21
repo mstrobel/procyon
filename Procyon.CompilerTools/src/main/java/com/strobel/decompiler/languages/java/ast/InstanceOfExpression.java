@@ -16,14 +16,24 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
-public class InstanceOfExpression extends Expression {
+import java.util.List;
+
+public class InstanceOfExpression extends PatternExpression {
+    public final static Role<JavaModifierToken> MODIFIER_ROLE = EntityDeclaration.MODIFIER_ROLE;
     public final static TokenRole INSTANCE_OF_KEYWORD_ROLE = new TokenRole("instanceof", TokenRole.FLAG_KEYWORD | TokenRole.FLAG_OPERATOR);
+    private boolean _anyModifiers;
 
-    public InstanceOfExpression( int offset, final Expression expression, final AstType type) {
-        super( offset);
+    public InstanceOfExpression(final Expression expression, final AstType type) {
+        this(MYSTERY_OFFSET, expression, type);
+    }
+
+    public InstanceOfExpression(final int offset, final Expression expression, final AstType type) {
+        super(offset);
         setExpression(expression);
         setType(type);
     }
@@ -48,6 +58,45 @@ public class InstanceOfExpression extends Expression {
         setChildByRole(Roles.EXPRESSION, value);
     }
 
+    public final Identifier getIdentifier() {
+        return getChildByRole(Roles.IDENTIFIER);
+    }
+
+    public final void setIdentifier(final Identifier value) {
+        setChildByRole(Roles.IDENTIFIER, value);
+    }
+
+    /**
+     * Gets the "any" modifiers flag used during pattern matching.
+     */
+    public final boolean isAnyModifiers() {
+        return _anyModifiers;
+    }
+
+    /**
+     * Sets the "any" modifiers flag used during pattern matching.
+     */
+    public final void setAnyModifiers(final boolean value) {
+        verifyNotFrozen();
+        _anyModifiers = value;
+    }
+
+    public final AstNodeCollection<JavaModifierToken> getModifiers() {
+        return getChildrenByRole(MODIFIER_ROLE);
+    }
+
+    public final void addModifier(final Flags.Flag modifier) {
+        EntityDeclaration.addModifier(this, modifier);
+    }
+
+    public final void removeModifier(final Flags.Flag modifier) {
+        EntityDeclaration.removeModifier(this, modifier);
+    }
+
+    public final void setModifiers(final List<Flags.Flag> modifiers) {
+        EntityDeclaration.setModifiers(this, modifiers);
+    }
+
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitInstanceOfExpression(this, data);
@@ -60,7 +109,12 @@ public class InstanceOfExpression extends Expression {
 
             return !otherExpression.isNull() &&
                    getExpression().matches(otherExpression.getExpression(), match) &&
-                   getType().matches(otherExpression.getType(), match);
+                   getType().matches(otherExpression.getType(), match) &&
+                   (getIdentifier().isNull() && otherExpression.getIdentifier().isNull() ||
+                    getIdentifier().matches(otherExpression.getIdentifier())) &&
+                   (isAnyModifiers() ||
+                    otherExpression.isAnyModifiers() ||
+                    getChildrenByRole(MODIFIER_ROLE).matches(otherExpression.getChildrenByRole(MODIFIER_ROLE), match));
         }
 
         return false;

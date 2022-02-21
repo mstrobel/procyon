@@ -238,9 +238,12 @@ public final class DecompilerHelpers {
     }
 
     public static void writeDynamicCallSite(final ITextOutput output, final DynamicCallSite operand) {
+        writeMethodHandle(output, operand.getBootstrapMethodHandle());
+        output.write(", ");
         output.writeReference(operand.getMethodName(), operand.getMethodType());
         output.writeDelimiter(":");
         writeMethodSignature(output, operand.getMethodType());
+        writeOperandList(output, operand.getBootstrapArguments());
     }
 
     public static String offsetToString(final int offset) {
@@ -427,6 +430,15 @@ public final class DecompilerHelpers {
         }
     }
 
+    private static void writeOperandList(final ITextOutput writer, final List<?> operands) {
+        for (int i = 0, n = operands.size(); i < n; i++) {
+            if (i != 0) {
+                writer.write(", ");
+            }
+            writeOperand(writer, operands.get(i));
+        }
+    }
+
     private static void formatMethodSignature(
         final ITextOutput writer,
         final IMethodSignature signature,
@@ -545,8 +557,8 @@ public final class DecompilerHelpers {
             }
         }
 
-        if (type instanceof CompoundTypeReference) {
-            final CompoundTypeReference compoundType = (CompoundTypeReference) type;
+        if (type instanceof ICompoundType) {
+            final ICompoundType compoundType = (ICompoundType) type;
             final TypeReference baseType = compoundType.getBaseType();
             final List<TypeReference> interfaces = compoundType.getInterfaces();
 

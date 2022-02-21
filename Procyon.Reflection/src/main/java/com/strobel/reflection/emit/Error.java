@@ -158,7 +158,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException invalidCast(final Type sourceType, final Type targetType) {
+    public static RuntimeException invalidCast(final Type<?> sourceType, final Type<?> targetType) {
         return new RuntimeException(
             format(
                 "Cannot cast from '%s' to '%s'.",
@@ -217,6 +217,10 @@ final class Error {
 
     public static RuntimeException typeNameTooLong() {
         return new IllegalArgumentException("The specified name is too long.");
+    }
+
+    public static RuntimeException packageAccessRequired() {
+        return new IllegalArgumentException("A `MethodHandles.Lookup` instance with package access is required to define a new type.");
     }
 
     public static RuntimeException baseTypeCannotBeInterface() {
@@ -316,7 +320,7 @@ final class Error {
     }
 
     public static RuntimeException attributeValueIncompatible(final Type<?> attributeType, final Type<?> valueType) {
-        if (valueType == null || valueType == Type.NullType) {
+        if (valueType == null || valueType == Type.nullType()) {
             return new IllegalArgumentException(
                 format(
                     "A null value is invalid for a attribute of type '%s'.",
@@ -434,7 +438,7 @@ final class Error {
         return new IllegalStateException("An error occurred during code generation.", t);
     }
 
-    public static RuntimeException notGenericType(final Type type) {
+    public static RuntimeException notGenericType(final Type<?> type) {
         return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic type.",

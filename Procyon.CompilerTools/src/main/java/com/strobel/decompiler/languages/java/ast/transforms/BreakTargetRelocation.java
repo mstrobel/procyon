@@ -52,9 +52,8 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
-        super.visitMethodDeclaration(node, p);
+    protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
+        super.visitMethodDeclarationOverride(node, p);
 
         runForMethod(node);
 
@@ -120,25 +119,27 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
 
         final List<Stack<AstNode>> paths = new ArrayList<>();
 
-        for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
-            paths.add(buildPath(gotoStatement));
-        }
+        rebuildPaths(paths, labelInfo);
+
+        final Statement gotoCommonAncestor = findLowestCommonAncestor(paths);
+
+        rebuildPaths(paths, labelInfo);
 
         paths.add(buildPath(label));
 
         final Statement commonAncestor = findLowestCommonAncestor(paths);
 
-        if (commonAncestor instanceof SwitchStatement &&
-            labelInfo.gotoStatements.size() == 1 &&
-            label.getParent() instanceof BlockStatement &&
-            label.getParent().getParent() instanceof SwitchSection &&
-            label.getParent().getParent().getParent() == commonAncestor) {
+        if (commonAncestor instanceof SwitchStatement && !labelInfo.gotoStatements.isEmpty()) {
+            final SwitchSection parentSection = gotoCommonAncestor.getParent(SwitchSection.class);
+            final SwitchSection targetSection = label.getParent(SwitchSection.class);
 
-            final GotoStatement s = labelInfo.gotoStatements.get(0);
-
-            if (s.getParent() instanceof BlockStatement &&
-                s.getParent().getParent() instanceof SwitchSection &&
-                s.getParent().getParent().getParent() == commonAncestor) {
+            if (parentSection != null &&
+                targetSection != null &&
+                parentSection.getParent() == commonAncestor &&
+                targetSection.getParent() == commonAncestor &&
+                label.getParent() instanceof BlockStatement &&
+                label.getParent().getParent() == targetSection &&
+                label.getParent().getParent().getParent() == commonAncestor) {
 
                 //
                 // We have a switch section that should fall through to another section.
@@ -147,38 +148,77 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                 //
 
                 final SwitchStatement parentSwitch = (SwitchStatement) commonAncestor;
+                final SwitchSection nextSection = parentSection.getNextSibling(SwitchStatement.SWITCH_SECTION_ROLE);
 
-                final SwitchSection targetSection = (SwitchSection) label.getParent().getParent();
-                final BlockStatement fallThroughBlock = (BlockStatement) s.getParent();
-                final SwitchSection fallThroughSection = (SwitchSection) fallThroughBlock.getParent();
+                if (nextSection == null || nextSection != targetSection) {
+                    parentSection.remove();
+                    parentSwitch.getSwitchSections().insertBefore(targetSection, parentSection);
+                }
 
-                if (fallThroughSection.getNextSibling() != targetSection) {
-                    fallThroughSection.remove();
-                    parentSwitch.getSwitchSections().insertBefore(targetSection, fallThroughSection);
+                BlockStatement fallThroughBlock = gotoCommonAncestor instanceof BlockStatement ? (BlockStatement) gotoCommonAncestor
+                                                                                               : gotoCommonAncestor.getParent(BlockStatement.class);
+
+                if (fallThroughBlock != null && !parentSection.isAncestorOf(fallThroughBlock)) {
+                    fallThroughBlock = null;
                 }
 
                 final BlockStatement parentBlock = (BlockStatement) label.getParent();
 
-                s.remove();
-                label.remove();
+                if (fallThroughBlock != null) {
+                    //
+                    // TODO: If end of parent block matches `{ if (...) { ...; goto L; } ...; goto L }, convert to
+                    //       `if/else` and remove the `goto` statements.  The alternative is ugly, but at least it's
+                    //       _correct_, unlike prior versions when we ended up skipping the fall-through entirely.
+                    //
 
-                if (fallThroughBlock.getStatements().isEmpty()) {
-                    fallThroughBlock.remove();
+                    label.remove();
+
+                    final GotoStatement firstGoto;
+
+                    if (labelInfo.gotoStatements.size() == 1 &&
+                        (firstGoto = labelInfo.gotoStatements.get(0)).getNextSibling() == null &&
+                        firstGoto.getParent() == fallThroughBlock) {
+
+                        //
+                        // If we had a single `goto`, and it was at the end of the switch section, remove the `goto`.
+                        //
+                        firstGoto.remove();
+
+                        //
+                        // If the `goto` removal left us with an empty section, remove the block.
+                        //
+                        if (fallThroughBlock.getStatements().isEmpty()) {
+                            fallThroughBlock.remove();
+                        }
+                    }
+                    else {
+                        //
+                        // Otherwise, move the label to the `goto` statements' parent block.  Convert the `goto`
+                        // statements to `break`.
+                        //
+                        final LabeledStatement replacement = new LabeledStatement(Expression.MYSTERY_OFFSET, labelInfo.name);
+
+                        fallThroughBlock.replaceWith(replacement);
+                        replacement.setStatement(fallThroughBlock);
+
+                        for (final GotoStatement statement : labelInfo.gotoStatements) {
+                            statement.replaceWith(new BreakStatement(statement.getOffset(), statement.getLabel()));
+                        }
+                    }
+
+                    //
+                    // If the removal of the label left the target block empty, remove the block.
+                    //
+                    if (parentBlock.getStatements().isEmpty()) {
+                        parentBlock.remove();
+                    }
+
+                    return;
                 }
-
-                if (parentBlock.getStatements().isEmpty()) {
-                    parentBlock.remove();
-                }
-
-                return;
             }
         }
 
-        paths.clear();
-
-        for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
-            paths.add(buildPath(gotoStatement));
-        }
+        rebuildPaths(paths, labelInfo);
 
         paths.add(buildPath(label));
 
@@ -364,6 +404,14 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         }
     }
 
+    private void rebuildPaths(final List<Stack<AstNode>> paths, final LabelInfo labelInfo) {
+        paths.clear();
+
+        for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
+            paths.add(buildPath(gotoStatement));
+        }
+    }
+
     private boolean convertToContinue(final BlockStatement parent, final LabelInfo labelInfo, final List<Stack<AstNode>> paths) {
         if (!AstNode.isLoop(parent.getParent())) {
             return false;
@@ -537,6 +585,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         return false;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     private BlockStatement findLowestCommonAncestorBlock(final List<Stack<AstNode>> paths) {
         if (paths.isEmpty()) {
             return null;
@@ -587,6 +636,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         return match;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     private Statement findLowestCommonAncestor(final List<Stack<AstNode>> paths) {
         if (paths.isEmpty()) {
             return null;

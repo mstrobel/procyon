@@ -18,6 +18,8 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
+import com.strobel.assembler.ir.attributes.ModuleDependency;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ast.AstCode;
@@ -57,6 +59,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final Ansi _type;
     private final Ansi _typeVariable;
     private final Ansi _package;
+    private final Ansi _module;
     private final Ansi _method;
     private final Ansi _field;
     private final Ansi _local;
@@ -91,6 +94,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         _type = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 25 : 45), null);
         _typeVariable = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 29 : 79), null);
         _package = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 32 : 111), null);
+        _module = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 38 : 117), null);
         _method = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 162 : 212), null);
         _field = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 136 : 222), null);
         _local = new Ansi(Ansi.Attribute.NORMAL, (Ansi.AnsiColor) null, null);
@@ -186,9 +190,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         else if (definition instanceof TypeReference) {
             colorizedText = colorizeType(text, (TypeReference) definition);
         }
-        else if (definition instanceof MethodReference ||
-                 definition instanceof IMethodSignature) {
-
+        else if (definition instanceof IMethodSignature) {
             colorizedText = colorize(text, _method);
         }
         else if (definition instanceof FieldReference) {
@@ -234,9 +236,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         else if (reference instanceof TypeReference) {
             colorizedText = colorizeType(text, (TypeReference) reference);
         }
-        else if (reference instanceof MethodReference ||
-                 reference instanceof IMethodSignature) {
-
+        else if (reference instanceof IMethodSignature) {
             colorizedText = colorize(text, _method);
         }
         else if (reference instanceof FieldReference) {
@@ -251,6 +251,12 @@ public class AnsiTextOutput extends PlainTextOutput {
         else if (reference instanceof PackageReference) {
             colorizedText = colorizePackage(text);
         }
+        else if (reference instanceof ModuleAttribute ||
+                 reference instanceof ModuleDependency ||
+                 reference instanceof ModuleReference) {
+
+            colorizedText = colorize(text, _module);
+        }
         else if (reference instanceof Label ||
                  reference instanceof com.strobel.decompiler.ast.Label) {
 
@@ -263,7 +269,6 @@ public class AnsiTextOutput extends PlainTextOutput {
         writeAnsi(text, colorizedText);
     }
 
-    @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
         return colorizeTypeCore(new StringBuilder(), text, type).toString();
     }
@@ -359,6 +364,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         return sb;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     private StringBuilder colorizeDelimitedName(final StringBuilder sb, final String typeName, final Ansi typeColor) {
         final int end = typeName.length();
 
@@ -375,6 +381,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             switch (ch) {
                 case '[':
                 case '.':
+                case '/':
                 case '$':
                     sb.append(colorize(typeName.substring(start, i), typeColor));
                     sb.append(colorize(Delimiters.get(ch), _delimiter));
@@ -393,25 +400,8 @@ public class AnsiTextOutput extends PlainTextOutput {
     }
 
     private String colorizePackage(final String text) {
-        final String[] packageParts = text.split("\\.");
         final StringBuilder sb = new StringBuilder(text.length() * 2);
-
-        for (int i = 0; i < packageParts.length; i++) {
-            if (i != 0) {
-                sb.append(colorize(".", _delimiter));
-            }
-
-            final String packagePart = packageParts[i];
-
-            if ("*".equals(packagePart)) {
-                sb.append(packagePart);
-            }
-            else {
-                sb.append(colorize(packagePart, _package));
-            }
-        }
-
-        return sb.toString();
+        return colorizeDelimitedName(sb, text, _package).toString();
     }
 
     public enum ColorScheme {

@@ -18,7 +18,7 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.io.PrintStream;
-import java.security.cert.PolicyQualifierInfo;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -85,7 +85,8 @@ public abstract class AbstractExpressionTest {
     }
 
     @Before
-    public void setUp() throws Throwable {
+    public void setUp() {
+        ExpressionContext.create(MethodHandles.lookup()).push();
         final OutputInfo outputInfo = THREAD_OUT.get();
         outputInfo.systemStream = System.out;
         System.setOut(outputInfo.recorderStream);
@@ -93,7 +94,8 @@ public abstract class AbstractExpressionTest {
     }
 
     @After
-    public void tearDown() throws Throwable {
+    public void tearDown() {
+        ExpressionContext.current().pop();
         final OutputInfo outputInfo = THREAD_OUT.get();
         outputInfo.recorder.reset();
         System.setOut(outputInfo.systemStream);

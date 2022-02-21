@@ -26,4 +26,46 @@ public enum MethodHandleType {
     InvokeSpecial,
     NewInvokeSpecial,
     InvokeInterface;
+
+    public boolean isStatic() {
+        return this == InvokeStatic ||
+               this == GetStatic ||
+               this == PutStatic;
+    }
+
+    public boolean isField() {
+        return this == GetField ||
+               this == PutField ||
+               this == GetStatic ||
+               this == PutStatic;
+    }
+
+    public String lookupMethodName() {
+        // @formatter:off
+        switch (this) {
+            case GetField:          return "findGetter";
+            case GetStatic:         return "findStaticGetter";
+            case PutField:          return "findSetter";
+            case PutStatic:         return "findStaticSetter";
+            case InvokeStatic:      return "findStatic";
+            case InvokeSpecial:     return "findSpecial";
+            case NewInvokeSpecial:  return "findConstructor";
+            default:                return "findVirtual";
+        }
+        // @formatter:off
+    }
+
+    public String lookupDescriptor() {
+        // @formatter:off
+        switch (this) {
+            case GetField:
+            case GetStatic:
+            case PutField:
+            case PutStatic:         return "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;";
+            case InvokeSpecial:     return "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;";
+            case NewInvokeSpecial:  return "(Ljava/lang/Class;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;";
+            default:                return "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;";
+        }
+        // @formatter:off
+    }
 }

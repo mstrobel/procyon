@@ -16,6 +16,9 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
@@ -65,7 +68,7 @@ public abstract class AstType extends AstNode {
 
         @Override
         public TypeReference toTypeReference() {
-            throw ContractUtils.unreachable();
+            return BuiltinTypes.Null;
         }
     }
 
@@ -105,7 +108,7 @@ public abstract class AstType extends AstNode {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return _child.matchesCollection(role, position, match, backtrackingInfo);
         }
     }
@@ -132,6 +135,10 @@ public abstract class AstType extends AstNode {
         return composedType;
     }
 
+    public ClassOfExpression classOf() {
+        return new ClassOfExpression(Expression.MYSTERY_OFFSET, this);
+    }
+
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
         return makeReference().invoke(methodName, arguments);
     }
@@ -148,8 +155,31 @@ public abstract class AstType extends AstNode {
         return makeReference().invoke(methodName, typeArguments, arguments);
     }
 
+
+    public InvocationExpression invoke(final MethodReference methodReference, final Expression... arguments) {
+        return makeReference().invoke(methodReference, arguments);
+    }
+
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<Expression> arguments) {
+        return makeReference().invoke(methodReference, arguments);
+    }
+
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<AstType> typeArguments, final Expression... arguments) {
+        return makeReference().invoke(methodReference, typeArguments, arguments);
+    }
+
+    public InvocationExpression invoke(final MethodReference methodReference, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
+        return makeReference().invoke(methodReference, typeArguments, arguments);
+    }
+
     public MemberReferenceExpression member(final String memberName) {
         return makeReference().member(memberName);
+    }
+
+    public MemberReferenceExpression member(final FieldReference member) {
+        final MemberReferenceExpression r = makeReference().member(member.getName());
+        r.putUserData(Keys.MEMBER_REFERENCE, member);
+        return r;
     }
 
     public TypeReferenceExpression makeReference() {

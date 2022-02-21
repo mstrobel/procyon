@@ -25,6 +25,8 @@ import com.strobel.core.VerifyArgument;
 
 import java.util.List;
 
+import static com.strobel.core.CollectionUtilities.lastOrDefault;
+
 /**
  * @author Mike Strobel
  */
@@ -265,14 +267,13 @@ public abstract class MetadataReader {
                     if (methodParameters != arguments.length + 3) {
                         final MethodDefinition resolved = bootstrapMethod.resolve();
 
-                        final int varArgsAdjustment;
-                        
-                        if(resolved == null || !resolved.isVarArgs()) {
-                            varArgsAdjustment = 0;
-                        }
-                        else {
-                            varArgsAdjustment = 1;
-                        }
+                        ParameterDefinition lastParameter;
+
+                        final boolean varArgs = resolved != null ? resolved.isVarArgs()
+                                                                 : ((lastParameter = lastOrDefault(parameters)) != null &&
+                                                                    lastParameter.getParameterType().isArray());
+
+                        final int varArgsAdjustment = varArgs ? 1 : 0;
 
                         final int varArgsAdjustedMethodParameters = methodParameters - varArgsAdjustment;
 

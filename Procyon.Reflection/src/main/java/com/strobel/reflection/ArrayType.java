@@ -31,7 +31,6 @@ final class ArrayType<T> extends Type<T> {
 
     private Class<T> _erasedClass;
 
-    @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
     }
@@ -87,7 +86,7 @@ final class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         if (_elementType.isGenericTypeDefinition()) {
             return this;
         }
@@ -100,7 +99,7 @@ final class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
@@ -125,7 +124,7 @@ final class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
         return null;
     }
 

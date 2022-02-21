@@ -113,7 +113,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+    protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
         final MethodDefinition oldInitializer = _currentInitializerMethod;
         final MethodDefinition oldConstructor = _currentConstructor;
 
@@ -129,7 +129,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
         }
 
         try {
-            return super.visitMethodDeclaration(node, p);
+            return super.visitMethodDeclarationOverride(node, p);
         }
         finally {
             _currentConstructor = oldConstructor;

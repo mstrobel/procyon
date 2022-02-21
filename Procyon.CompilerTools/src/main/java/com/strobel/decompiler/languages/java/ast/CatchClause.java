@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
 import com.strobel.decompiler.patterns.INode;
@@ -23,7 +24,10 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
+import java.util.Collection;
+
 public class CatchClause extends AstNode {
+    public final static CatchClause NULL = new NullCatchClause();
     public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch", TokenRole.FLAG_KEYWORD);
 
     public CatchClause() {
@@ -63,6 +67,22 @@ public class CatchClause extends AstNode {
 
     public final void setVariableNameToken(final Identifier value) {
         setChildByRole(Roles.IDENTIFIER, value);
+    }
+
+    public final AstNodeCollection<JavaModifierToken> getVariableModifiers() {
+        return getChildrenByRole(EntityDeclaration.MODIFIER_ROLE);
+    }
+
+    public final void addVariableModifier(final Flags.Flag modifier) {
+        EntityDeclaration.addModifier(this, modifier);
+    }
+
+    public final void setVariableModifiers(final Collection<Flags.Flag> modifiers) {
+        EntityDeclaration.setModifiers(this, modifiers);
+    }
+
+    public final void removeVariableModifier(final Flags.Flag modifier) {
+        EntityDeclaration.removeModifier(this, modifier);
     }
 
     public final BlockStatement getBody() {
@@ -127,7 +147,7 @@ public class CatchClause extends AstNode {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
 
@@ -138,4 +158,25 @@ public class CatchClause extends AstNode {
     }
 
     // </editor-fold>
+
+    private static final class NullCatchClause extends CatchClause {
+        public NullCatchClause() {
+            super();
+        }
+
+        @Override
+        public final boolean isNull() {
+            return true;
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return null;
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+    }
 }

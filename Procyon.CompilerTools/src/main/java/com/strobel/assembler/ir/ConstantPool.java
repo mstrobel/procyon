@@ -403,8 +403,15 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
                 case MethodType:
                     new MethodTypeEntry(pool, b.readUnsignedShort());
                     break;
+                case DynamicConstant:
                 case InvokeDynamicInfo:
                     new InvokeDynamicInfoEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+                case Module:
+                    new ModuleEntry(pool, b.readUnsignedShort());
+                    break;
+                case Package:
+                    new PackageEntry(pool, b.readUnsignedShort());
                     break;
             }
         }
@@ -520,7 +527,10 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         NameAndTypeDescriptor(12),
         MethodHandle(15),
         MethodType(16),
-        InvokeDynamicInfo(18);
+        DynamicConstant(17),
+        InvokeDynamicInfo(18),
+        Module(19),
+        Package(20);
 
         public final int value;
 
@@ -529,16 +539,20 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         }
 
         public static Tag fromValue(final int value) {
-            VerifyArgument.inRange(Tag.Utf8StringConstant.value, Tag.InvokeDynamicInfo.value, value, "value");
+            VerifyArgument.inRange(minTag.value, maxTag.value, value, "value");
             return lookup[value];
         }
 
+        private final static Tag minTag;
+        private final static Tag maxTag;
         private final static Tag[] lookup;
 
         static {
             final Tag[] values = Tag.values();
 
-            lookup = new Tag[Tag.InvokeDynamicInfo.value + 1];
+            minTag = values[0];
+            maxTag = values[values.length - 1];
+            lookup = new Tag[maxTag.value + 1];
 
             for (final Tag tag : values) {
                 lookup[tag.value] = tag;
@@ -566,6 +580,8 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         void visitMethodType(MethodTypeEntry info);
         void visitStringConstant(StringConstantEntry info);
         void visitUtf8StringConstant(Utf8StringConstantEntry info);
+        void visitModule(ModuleEntry info);
+        void visitPackage(PackageEntry info);
         void visitEnd();
 
         // <editor-fold defaultstate="collapsed" desc="Empty Visitor (No-Op)">
@@ -629,6 +645,14 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
 
             @Override
             public void visitUtf8StringConstant(final Utf8StringConstantEntry info) {
+            }
+
+            @Override
+            public void visitModule(final ModuleEntry info) {
+            }
+
+            @Override
+            public void visitPackage(final PackageEntry info) {
             }
 
             @Override
@@ -743,6 +767,18 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         public void visitUtf8StringConstant(final Utf8StringConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeUtf8(info.value);
+        }
+
+        @Override
+        public void visitModule(final ModuleEntry info) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.nameIndex);
+        }
+
+        @Override
+        public void visitPackage(final PackageEntry info) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.nameIndex);
         }
 
         @Override
@@ -1070,6 +1106,96 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
                    ", nameAndTypeDescriptorIndex: " +
                    nameAndTypeDescriptorIndex +
                    "]";
+        }
+    }
+
+    public static class ModuleEntry extends ConstantEntry {
+
+        public final int nameIndex;
+
+        public ModuleEntry(final ConstantPool owner, final int nameIndex) {
+            super(owner);
+
+            this.nameIndex = nameIndex;
+            owner._newKey.set(getTag(), nameIndex);
+            owner._entryMap.put(owner._newKey.clone(), this);
+            owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.Module, nameIndex);
+        }
+
+        public Tag getTag() {
+            return Tag.Module;
+        }
+
+        public int byteLength() {
+            return 3;
+        }
+
+        public String getName() {
+            return ((Utf8StringConstantEntry) owner.get(nameIndex, Tag.Utf8StringConstant)).value;
+        }
+
+        public void accept(final Visitor visitor) {
+            visitor.visitModule(this);
+        }
+
+        @Override
+        public String toString() {
+            return "ModuleEntry[nameIndex: " + nameIndex + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return getName();
+        }
+    }
+    
+    public static class PackageEntry extends ConstantEntry {
+
+        public final int nameIndex;
+
+        public PackageEntry(final ConstantPool owner, final int nameIndex) {
+            super(owner);
+
+            this.nameIndex = nameIndex;
+            owner._newKey.set(getTag(), nameIndex);
+            owner._entryMap.put(owner._newKey.clone(), this);
+            owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.Package, nameIndex);
+        }
+
+        public Tag getTag() {
+            return Tag.Package;
+        }
+
+        public int byteLength() {
+            return 3;
+        }
+
+        public String getName() {
+            return ((Utf8StringConstantEntry) owner.get(nameIndex, Tag.Utf8StringConstant)).value;
+        }
+
+        public void accept(final Visitor visitor) {
+            visitor.visitPackage(this);
+        }
+
+        @Override
+        public String toString() {
+            return "PackageEntry[nameIndex: " + nameIndex + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return getName();
         }
     }
 

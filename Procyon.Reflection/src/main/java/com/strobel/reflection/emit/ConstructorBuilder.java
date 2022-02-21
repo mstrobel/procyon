@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("PackageVisibleField")
+@SuppressWarnings({ "PackageVisibleField", "DuplicatedCode" })
 public final class ConstructorBuilder extends ConstructorInfo {
     private final MethodBuilder _methodBuilder;
 
@@ -35,7 +35,7 @@ public final class ConstructorBuilder extends ConstructorInfo {
         final int modifiers,
         final TypeList parameterTypes,
         final TypeList thrownTypes,
-        final TypeBuilder declaringType) {
+        final TypeBuilder<?> declaringType) {
 
         _methodBuilder = new MethodBuilder(
             "<init>",
@@ -126,7 +126,7 @@ public final class ConstructorBuilder extends ConstructorInfo {
             s.append(" throws ");
 
             for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
-                final Type t = thrownTypes.get(i);
+                final Type<?> t = thrownTypes.get(i);
                 if (i != 0) {
                     s.append(", ");
                 }
@@ -175,7 +175,7 @@ public final class ConstructorBuilder extends ConstructorInfo {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _methodBuilder.getReflectedType();
     }
 

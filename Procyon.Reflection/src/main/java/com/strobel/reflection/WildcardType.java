@@ -13,25 +13,27 @@
 
 package com.strobel.reflection;
 
+import com.strobel.core.Fences;
+
 import javax.lang.model.type.TypeKind;
 
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "DoubleCheckedLocking" })
 class WildcardType<T> extends Type<T> {
     private final Type<T> _extendsBound;
-    private final Type _superBound;
+    private final Type<?> _superBound;
     private Class<T> _erasedClass;
 
-    WildcardType(final Type<T> extendsBound, final Type superBound) {
+    WildcardType(final Type<T> extendsBound, final Type<?> superBound) {
         _extendsBound = extendsBound != null ? extendsBound : (Type<T>)Types.Object;
-        _superBound = superBound != null ? superBound : Type.Bottom;
+        _superBound = superBound != null ? superBound : Type.bottomType();
     }
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
-        if (_superBound != Bottom) {
+        if (_superBound != bottomType()) {
             return _superBound.appendSignature(sb.append('-'));
         }
         if (_extendsBound != Types.Object) {
@@ -42,7 +44,7 @@ class WildcardType<T> extends Type<T> {
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        if (_superBound != Bottom) {
+        if (_superBound != bottomType()) {
             sb.append("? super ");
             if (_superBound.isGenericParameter()) {
                 return sb.append(_superBound.getFullName());
@@ -65,7 +67,7 @@ class WildcardType<T> extends Type<T> {
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        if (_superBound != Bottom) {
+        if (_superBound != bottomType()) {
             sb.append("? super ");
             if (_superBound.isGenericParameter()) {
                 return sb.append(_superBound.getName());
@@ -116,8 +118,7 @@ class WildcardType<T> extends Type<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public Object accept(final TypeVisitor visitor, final Object parameter) {
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
         return visitor.visitWildcardType(this, parameter);
     }
 
@@ -131,7 +132,7 @@ class WildcardType<T> extends Type<T> {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
-                    _erasedClass = resolveErasedClass();
+                    _erasedClass = Fences.orderWrites(resolveErasedClass());
                 }
             }
         }
@@ -144,7 +145,7 @@ class WildcardType<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return null;
     }
 
@@ -160,7 +161,7 @@ class WildcardType<T> extends Type<T> {
         }
 
         if (other instanceof WildcardType<?>) {
-            final WildcardType that = (WildcardType)other;
+            final WildcardType<?> that = (WildcardType<?>)other;
 
             return _extendsBound.isEquivalentTo(that._extendsBound) &&
                    _superBound.isEquivalentTo(that._superBound);

@@ -109,7 +109,6 @@ public final class AstBuilder {
 
         LOG.fine("Creating bytecode AST...");
 
-        @SuppressWarnings("UnnecessaryLocalVariable")
         final List<Node> ast = builder.convertToAst(
             byteCode,
             new LinkedHashSet<>(builder._exceptionHandlers),
@@ -151,7 +150,7 @@ public final class AstBuilder {
 
             final Instruction p2 = p1.getPrevious();
 
-            if (p2 == null || !isGetClassInvocation(p2)) {
+            if (!isGetClassInvocation(p2)) {
                 continue;
             }
 
@@ -172,7 +171,6 @@ public final class AstBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void inlineSubroutines() {
         LOG.fine("Inlining subroutines...");
 
@@ -320,7 +318,6 @@ public final class AstBuilder {
         return true;
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void remapHandlersForInlinedSubroutine(
         final Instruction jump,
         final Instruction start,
@@ -374,7 +371,6 @@ public final class AstBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void duplicateHandlersForInlinedSubroutine(final SubroutineInfo subroutine, final Map<Instruction, Instruction> oldToNew) {
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
@@ -420,7 +416,6 @@ public final class AstBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void remapJumps(final Map<Instruction, Instruction> remappedJumps) {
         for (final Instruction instruction : _instructions) {
             if (instruction.hasLabel()) {
@@ -590,6 +585,7 @@ public final class AstBuilder {
 
                 Collections.sort(contents);
 
+                assert start != null;
                 subroutineMap.put(target, info = new SubroutineInfo(start, contents, cfg));
 
                 for (final ExceptionHandler handler : _exceptionHandlers) {
@@ -705,6 +701,7 @@ public final class AstBuilder {
         return null;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static Set<ControlFlowNode> findDominatedNodes(
         final ControlFlowGraph cfg,
         final ControlFlowNode head,
@@ -776,6 +773,7 @@ public final class AstBuilder {
             }
         }
 
+        //noinspection ConstantConditions
         return head.getNodeType() == ControlFlowNodeType.Normal &&
                node.getNodeType() == ControlFlowNodeType.Normal &&
                node.getStart().getNext() == node.getEnd() &&
@@ -785,6 +783,7 @@ public final class AstBuilder {
                InstructionHelper.getLoadOrStoreSlot(head.getStart()) == InstructionHelper.getLoadOrStoreSlot(node.getStart());
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static ControlFlowNode findInnermostExceptionHandlerNode(
         final ControlFlowGraph cfg,
         final int offsetInTryBlock,
@@ -1045,6 +1044,7 @@ public final class AstBuilder {
 //        extendHandlers();
         mergeSharedHandlers();
         alignFinallyBlocksWithSiblingCatchBlocks();
+        removeTryIntersectionsWithPreviousCatch();
         ensureDesiredProtectedRanges();
 
         for (int i = 0; i < handlers.size(); i++) {
@@ -1467,7 +1467,7 @@ public final class AstBuilder {
                             ExceptionHandler.createCatch(
                                 new InstructionBlock(try1.getFirstInstruction(), try2.getLastInstruction()),
                                 h1.getHandlerBlock(),
-                                h1.getCatchType()
+                                UnionType.of(h1.getCatchType(), h2.getCatchType())
                             )
                         );
                     }
@@ -1769,6 +1769,63 @@ public final class AstBuilder {
 //        }
 //    }
 
+    private void removeTryIntersectionsWithPreviousCatch() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+    outer:
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final InstructionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock handlerBlock = handler.getHandlerBlock();
+
+            for (int j = 0; j < handlers.size(); j++) {
+                if (i == j) {
+                    continue;
+                }
+
+                final ExceptionHandler other = handlers.get(j);
+                final InstructionBlock otherHandler = other.getHandlerBlock();
+
+                if (tryBlock.intersects(otherHandler) &&
+                    !tryBlock.contains(otherHandler) &&
+                    !otherHandler.contains(tryBlock) &&
+                    otherHandler.contains(tryBlock.getFirstInstruction()) &&
+                    !otherHandler.contains(tryBlock.getLastInstruction()) &&
+                    otherHandler.getLastInstruction().getNext() != null &&
+                    tryBlock.contains(otherHandler.getLastInstruction().getNext())) {
+
+                    if (handler.isCatch()) {
+                        handlers.set(
+                            i--,
+                            ExceptionHandler.createCatch(
+                                new InstructionBlock(
+                                    otherHandler.getLastInstruction().getNext(),
+                                    tryBlock.getLastInstruction()
+                                ),
+                                handlerBlock,
+                                handler.getCatchType()
+                            )
+                        );
+                    }
+                    else {
+                        handlers.set(
+                            i--,
+                            ExceptionHandler.createFinally(
+                                new InstructionBlock(
+                                    otherHandler.getLastInstruction().getNext(),
+                                    tryBlock.getLastInstruction()
+                                ),
+                                handlerBlock
+                            )
+                        );
+                    }
+
+                    continue outer;
+                }
+            }
+        }
+    }
+
     private static ExceptionHandler findFirstHandler(final InstructionBlock tryBlock, final Collection<ExceptionHandler> handlers) {
         ExceptionHandler result = null;
 
@@ -1827,8 +1884,7 @@ public final class AstBuilder {
                         result.add(other);
                     }
                 }
-                else if (other.isCatch() &&
-                         MetadataHelper.isSameType(other.getCatchType(), handler.getCatchType())) {
+                else if (other.isCatch()) {
                     result.add(other);
                 }
             }
@@ -2459,7 +2515,6 @@ public final class AstBuilder {
                 byteCode.operand = newOperand;
             }
             else if (byteCode.operand instanceof Instruction) {
-                //noinspection SuspiciousMethodCalls
                 byteCode.operand = byteCodeMap.get(byteCode.operand).label;
             }
             else if (byteCode.operand instanceof SwitchInfo) {
@@ -2499,7 +2554,7 @@ public final class AstBuilder {
 
         for (int i = 0; i < oldStack.length; i++) {
             if (oldStack[i].value.getParameter() instanceof Instruction) {
-                final TypeReference initializedType = initializations.get(oldStack[i].value.getParameter());
+                final TypeReference initializedType = initializations.get((Instruction) oldStack[i].value.getParameter());
 
                 if (initializedType != null) {
                     oldStack[i] = new StackSlot(
@@ -2620,7 +2675,6 @@ public final class AstBuilder {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void convertLocalVariables(final ByteCode[] parameterDefinitions, final List<ByteCode> body) {
         final MethodDefinition method = _context.getCurrentMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
@@ -2638,12 +2692,8 @@ public final class AstBuilder {
         }
 
         final Set<Pair<Integer, JvmType>> undefinedSlots = new HashSet<>();
-        final List<VariableReference> varReferences = new ArrayList<>();
+        final List<VariableReference> varReferences = new ArrayList<VariableReference>(variables);
         final Map<String, VariableDefinition> lookup = makeVariableLookup(variables);
-
-        for (final VariableDefinition variableDefinition : variables) {
-            varReferences.add(variableDefinition);
-        }
 
         for (final ByteCode b : body) {
             if (b.operand instanceof VariableReference && !(b.operand instanceof VariableDefinition)) {
@@ -3089,9 +3139,6 @@ public final class AstBuilder {
 
                                 variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
                             }
-                            else if (vDef != null) {
-                                variableType = vDef.getVariableType();
-                            }
                             else {
                                 variableType = BuiltinTypes.Object;
                             }
@@ -3109,12 +3156,7 @@ public final class AstBuilder {
                             variableType = BuiltinTypes.Null;
                             break;
                         default:
-                            if (vDef != null) {
-                                variableType = vDef.getVariableType();
-                            }
-                            else {
-                                variableType = BuiltinTypes.Object;
-                            }
+                            variableType = BuiltinTypes.Object;
                             break;
                     }
 
@@ -3302,7 +3344,6 @@ public final class AstBuilder {
                  .toString();
     }
 
-    @SuppressWarnings("ConstantConditions")
     private List<Node> convertToAst(
         final List<ByteCode> body,
         final Set<ExceptionHandler> exceptionHandlers,
@@ -3467,6 +3508,7 @@ public final class AstBuilder {
                 final ExceptionHandler eh = handlers.get(i);
                 final TypeReference catchType = eh.getCatchType();
                 final InstructionBlock handlerBlock = eh.getHandlerBlock();
+                final ByteCode loadException = _loadExceptions.get(eh);
 
                 final int handlerStart = handlerBlock.getFirstInstruction().getOffset();
 
@@ -3589,7 +3631,6 @@ public final class AstBuilder {
                     tryCatchBlock.getCatchBlocks().add(catchBlock);
                 }
                 else if (eh.isFinally()) {
-                    final ByteCode loadException = _loadExceptions.get(eh);
                     final Block finallyBlock = new Block();
 
                     finallyBlock.getBody().addAll(handlerAst);
@@ -3635,6 +3676,7 @@ public final class AstBuilder {
                 }
             }
 
+            //noinspection SlowAbstractSetRemoveAll
             exceptionHandlers.removeAll(handlers);
 
             final Expression first;
@@ -3686,6 +3728,27 @@ public final class AstBuilder {
         final int handlerStart = handler.getHandlerBlock().getFirstInstruction().getOffset();
 
         if (loadException.storeTo == null || loadException.storeTo.size() != 1) {
+            final Expression saveException = firstOrDefault(ofType(catchBlock.getBody(), Expression.class));
+
+            if (saveException != null && saveException.getCode() == AstCode.Store) {
+                final Variable v = (Variable) saveException.getOperand();
+
+                if (MetadataHelper.isAssignableFrom(v.getType(), catchBlock.getExceptionType())) {
+                    catchBlock.setExceptionVariable(v);
+
+                    final StrongBox<Variable> vb = new StrongBox<>();
+
+                    if (saveException.getArguments().size() == 1 && matchLoad(saveException.getArguments().get(0), vb)) {
+                        if (loadException.storeTo == null) {
+                            loadException.storeTo = new ArrayList<>();
+                        }
+                        loadException.storeTo.add(vb.get());
+                    }
+
+                    return;
+                }
+            }
+
             final Variable exceptionTemp = new Variable();
 
             exceptionTemp.setName(format("ex_%1$02X", handlerStart));
@@ -3740,7 +3803,6 @@ public final class AstBuilder {
         catchBlock.setExceptionVariable(loadException.storeTo.get(0));
     }
 
-    @SuppressWarnings("ConstantConditions")
     private List<Node> convertToAst(final List<ByteCode> body) {
         final ArrayList<Node> ast = new ArrayList<>();
 
@@ -3894,7 +3956,7 @@ public final class AstBuilder {
         }
 
         @Override
-        @SuppressWarnings("CloneDoesntCallSuperClone")
+        @SuppressWarnings("MethodDoesntCallSuperMethod")
         protected final StackSlot clone() {
             return new StackSlot(value, definitions.clone(), loadFrom);
         }
@@ -3934,7 +3996,7 @@ public final class AstBuilder {
         }
 
         @Override
-        @SuppressWarnings("CloneDoesntCallSuperClone")
+        @SuppressWarnings("MethodDoesntCallSuperMethod")
         protected final VariableSlot clone() {
             return new VariableSlot(value, definitions.clone());
         }
@@ -3957,7 +4019,7 @@ public final class AstBuilder {
         int pushCount;
         ByteCode next;
         ByteCode previous;
-        FrameValue type;
+        @SuppressWarnings("unused") FrameValue type;
         StackSlot[] stackBefore;
         VariableSlot[] variablesBefore;
         List<Variable> storeTo;
@@ -3983,7 +4045,6 @@ public final class AstBuilder {
         }
 
         @Override
-        @SuppressWarnings("ConstantConditions")
         public final String toString() {
             final StringBuilder sb = new StringBuilder();
 
@@ -4030,7 +4091,7 @@ public final class AstBuilder {
                         sb.append(variable.getName());
                     }
                     else {
-                        sb.append("$").append(String.valueOf(variable.getSlot()));
+                        sb.append("$").append(variable.getSlot());
                     }
                 }
                 else {
@@ -4145,6 +4206,7 @@ public final class AstBuilder {
 
     // </editor-fold>
 
+    @SuppressWarnings("SlowAbstractSetRemoveAll")
     private final static class FinallyInlining {
         private final MethodBody _body;
         private final InstructionCollection _instructions;
@@ -4300,9 +4362,7 @@ public final class AstBuilder {
         }
 
         private void runCore() {
-            final List<ExceptionHandler> handlers = _exceptionHandlers;
-
-            if (handlers.isEmpty()) {
+            if (_exceptionHandlers.isEmpty()) {
                 return;
             }
 
@@ -4683,9 +4743,8 @@ public final class AstBuilder {
         }
 
         private void preProcess() {
-            final InstructionCollection instructions = _instructions;
             final List<ExceptionHandler> handlers = _exceptionHandlers;
-            final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+            final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(_instructions, handlers);
 
             cfg.computeDominance();
             cfg.computeDominanceFrontier();

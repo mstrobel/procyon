@@ -17,14 +17,7 @@
 package com.strobel.decompiler.patterns;
 
 import com.strobel.core.StringUtilities;
-import com.strobel.decompiler.languages.java.ast.AstNode;
-import com.strobel.decompiler.languages.java.ast.AstType;
-import com.strobel.decompiler.languages.java.ast.BlockStatement;
-import com.strobel.decompiler.languages.java.ast.CatchClause;
-import com.strobel.decompiler.languages.java.ast.Expression;
-import com.strobel.decompiler.languages.java.ast.ParameterDeclaration;
-import com.strobel.decompiler.languages.java.ast.Statement;
-import com.strobel.decompiler.languages.java.ast.VariableInitializer;
+import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.Stack;
 
@@ -63,6 +56,10 @@ public abstract class Pattern implements INode {
         return ParameterDeclaration.forPattern(this);
     }
 
+    public final MethodDeclaration toMethodDeclaration() {
+        return MethodDeclaration.forPattern(this);
+    }
+
     public final AstType toType() {
         return AstType.forPattern(this);
     }
@@ -73,7 +70,7 @@ public abstract class Pattern implements INode {
     }
 
     @Override
-    public Role getRole() {
+    public Role<?> getRole() {
         return null;
     }
 
@@ -91,7 +88,7 @@ public abstract class Pattern implements INode {
     public abstract boolean matches(final INode other, final Match match);
 
     @Override
-    public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+    public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
         return matches(position, match);
     }
 

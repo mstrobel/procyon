@@ -25,7 +25,7 @@ public enum AstOptimizationStep {
     SplitToMovableBlocks,
     RemoveUnreachableBlocks,
     TypeInference,
-    RemoveInnerClassInitSecurityChecks,
+    RemoveInnerClassAccessNullChecks,
     PreProcessShortCircuitAssignments,
     SimplifyShortCircuit,
     JoinBranchConditions,
@@ -60,7 +60,7 @@ public enum AstOptimizationStep {
 
     public boolean isBlockLevelOptimization() {
         switch (this) {
-            case RemoveInnerClassInitSecurityChecks:
+            case RemoveInnerClassAccessNullChecks:
             case SimplifyShortCircuit:
             case SimplifyTernaryOperator:
             case JoinBasicBlocks:

@@ -31,6 +31,32 @@ public final class Comparer {
                           : o1.equals(o2);
     }
 
+    public static <T> T coalesce(final T o1, final T o2) {
+        return o1 != null ? o1 : o2;
+    }
+
+    public static <T> T coalesce(final T o1, final T o2, final T o3) {
+        return o1 != null ? o1 : (o2 != null ? o2 : o3);
+    }
+
+    public static <T> T coalesce(final T o1, final T o2, final T o3, final T o4) {
+        return o1 != null ? o1 : (o2 != null ? o2 : (o3 != null ? o3 : o4));
+    }
+
+    public static <T> T coalesce(final T... items) {
+        if (ArrayUtilities.isNullOrEmpty(items)) {
+            return null;
+        }
+
+        for (final T item : items) {
+            if (item != null) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
     public static <T> boolean referenceEquals(final T o1, final T o2) {
         return o1 == o2;
     }
@@ -156,5 +182,13 @@ public final class Comparer {
         }
 
         throw new IllegalArgumentException("Values must be comparable.");
+    }
+
+    public static <T extends Comparable<T>> T min(final T o1, final T o2) {
+        return compare(o1, o2) <= 0 ? o1 : o2;
+    }
+
+    public static <T extends Comparable<T>> T max(final T o1, final T o2) {
+        return compare(o1, o2) >= 0 ? o1 : o2;
     }
 }

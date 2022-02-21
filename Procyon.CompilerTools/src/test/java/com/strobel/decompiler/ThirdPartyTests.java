@@ -1,5 +1,7 @@
 package com.strobel.decompiler;
 
+import com.strobel.assembler.metadata.CompilerTarget;
+import org.junit.Assume;
 import org.junit.Test;
 
 public class ThirdPartyTests extends DecompilerTest {
@@ -18,6 +20,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testOptimizedVariables() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("SootOptimizationTest"),
             defaultSettings(),
@@ -72,7 +75,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "                System.out.println(list = (ArrayList)(Object)array2);\n" +
             "                array = (String[])list.toArray(new String[0]);\n" +
             "            }\n" +
-            "            catch (ClassCastException ex) {\n" +
+            "            catch (final ClassCastException ex) {\n" +
             "                array = array;\n" +
             "            }\n" +
             "        }\n" +
@@ -94,6 +97,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testSwitchKrakatau() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("Switch"),
             defaultSettings(),
@@ -143,6 +147,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testWhileLoopsKrakatau() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("WhileLoops"),
             defaultSettings(),
@@ -173,7 +178,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        try {\n" +
             "            main(array[0]);\n" +
             "        }\n" +
-            "        catch (IllegalArgumentException ex) {}\n" +
+            "        catch (final IllegalArgumentException ex) {}\n" +
             "    }\n" +
             "    private static int foo() {\n" +
             "        --WhileLoops.i;\n" +
@@ -278,6 +283,7 @@ public class ThirdPartyTests extends DecompilerTest {
 
     @Test
     public void testUnboxToNumber() throws Throwable {
+        assumePreJdk9();
         verifyOutput(
             Class.forName("UnboxToNumber"),
             defaultSettings(),
@@ -300,7 +306,7 @@ public class ThirdPartyTests extends DecompilerTest {
     }
 
     @Test
-    public void testLiteralAssignments() throws Throwable {
+    public void testLiteralAssignments() {
         verifyOutput(
             "LiteralAssignments",
             defaultSettings(),
@@ -489,7 +495,7 @@ public class ThirdPartyTests extends DecompilerTest {
     }
 
     @Test
-    public void testIssue216GotoWVulnerability() throws Throwable {
+    public void testIssue216GotoWVulnerability() {
         verifyOutput(
             "Issue216GotoWVulnerability",
             defaultSettings(),
@@ -500,14 +506,14 @@ public class ThirdPartyTests extends DecompilerTest {
             "            fileOutputStream.write(\"notch|2014-10-27 13:04:54 +0000|CONSOLE|Forever|hi\\n\".getBytes());\n" +
             "            fileOutputStream.close();\n" +
             "        }\n" +
-            "        catch (Exception ex) {}\n" +
+            "        catch (final Exception ex) {}\n" +
             "    }\n" +
             "}"
         );
     }
 
     @Test
-    public void testJsrWithoutRet() throws Throwable {
+    public void testJsrWithoutRet() {
         verifyOutput(
             "JsrWithoutRet",
             defaultSettings(),
@@ -657,5 +663,34 @@ public class ThirdPartyTests extends DecompilerTest {
             "    }\n" +
             "}"
         );
+    }
+
+    @Test
+    public void testGitHubIssue2() throws Exception {
+        verifyOutput(
+            Class.forName("GitHubIssue2"),
+            defaultSettings(),
+            "class GitHubIssue2 {\n" +
+            "    void lambdaHell() {\n" +
+            "        this.stream().flatMap(string -> {\n" +
+            "            final Consumer consumer = foo -> {};\n" +
+            "            return this.stream().map(list -> new EvilClass(\"\", consumer));\n" +
+            "        });\n" +
+            "    }\n" +
+            "    <T> Stream<T> stream() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    static class EvilClass {\n" +
+            "        EvilClass(final String id, final Consumer consumer) {\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    private static void assumePreJdk9() {
+        Assume.assumeTrue("This test currently only functions correctly under JDK 7 or 8.",
+                           CompilerTarget.DEFAULT.compareTo(CompilerTarget.JDK1_7) >= 0 &&
+                           CompilerTarget.DEFAULT.compareTo(CompilerTarget.JDK1_8) <= 0);
     }
 }

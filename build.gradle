@@ -25,7 +25,7 @@ ext.getProcyonVersion = { ->
         }
     }
 
-    logger.warn("wARNING: Could not resolve version from source; falling back to '$fallbackVersion'.")
+    logger.warn("WARNING: Could not resolve version from source; falling back to '$fallbackVersion'.")
 
     return fallbackVersion
 }
@@ -41,7 +41,7 @@ allprojects {
 
     version procyonVersion
 
-    group 'org.bitbucket.mstrobel'
+    group 'com.github.mstrobel'
     sourceCompatibility = 1.7    // JDK version
 
     repositories {
@@ -49,7 +49,7 @@ allprojects {
     }
 
     dependencies {
-        testCompile 'junit:junit:4.11'
+        testCompile 'junit:junit:4.13.2'
     }
 }
 
@@ -57,11 +57,14 @@ allprojects {
 // The root project is empty and doesn't need any tasks.
 //
 rootProject.tasks.each { it.enabled = false }
+rootProject.tasks.withType(DefaultTask).each { it.enabled = true }
 rootProject.uploadArchives.enabled = false
 
 subprojects {
     apply plugin: 'maven'
     apply plugin: 'signing'
+
+    final boolean shouldSign = "true".equalsIgnoreCase(System.properties.getProperty("procyon.signing.enabled"))
 
     archivesBaseName = "procyon-${(it.name as String).split('\\.')[1].toLowerCase()}"
 
@@ -118,7 +121,12 @@ subprojects {
         }
     }
 
-    if (project.name != "Procyon.Decompiler") {
+    if (project.name == "Procyon.Decompiler") {
+        artifacts {
+            archives jar
+        }
+    }
+    else {
         javadoc {
             options.encoding = 'UTF-8'
         }
@@ -129,21 +137,28 @@ subprojects {
             archives sourcesJar
         }
 
-        signing {
-            sign configurations.archives
+        if (shouldSign) {
+            signing {
+                sign configurations.archives
+            }
         }
 
         uploadArchives {
             repositories.mavenDeployer {
-                beforeDeployment { MavenDeployment deployment ->
-                    signing.signPom(deployment)
+                if (shouldSign) {
+                    beforeDeployment { MavenDeployment deployment ->
+                        signing.signPom(deployment)
+                    }
                 }
+
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
+                    authentication(userName: project.properties.get("procyon.sonatype.username"),
+                                   password: project.properties.get("procyon.sonatype.password"))
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
+                    authentication(userName: project.properties.get("procyon.sonatype.username"),
+                                   password: project.properties.get("procyon.sonatype.password"))
                 }
 
                 pom {
@@ -155,17 +170,17 @@ subprojects {
                         name project.archivesBaseName
                         packaging 'jar'
                         description 'Procyon'
-                        url 'https://bitbucket.org/mstrobel/procyon'
+                        url 'https://github.com/mstrobel/procyon'
 
                         scm {
-                            url 'https://bitbucket.org/mstrobel/procyon'
-                            connection 'scm:hg:https://hg@bitbucket.org/mstrobel/procyon'
-                            developerConnection 'scm:hg:https://mstrobel@bitbucket.org/mstrobel/procyon'
+                            url 'https://github.com/mstrobel/procyon'
+                            connection 'scm:git:https://github.com/mstrobel/procyon.git'
+                            developerConnection 'scm:git:https://mstrobel@github.com/mstrobel/procyon.git'
                         }
 
                         issueManagement {
-                            system 'jira'
-                            url 'https://bitbucket.org/mstrobel/procyon/issues'
+                            system 'github'
+                            url 'https://github.com/mstrobel/procyon/issues'
                         }
 
                         licenses {
@@ -203,4 +218,3 @@ subprojects {
         }
     }
 }
-

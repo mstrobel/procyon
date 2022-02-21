@@ -16,10 +16,14 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.metadata.CompilerTarget;
+import com.strobel.assembler.metadata.LanguageFeature;
 import com.strobel.assembler.metadata.IMemberDefinition;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.BooleanBox;
 
@@ -64,6 +68,7 @@ public final class DecompilerContext extends UserDataStoreBase {
 
     public void setCurrentType(final TypeDefinition currentType) {
         _currentType = currentType;
+        isSupported(LanguageFeature.TEXT_BLOCKS);
     }
 
     public MethodDefinition getCurrentMethod() {
@@ -80,5 +85,43 @@ public final class DecompilerContext extends UserDataStoreBase {
 
     public Set<IMemberDefinition> getForcedVisibleMembers() {
         return _forcedVisibleMembers;
+    }
+
+    public boolean isSupported(final @NotNull LanguageFeature feature) {
+        return isSupported(_currentType, feature);
+    }
+
+    public boolean isSupported(final TypeDefinition versionSource, final @NotNull LanguageFeature feature) {
+        final boolean allowPreview = _settings.arePreviewFeaturesEnabled();
+
+        CompilerTarget target = _settings.getForcedCompilerTarget();
+
+        if (target == null && versionSource != null) {
+            target = versionSource.getCompilerTarget();
+        }
+
+        if (target == null) {
+            target = CompilerTarget.DEFAULT;
+        }
+
+        return feature.isAvailable(target, allowPreview);
+    }
+
+    public CompilerTarget target() {
+        return target(_currentType);
+    }
+
+    public CompilerTarget target(final TypeDefinition versionSource) {
+        CompilerTarget target = _settings.getForcedCompilerTarget();
+
+        if (target == null && versionSource != null) {
+            target = versionSource.getCompilerTarget();
+        }
+
+        if (target == null) {
+            target = CompilerTarget.DEFAULT;
+        }
+
+        return target;
     }
 }

@@ -151,7 +151,7 @@ public final class ExceptionUtilities {
      */
     @SuppressWarnings({ "unchecked", "JavaDoc" })
     public static <T extends Throwable> RuntimeException rethrow(final Throwable t) throws T {
-        throw (T)t; // rely on vacuous cast
+        throw (T) t; // rely on vacuous cast
     }
 
     /**
@@ -175,6 +175,16 @@ public final class ExceptionUtilities {
      */
     @SuppressWarnings({ "unchecked", "JavaDoc" })
     public static <T extends Throwable, R> R rethrowAs(final Throwable t) throws T {
-        throw (T)t; // rely on vacuous cast
+        throw (T) t; // rely on vacuous cast
+    }
+
+    public static RuntimeException wrapOrThrow(final Throwable t) {
+        if (t instanceof java.lang.Error) {
+            throw (java.lang.Error) t;
+        }
+        if (t instanceof java.lang.RuntimeException) {
+            throw (java.lang.RuntimeException) t;
+        }
+        throw new UndeclaredThrowableException(t);
     }
 }

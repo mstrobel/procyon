@@ -34,7 +34,6 @@ import com.strobel.decompiler.ast.Block;
 import com.strobel.decompiler.ast.Expression;
 import com.strobel.decompiler.ast.Variable;
 
-import javax.lang.model.element.Modifier;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -101,7 +100,6 @@ public class BytecodeAstLanguage extends Language {
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(output, "output");
@@ -191,7 +189,7 @@ public class BytecodeAstLanguage extends Language {
     }
 
     private void writeTypeHeader(final TypeDefinition type, final ITextOutput output) {
-        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+        long flags = type.getFlags() & (Flags.ExtendedClassFlags | Flags.STATIC | Flags.FINAL);
 
         if (type.isInterface()) {
             flags &= ~Flags.ABSTRACT;
@@ -200,7 +198,7 @@ public class BytecodeAstLanguage extends Language {
             flags &= Flags.AccessFlags;
         }
 
-        for (final Modifier modifier : Flags.asModifierSet(flags)) {
+        for (final Flags.Flag modifier : Flags.asFlagSet(flags)) {
             output.writeKeyword(modifier.toString());
             output.write(' ');
         }
@@ -232,7 +230,7 @@ public class BytecodeAstLanguage extends Language {
         }
 
         if (!method.getDeclaringType().isInterface()) {
-            for (final Modifier modifier : Flags.asModifierSet(method.getFlags() & Flags.MethodFlags)) {
+            for (final Flags.Flag modifier : Flags.asFlagSet(method.getFlags() & Flags.MethodFlags)) {
                 output.writeKeyword(modifier.toString());
                 output.write(' ');
             }

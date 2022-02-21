@@ -31,7 +31,7 @@ public final class OptionalNode extends Pattern {
 
     @Override
     public final boolean matchesCollection(
-        final Role role,
+        final Role<?> role,
         final INode position,
         final Match match,
         final BacktrackingInfo backtrackingInfo) {

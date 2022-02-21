@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("DuplicatedCode")
 public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeReference, TypeReference>, TypeReference>
     implements MethodMetadataVisitor<Map<TypeReference, TypeReference>, MethodReference>,
                FieldMetadataVisitor<Map<TypeReference, TypeReference>, FieldReference> {
@@ -98,6 +99,12 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
             return t;
         }
 
+        final TypeReference wcMapping = map.get(t);
+
+        if (wcMapping != null) {
+            return wcMapping;
+        }
+
         final TypeReference oldBound = t.hasExtendsBound() ? t.getExtendsBound() : t.getSuperBound();
         final TypeReference mapping = map.get(oldBound);
 
@@ -109,7 +116,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         while (newBound.isWildcardType()) {
             if (newBound.isUnbounded()) {
-                return newBound;
+                return WildcardType.unbounded();
             }
             newBound = newBound.hasExtendsBound() ? newBound.getExtendsBound()
                                                   : newBound.getSuperBound();
@@ -124,7 +131,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
     }
 
     @Override
-    public TypeReference visitCompoundType(final CompoundTypeReference t, final Map<TypeReference, TypeReference> map) {
+    public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Map<TypeReference, TypeReference> map) {
         final TypeReference oldBaseType = t.getBaseType();
         final TypeReference newBaseType = oldBaseType != null ? visit(oldBaseType, map) : null;
 
@@ -153,8 +160,39 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
             return new CompoundTypeReference(
                 newBaseType,
                 newInterfaces != null ? ArrayUtilities.asUnmodifiableList(newInterfaces)
-                                      : t.getInterfaces()
+                                      : t.getInterfaces(),
+                t.getResolver()
+
             );
+        }
+
+        return t;
+    }
+
+    @Override
+    public <U extends TypeReference & IUnionType> TypeReference visitUnionType(final U t, final Map<TypeReference, TypeReference> map) {
+        final List<TypeReference> oldAlternatives = t.getAlternatives();
+
+        boolean changed = false;
+        TypeReference[] newAlternatives = null;
+
+        for (int i = 0; i < oldAlternatives.size(); i++) {
+            final TypeReference oldAlternative = oldAlternatives.get(i);
+            final TypeReference newAlternative = visit(oldAlternative, map);
+
+            if (newAlternatives != null) {
+                newAlternatives[i] = newAlternative;
+            }
+            else if (oldAlternative != newAlternative) {
+                newAlternatives = new TypeReference[oldAlternatives.size()];
+                oldAlternatives.toArray(newAlternatives);
+                newAlternatives[i] = newAlternative;
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            return UnionType.of(newAlternatives);
         }
 
         return t;
@@ -302,11 +340,15 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         final TypeReference oldExtendsBound = t.getExtendsBound();
         final TypeReference oldSuperBound = t.getSuperBound();
-        final TypeReference oldWildcard = t.getWildcard();
+        final WildcardType oldWildcard = t.getWildcard();
 
         final TypeReference newExtendsBound = visit(oldExtendsBound, map);
         final TypeReference newSuperBound = visit(oldSuperBound, map);
-        final TypeReference newWildcard = visitWildcard((WildcardType) oldWildcard, map);
+        final TypeReference newWildcard = visitWildcard(oldWildcard, map);
+
+        if (!(newWildcard instanceof WildcardType)) {
+            return newWildcard;
+        }
 
         if (newExtendsBound != oldExtendsBound ||
             newSuperBound != oldSuperBound ||

@@ -16,6 +16,7 @@
 
 package com.strobel.expressions;
 
+import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.CallingConvention;
@@ -185,9 +186,9 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     protected Expression visitExtension(final Expression node) {
         // Prefer a toString override, if available.
         final Set<BindingFlags> flags = BindingFlags.PublicInstanceExact;
-        final MethodInfo toString = node.getType().getMethod("toString", flags, CallingConvention.Standard, Type.EmptyTypes);
+        final MethodInfo toString = Type.getType(node).getMethod("toString", flags, CallingConvention.Standard, Type.EmptyTypes);
 
-        if (toString != null && toString.getDeclaringType() != Type.of(Expression.class)) {
+        if (toString != null && !Type.of(Expression.class).isEquivalentTo(toString.getDeclaringType())) {
             out(node.toString());
             return node;
         }

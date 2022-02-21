@@ -31,6 +31,7 @@ public interface IOutputFormatter {
     void writeToken(String token);
     void writeLiteral(String value);
     void writeTextLiteral(String value);
+    void writeTextBlock(String value);
 
     void space();
 
@@ -48,6 +49,6 @@ public interface IOutputFormatter {
      * instructs 'this' formatter to forget what it used to know about the sequence of line
      * number offsets in the source code
      */
-    public void resetLineNumberOffsets( OffsetToLineNumberConverter offset2LineNumber);
+    void resetLineNumberOffsets( OffsetToLineNumberConverter offset2LineNumber);
     
 }

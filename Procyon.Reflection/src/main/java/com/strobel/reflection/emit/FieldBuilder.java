@@ -25,9 +25,9 @@ import java.lang.reflect.Field;
 /**
  * @author strobelm
  */
-@SuppressWarnings("PackageVisibleField")
+@SuppressWarnings({ "PackageVisibleField", "DuplicatedCode" })
 public final class FieldBuilder extends FieldInfo {
-    private final TypeBuilder _typeBuilder;
+    private final TypeBuilder<?> _typeBuilder;
     private final String _name;
     private final int _modifiers;
     private final Object _constantValue;
@@ -38,7 +38,7 @@ public final class FieldBuilder extends FieldInfo {
 
     FieldInfo generatedField;
 
-    FieldBuilder(final TypeBuilder typeBuilder, final String name, final Type<?> type, final int modifiers, final Object constantValue) {
+    FieldBuilder(final TypeBuilder<?> typeBuilder, final String name, final Type<?> type, final int modifiers, final Object constantValue) {
         _constantValue = constantValue;
         _typeBuilder = VerifyArgument.notNull(typeBuilder, "typeBuilder");
         _name = VerifyArgument.notNull(name, "name");
@@ -52,20 +52,19 @@ public final class FieldBuilder extends FieldInfo {
         return generatedField;
     }
 
-    @SuppressWarnings("unchecked")
-    public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
+    public <A extends Annotation> void addCustomAnnotation(final AnnotationBuilder<A> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
-        final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
+        final AnnotationBuilder<?>[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
+        _annotations = new ReadOnlyList<>(newAnnotations);
     }
 
     public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _annotations;
     }
 
-    final void verifyTypeNotCreated() {
+    void verifyTypeNotCreated() {
         if (_typeBuilder.isCreated() || generatedField != null) {
             throw Error.cannotModifyFieldAfterTypeCreated();
         }
@@ -96,7 +95,7 @@ public final class FieldBuilder extends FieldInfo {
     }
 
     @Override
-    public TypeBuilder getDeclaringType() {
+    public TypeBuilder<?> getDeclaringType() {
         return _typeBuilder;
     }
 
@@ -110,7 +109,7 @@ public final class FieldBuilder extends FieldInfo {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _typeBuilder;
     }
 

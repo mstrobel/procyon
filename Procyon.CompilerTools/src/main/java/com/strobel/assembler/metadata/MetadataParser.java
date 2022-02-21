@@ -70,6 +70,8 @@ public final class MetadataParser {
         _genericContexts = new Stack<>();
         _factory = CoreMetadataFactory.make(owner, new StackBasedGenericContext());
         _suppressResolveDepth = new AtomicInteger();
+
+        pushGenericContext(owner);
     }
 
     public final SafeCloseable suppressTypeResolution() {
@@ -210,7 +212,7 @@ public final class MetadataParser {
     }
 */
 
-    protected TypeReference lookupTypeVariable(final String name) {
+    public TypeReference lookupTypeVariable(final String name) {
         for (int i = 0, n = _genericContexts.size(); i < n; i++) {
             final IGenericContext context = _genericContexts.get(i);
             final TypeReference typeVariable = context.findTypeVariable(name);
@@ -227,7 +229,7 @@ public final class MetadataParser {
         return null;
     }
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings("DuplicatedCode")
     public IMethodSignature parseMethodSignature(final String signature) {
         VerifyArgument.notNull(signature, "signature");
 
@@ -428,7 +430,7 @@ public final class MetadataParser {
         }
     }
 
-    protected MethodReference lookupMethod(final TypeReference declaringType, final String name, final IMethodSignature signature) {
+    MethodReference lookupMethod(final TypeReference declaringType, final String name, final IMethodSignature signature) {
         final MethodReference reference = new UnresolvedMethod(
             declaringType,
             name,
@@ -481,7 +483,7 @@ public final class MetadataParser {
 
     // <editor-fold defaultstate="collapsed" desc="UnresolvedMethod Class">
 
-    private final class UnresolvedMethod extends MethodReference {
+    private final static class UnresolvedMethod extends MethodReference {
         private final TypeReference _declaringType;
         private final String _name;
         private final IMethodSignature _signature;
@@ -495,10 +497,7 @@ public final class MetadataParser {
             if (_signature.hasGenericParameters()) {
                 final GenericParameterCollection genericParameters = new GenericParameterCollection(this);
 
-                for (final GenericParameter genericParameter : _signature.getGenericParameters()) {
-                    genericParameters.add(genericParameter);
-                }
-
+                genericParameters.addAll(_signature.getGenericParameters());
                 genericParameters.freeze(false);
 
                 _genericParameters = genericParameters;
@@ -543,7 +542,7 @@ public final class MetadataParser {
 
     // <editor-fold defaultstate="collapsed" desc="UnresolvedField Class">
 
-    private final class UnresolvedField extends FieldReference {
+    private final static class UnresolvedField extends FieldReference {
         private final TypeReference _declaringType;
         private final String _name;
         private final TypeReference _fieldType;

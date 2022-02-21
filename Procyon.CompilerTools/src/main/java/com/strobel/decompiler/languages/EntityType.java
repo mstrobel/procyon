@@ -23,5 +23,6 @@ public enum EntityType {
     FIELD,
     METHOD,
     CONSTRUCTOR,
-    PARAMETER
+    PARAMETER,
+    MODULE_DEFINITION
 }

@@ -1,7 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.core.StringUtilities;
-import com.strobel.functions.Block;
+import com.strobel.functions.Consumer;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
@@ -54,7 +54,7 @@ final class DebugViewWriter extends ExpressionVisitor {
     //
     private final Map<LabelTarget, Integer> _labelIds = new IdentityHashMap<>();
 
-    private final Block<? extends Expression> VISITOR_BLOCK = new Block<Expression>() {
+    private final Consumer<? extends Expression> VISITOR_BLOCK = new Consumer<Expression>() {
         @Override
         public void accept(final Expression input) {
             visit(input);
@@ -62,8 +62,8 @@ final class DebugViewWriter extends ExpressionVisitor {
     };
 
     @SuppressWarnings("unchecked")
-    private <T extends Expression> Block<T> visitorBlock() {
-        return (Block<T>) VISITOR_BLOCK;
+    private <T extends Expression> Consumer<T> visitorBlock() {
+        return (Consumer<T>) VISITOR_BLOCK;
     }
 
     private int base() {
@@ -283,7 +283,7 @@ final class DebugViewWriter extends ExpressionVisitor {
         visitExpressions(
             '(', ',',
             expressions,
-            new Block<ParameterExpression>() {
+            new Consumer<ParameterExpression>() {
                 @Override
                 public void accept(final ParameterExpression variable) {
                     out(variable.getType().toString());
@@ -294,7 +294,7 @@ final class DebugViewWriter extends ExpressionVisitor {
         );
     }
 
-    private <T extends Expression> void visitExpressions(final char open, final char separator, final ExpressionList<T> expressions, final Block<T> visit) {
+    private <T extends Expression> void visitExpressions(final char open, final char separator, final ExpressionList<T> expressions, final Consumer<T> visit) {
         out(open);
 
         if (expressions != null) {

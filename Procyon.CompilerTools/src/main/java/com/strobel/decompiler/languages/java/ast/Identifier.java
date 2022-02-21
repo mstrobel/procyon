@@ -87,6 +87,12 @@ public class Identifier extends AstNode {
                matchString(getName(), ((Identifier) other).getName());
     }
 
+    @Override
+    public Identifier clone() {
+        return (Identifier) super.clone();
+    }
+
+
     // <editor-fold defaultstate="collapsed" desc="Null Identifier">
 
     public final static Identifier NULL = new NullIdentifier();

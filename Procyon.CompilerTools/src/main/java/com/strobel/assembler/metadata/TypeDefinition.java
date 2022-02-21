@@ -27,12 +27,15 @@ import com.strobel.core.VerifyArgument;
 import java.util.Collections;
 import java.util.List;
 
+import static com.strobel.core.StringUtilities.isNullOrEmpty;
+
 public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private final GenericParameterCollection _genericParameters;
     private final Collection<TypeDefinition> _declaredTypes;
     private final Collection<FieldDefinition> _declaredFields;
     private final Collection<MethodDefinition> _declaredMethods;
     private final Collection<TypeReference> _explicitInterfaces;
+    private final Collection<TypeReference> _permittedSubclasses;
     private final Collection<CustomAnnotation> _customAnnotations;
     private final Collection<SourceAttribute> _sourceAttributes;
     private final List<GenericParameter> _genericParametersView;
@@ -40,6 +43,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private final List<FieldDefinition> _declaredFieldsView;
     private final List<MethodDefinition> _declaredMethodsView;
     private final List<TypeReference> _explicitInterfacesView;
+    private final List<TypeReference> _permittedSubclassesView;
     private final List<CustomAnnotation> _customAnnotationsView;
     private final List<SourceAttribute> _sourceAttributesView;
 
@@ -65,6 +69,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         _declaredFields = new Collection<>();
         _declaredMethods = new Collection<>();
         _explicitInterfaces = new Collection<>();
+        _permittedSubclasses = new Collection<>();
         _customAnnotations = new Collection<>();
         _sourceAttributes = new Collection<>();
         _genericParametersView = Collections.unmodifiableList(_genericParameters);
@@ -72,6 +77,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         _declaredFieldsView = Collections.unmodifiableList(_declaredFields);
         _declaredMethodsView = Collections.unmodifiableList(_declaredMethods);
         _explicitInterfacesView = Collections.unmodifiableList(_explicitInterfaces);
+        _permittedSubclassesView = Collections.unmodifiableList(_permittedSubclasses);
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
         _sourceAttributesView = Collections.unmodifiableList(_sourceAttributes);
     }
@@ -218,6 +224,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return _explicitInterfacesView;
     }
 
+    public final List<TypeReference> getPermittedSubclasses() {
+        return _permittedSubclassesView;
+    }
+
     @Override
     public final List<CustomAnnotation> getAnnotations() {
         return _customAnnotationsView;
@@ -272,8 +282,19 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        if (fullName && dottedName && isNested() && !isAnonymous() && _simpleName != null) {
-            return getDeclaringType().appendName(sb, true, true).append('.').append(_simpleName);
+        if (fullName && dottedName && isNested()) {
+            if (isAnonymous()) {
+                final String packageName = getDeclaringType().getPackageName();
+
+                if (!isNullOrEmpty(packageName)) {
+                    sb.append(packageName).append('.');
+                }
+
+                appendName(sb, false, false);
+            }
+            else if (_simpleName != null) {
+                return getDeclaringType().appendName(sb, true, true).append('.').append(_simpleName);
+            }
         }
 
         return super.appendName(sb, fullName, dottedName);
@@ -297,6 +318,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     protected final Collection<TypeReference> getExplicitInterfacesInternal() {
         return _explicitInterfaces;
+    }
+
+    protected final Collection<TypeReference> getPermittedSubclassesInternal() {
+        return _permittedSubclasses;
     }
 
     protected final Collection<CustomAnnotation> getAnnotationsInternal() {
@@ -350,6 +375,14 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return Flags.testAny(getFlags(), Flags.STATIC);
     }
 
+    public final boolean isSealed() {
+        return Flags.testAny(getFlags(), Flags.SEALED);
+    }
+
+    public final boolean isNonSealed() {
+        return Flags.testAny(getFlags(), Flags.NON_SEALED);
+    }
+
     public final boolean isSynthetic() {
         return Flags.testAny(getFlags(), Flags.SYNTHETIC);
     }
@@ -381,6 +414,14 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     public final boolean isEnum() {
         return Flags.testAny(getFlags(), Flags.ENUM);
+    }
+
+    public final boolean isRecord() {
+        return Flags.testAny(getFlags(), Flags.RECORD);
+    }
+
+    public final boolean isModule() {
+        return Flags.testAny(getFlags(), Flags.MODULE);
     }
 
     public final boolean isAnonymous() {

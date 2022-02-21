@@ -122,7 +122,7 @@ public class ParameterDeclaration extends EntityDeclaration {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
 

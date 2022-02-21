@@ -33,6 +33,9 @@ import java.util.List;
 public final class SignatureParser {
     private final static boolean DEBUG = Boolean.getBoolean("DEBUG");
     private final static TypeArgument[] EMPTY_TYPE_ARGUMENTS = new TypeArgument[0];
+    private final static TypeSignature[] EMPTY_TYPE_SIGNATURES = new TypeSignature[0];
+    private final static FieldTypeSignature[] EMPTY_FIELD_TYPE_SIGNATURES = new FieldTypeSignature[0];
+    private final static FormalTypeParameter[] EMPTY_FORMAL_TYPE_PARAMETERS = new FormalTypeParameter[0];
     private final static char EOI = ':';
 
     private char[] input; // the input signature
@@ -112,14 +115,12 @@ public final class SignatureParser {
             return parseFormalTypeParameters();
         }
         else {
-            return new FormalTypeParameter[0];
+            return EMPTY_FORMAL_TYPE_PARAMETERS;
         }
     }
 
     private FormalTypeParameter[] parseFormalTypeParameters() {
         final Collection<FormalTypeParameter> ftps = new ArrayList<>(3);
-
-        assert (current() == '<');
 
         if (current() != '<') {
             throw error("expected <");
@@ -181,8 +182,6 @@ public final class SignatureParser {
     }
 
     private ClassTypeSignature parseClassTypeSignature() {
-        assert (current() == 'L');
-
         if (current() != 'L') {
             throw error("expected a class type");
         }
@@ -213,7 +212,7 @@ public final class SignatureParser {
             case '/':
             case '.':
             case '$': {
-                return SimpleClassTypeSignature.make(id, dollar, new TypeArgument[0]);
+                return SimpleClassTypeSignature.make(id, dollar, EMPTY_TYPE_ARGUMENTS);
             }
 
             case '<': {
@@ -236,7 +235,6 @@ public final class SignatureParser {
 
     private TypeArgument[] parseTypeArguments() {
         final Collection<TypeArgument> tas = new ArrayList<>(3);
-        assert (current() == '<');
         if (current() != '<') {
             throw error("expected <");
         }
@@ -282,7 +280,6 @@ public final class SignatureParser {
     // TypeVariableSignature -> T identifier
 
     private TypeVariableSignature parseTypeVariableSignature() {
-        assert (current() == 'T');
         if (current() != 'T') {
             throw error("expected a type variable usage");
         }
@@ -368,14 +365,12 @@ public final class SignatureParser {
 
         if (current() == ':') {
             advance();
-            switch (current()) {
-                case ':': // empty class bound
-                    fts.add(BottomSignature.make());
-                    break;
-
-                default: // parse class bound
-                    fts.add(parseFieldTypeSignature());
-                    break;
+            // parse class bound
+            if (current() == ':') { // empty class bound
+                fts.add(BottomSignature.make());
+            }
+            else {
+                fts.add(parseFieldTypeSignature());
             }
 
             // zero or more interface bounds
@@ -385,7 +380,7 @@ public final class SignatureParser {
             }
         }
 
-        return fts.toArray(new FieldTypeSignature[fts.size()]);
+        return fts.toArray(EMPTY_FIELD_TYPE_SIGNATURES);
     }
 
     private ClassTypeSignature[] parseSuperInterfaces() {
@@ -413,7 +408,7 @@ public final class SignatureParser {
     // (TypeSignature*)
     private TypeSignature[] parseFormalParameters() {
         if (current() != '(') {
-            throw error("expected (");
+            return EMPTY_TYPE_SIGNATURES;
         }
         advance();
         final TypeSignature[] pts = parseZeroOrMoreTypeSignatures();
@@ -448,11 +443,6 @@ public final class SignatureParser {
                     stop = true;
             }
         }
-        /*      while( matches(current(),
-                       'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'L', 'T', '[')
-               ) {
-            ts.add(parseTypeSignature());
-            }*/
         final TypeSignature[] ta = new TypeSignature[ts.size()];
         return ts.toArray(ta);
     }
@@ -483,7 +473,6 @@ public final class SignatureParser {
     // ThrowSignature -> ^ FieldTypeSignature
 
     private FieldTypeSignature parseThrowsSignature() {
-        assert (current() == '^');
         if (current() != '^') {
             throw error("expected throws signature");
         }

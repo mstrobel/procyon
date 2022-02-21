@@ -24,14 +24,32 @@ import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.languages.java.ast.AssignmentExpression;
 import com.strobel.decompiler.languages.java.ast.AstBuilder;
 import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
+import com.strobel.decompiler.languages.java.ast.Expression;
+import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
 import com.strobel.decompiler.languages.java.ast.Keys;
 import com.strobel.decompiler.languages.java.ast.MemberReferenceExpression;
 
 public class MarkReferencedSyntheticsTransform extends ContextTrackingVisitor<Void> {
     public MarkReferencedSyntheticsTransform(final DecompilerContext context) {
         super(context);
+    }
+
+    @Override
+    public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
+        final Expression left = node.getLeft();
+        final Expression right = node.getRight();
+
+        if (node.getParent() instanceof ExpressionStatement &&
+            RemoveHiddenMembersTransform.isHiddenMemberReference(left, context) &&
+            RemoveHiddenMembersTransform.isHiddenMemberReference(right, context)) {
+
+            return null;
+        }
+
+        return super.visitAssignmentExpression(node, data);
     }
 
     @Override

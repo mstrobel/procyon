@@ -13,13 +13,13 @@
 
 package com.strobel.core;
 
-import com.strobel.functions.Block;
+import com.strobel.functions.Consumer;
 
 /**
  * @author Mike Strobel
  */
 @SuppressWarnings("PublicField")
-public final class StrongBox<T> implements IStrongBox, Block<T> {
+public final class StrongBox<T> implements IStrongBox, Consumer<T> {
     public T value;
 
     public StrongBox() {}

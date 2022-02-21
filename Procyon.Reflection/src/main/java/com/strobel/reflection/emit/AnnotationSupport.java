@@ -24,6 +24,8 @@
  */
 package com.strobel.reflection.emit;
 
+import com.strobel.core.Fences;
+
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.AnnotationTypeMismatchException;
@@ -138,7 +140,7 @@ final class AnnotationType {
             throw new IllegalArgumentException("Not an annotation type");
         }
 
-        Method[] methods =
+        final Method[] methods =
             AccessController.doPrivileged(new PrivilegedAction<Method[]>() {
                 public Method[] run() {
                     // Initialize memberTypes and defaultValues
@@ -150,16 +152,16 @@ final class AnnotationType {
         memberDefaults = new HashMap<>(0);
         members = new HashMap<>(methods.length + 1, 1.0f);
 
-        for (Method method : methods) {
+        for (final Method method : methods) {
             if (method.getParameterTypes().length != 0) {
                 throw new IllegalArgumentException(method + " has params");
             }
-            String name = method.getName();
-            Class<?> type = method.getReturnType();
+            final String name = method.getName();
+            final Class<?> type = method.getReturnType();
             memberTypes.put(name, invocationHandlerReturnType(type));
             members.put(name, method);
 
-            Object defaultValue = method.getDefaultValue();
+            final Object defaultValue = method.getDefaultValue();
             if (defaultValue != null) {
                 memberDefaults.put(name, defaultValue);
             }
@@ -185,7 +187,7 @@ final class AnnotationType {
      * the specified type (which is assumed to be a legal member type
      * for an annotation).
      */
-    public static Class<?> invocationHandlerReturnType(Class<?> type) {
+    public static Class<?> invocationHandlerReturnType(final Class<?> type) {
         // Translate primitives to wrappers
         if (type == byte.class) {
             return Byte.class;
@@ -248,7 +250,7 @@ final class AnnotationType {
     }
 
     /**
-     * Returns true if this this annotation type is inherited.
+     * Returns true if this annotation type is inherited.
      */
     public boolean isInherited() {
         return inherited;
@@ -277,14 +279,14 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
     private final Class<? extends Annotation> type;
     private final Map<String, Object> memberValues;
 
-    AnnotationInvocationHandler(Class<? extends Annotation> type, Map<String, Object> memberValues) {
+    AnnotationInvocationHandler(final Class<? extends Annotation> type, final Map<String, Object> memberValues) {
         this.type = type;
         this.memberValues = memberValues;
     }
 
-    public Object invoke(Object proxy, Method method, Object[] args) {
-        String member = method.getName();
-        Class<?>[] paramTypes = method.getParameterTypes();
+    public Object invoke(final Object proxy, final Method method, final Object[] args) {
+        final String member = method.getName();
+        final Class<?>[] paramTypes = method.getParameterTypes();
 
         //
         // Handle Object and Annotation methods.
@@ -334,50 +336,50 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
      * This method, which clones its array argument, would not be necessary if Cloneable had a
      * public clone method.
      */
-    private static Object cloneArray(Object array) {
-        Class<?> type = array.getClass();
+    private static Object cloneArray(final Object array) {
+        final Class<?> type = array.getClass();
 
         if (type == byte[].class) {
-            byte[] byteArray = (byte[]) array;
+            final byte[] byteArray = (byte[]) array;
             return byteArray.clone();
         }
 
         if (type == char[].class) {
-            char[] charArray = (char[]) array;
+            final char[] charArray = (char[]) array;
             return charArray.clone();
         }
 
         if (type == double[].class) {
-            double[] doubleArray = (double[]) array;
+            final double[] doubleArray = (double[]) array;
             return doubleArray.clone();
         }
 
         if (type == float[].class) {
-            float[] floatArray = (float[]) array;
+            final float[] floatArray = (float[]) array;
             return floatArray.clone();
         }
 
         if (type == int[].class) {
-            int[] intArray = (int[]) array;
+            final int[] intArray = (int[]) array;
             return intArray.clone();
         }
 
         if (type == long[].class) {
-            long[] longArray = (long[]) array;
+            final long[] longArray = (long[]) array;
             return longArray.clone();
         }
 
         if (type == short[].class) {
-            short[] shortArray = (short[]) array;
+            final short[] shortArray = (short[]) array;
             return shortArray.clone();
         }
 
         if (type == boolean[].class) {
-            boolean[] booleanArray = (boolean[]) array;
+            final boolean[] booleanArray = (boolean[]) array;
             return booleanArray.clone();
         }
 
-        Object[] objectArray = (Object[]) array;
+        final Object[] objectArray = (Object[]) array;
         return objectArray.clone();
     }
 
@@ -385,7 +387,7 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
      * Implementation of dynamicProxy.toString()
      */
     private String toStringImpl() {
-        StringBuilder result = new StringBuilder(128);
+        final StringBuilder result = new StringBuilder(128);
 
         result.append('@');
         result.append(type.getName());
@@ -393,7 +395,7 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
 
         boolean firstMember = true;
 
-        for (Map.Entry<String, Object> e : memberValues.entrySet()) {
+        for (final Map.Entry<String, Object> e : memberValues.entrySet()) {
             if (firstMember) {
                 firstMember = false;
             }
@@ -412,7 +414,7 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
     /**
      * Translates a member value (in "dynamic proxy return form") into a string
      */
-    private static String memberValueToString(Object value) {
+    private static String memberValueToString(final Object value) {
         final Class<?> type = value.getClass();
 
         if (!type.isArray()) {
@@ -458,7 +460,7 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
     /**
      * Implementation of dynamicProxy.equals(Object o)
      */
-    private Boolean equalsImpl(Object o) {
+    private Boolean equalsImpl(final Object o) {
         if (o == this) {
             return true;
         }
@@ -467,11 +469,11 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
             return false;
         }
 
-        for (Method memberMethod : getMemberMethods()) {
-            String member = memberMethod.getName();
-            Object ourValue = memberValues.get(member);
-            Object hisValue;
-            AnnotationInvocationHandler hisHandler = asOneOfUs(o);
+        for (final Method memberMethod : getMemberMethods()) {
+            final String member = memberMethod.getName();
+            final Object ourValue = memberValues.get(member);
+            final Object hisValue;
+            final AnnotationInvocationHandler hisHandler = asOneOfUs(o);
 
             if (hisHandler != null) {
                 hisValue = hisHandler.memberValues.get(member);
@@ -480,10 +482,10 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
                 try {
                     hisValue = memberMethod.invoke(o);
                 }
-                catch (InvocationTargetException e) {
+                catch (final InvocationTargetException e) {
                     return false;
                 }
-                catch (IllegalAccessException e) {
+                catch (final IllegalAccessException e) {
                     throw new AssertionError(e);
                 }
             }
@@ -501,9 +503,9 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
      * proxy with a handler of type AnnotationInvocationHandler.
      * Returns null otherwise.
      */
-    private AnnotationInvocationHandler asOneOfUs(Object o) {
+    private AnnotationInvocationHandler asOneOfUs(final Object o) {
         if (Proxy.isProxyClass(o.getClass())) {
-            InvocationHandler handler = Proxy.getInvocationHandler(o);
+            final InvocationHandler handler = Proxy.getInvocationHandler(o);
             if (handler instanceof AnnotationInvocationHandler) {
                 return (AnnotationInvocationHandler) handler;
             }
@@ -519,9 +521,8 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
      * annotations is ill-formed, this method will return false unless the
      * two members are identical object references.
      */
-    @SuppressWarnings("ConstantConditions")
-    private static boolean memberValueEquals(Object v1, Object v2) {
-        Class<?> type = v1.getClass();
+    private static boolean memberValueEquals(final Object v1, final Object v2) {
+        final Class<?> type = v1.getClass();
 
         // Check for primitive, string, class, enum const, annotation,
         // or ExceptionProxy
@@ -575,20 +576,15 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
 
     /**
      * Returns the member methods for our annotation type.  These are
-     * obtained lazily and cached, as they're expensive to obtain
-     * and we only need them if our equals method is invoked (which should
+     * obtained lazily and cached, as they're expensive to obtain, and
+     * we only need them if our `equals` method is invoked (which should
      * be rare).
      */
     private Method[] getMemberMethods() {
         if (memberMethods == null) {
-            memberMethods = AccessController.doPrivileged(
-                new PrivilegedAction<Method[]>() {
-                    public Method[] run() {
-                        final Method[] mm = type.getDeclaredMethods();
-                        AccessibleObject.setAccessible(mm, true);
-                        return mm;
-                    }
-                });
+            final Method[] mm = type.getDeclaredMethods();
+            AccessibleObject.setAccessible(mm, true);
+            memberMethods = Fences.orderWrites(mm);
         }
         return memberMethods;
     }
@@ -600,7 +596,7 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
      */
     private int hashCodeImpl() {
         int result = 0;
-        for (Map.Entry<String, Object> e : memberValues.entrySet()) {
+        for (final Map.Entry<String, Object> e : memberValues.entrySet()) {
             result += (127 * e.getKey().hashCode()) ^
                       memberValueHashCode(e.getValue());
         }
@@ -610,8 +606,8 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
     /**
      * Computes hashCode of a member value (in "dynamic proxy return form")
      */
-    private static int memberValueHashCode(Object value) {
-        Class<?> type = value.getClass();
+    private static int memberValueHashCode(final Object value) {
+        final Class<?> type = value.getClass();
 
         if (!type.isArray()) {
             // primitive, string, class, enum const, or annotation
@@ -653,31 +649,31 @@ final class AnnotationInvocationHandler implements InvocationHandler, Serializab
         return Arrays.hashCode((Object[]) value);
     }
 
-    private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
+    private void readObject(final java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
         s.defaultReadObject();
 
         // Check to make sure that types have not evolved incompatibly
-        AnnotationType annotationType;
+        final AnnotationType annotationType;
 
         try {
             annotationType = AnnotationType.getInstance(type);
         }
-        catch (IllegalArgumentException e) {
+        catch (final IllegalArgumentException e) {
             // Class is no longer an annotation type; time to punch out
             throw new java.io.InvalidObjectException("Non-annotation type in annotation serial stream");
         }
 
-        Map<String, Class<?>> memberTypes = annotationType.memberTypes();
+        final Map<String, Class<?>> memberTypes = annotationType.memberTypes();
 
         // If there are annotation members without values, that
         // situation is handled by the invoke method.
 
-        for (Map.Entry<String, Object> memberValue : memberValues.entrySet()) {
-            String name = memberValue.getKey();
-            Class<?> memberType = memberTypes.get(name);
+        for (final Map.Entry<String, Object> memberValue : memberValues.entrySet()) {
+            final String name = memberValue.getKey();
+            final Class<?> memberType = memberTypes.get(name);
 
             if (memberType != null) {  // i.e. member still exists
-                Object value = memberValue.getValue();
+                final Object value = memberValue.getValue();
 
                 if (!(memberType.isInstance(value) || value instanceof ExceptionProxy)) {
                     memberValue.setValue(
@@ -715,7 +711,7 @@ abstract class ExceptionProxy implements java.io.Serializable {
 final class AnnotationTypeMismatchExceptionProxy extends ExceptionProxy {
     private static final long serialVersionUID = 7844069490309503934L;
     private Method member;
-    private String foundType;
+    private final String foundType;
 
     /**
      * It turns out to be convenient to construct these proxies in
@@ -723,11 +719,11 @@ final class AnnotationTypeMismatchExceptionProxy extends ExceptionProxy {
      * permit ourselves this liberty even though it's normally a very
      * bad idea.
      */
-    AnnotationTypeMismatchExceptionProxy(String foundType) {
+    AnnotationTypeMismatchExceptionProxy(final String foundType) {
         this.foundType = foundType;
     }
 
-    AnnotationTypeMismatchExceptionProxy setMember(Method member) {
+    AnnotationTypeMismatchExceptionProxy setMember(final Method member) {
         this.member = member;
         return this;
     }
