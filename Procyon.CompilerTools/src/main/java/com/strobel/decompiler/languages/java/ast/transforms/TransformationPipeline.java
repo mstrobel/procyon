@@ -55,7 +55,7 @@ public final class TransformationPipeline {
             new RewriteInnerClassConstructorCalls(context),
             new RemoveRedundantInitializersTransform(context),
             new FlattenElseIfStatementsTransform(context),
-            new RewriteSwitchExpressionsTransform(context),
+            new RewriteSwitchExpressionsTransform(context), // invariant: any transforms requiring CFA/DAA must be done by now
             new AssertStatementTransform(context), // (again due to switch expression rewriting)
             new FlattenSwitchBlocksTransform(context),
             new IntroduceInitializersTransform(context),
