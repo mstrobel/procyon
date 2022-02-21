@@ -128,8 +128,8 @@ public class DefiniteAssignmentAnalysis {
             final LambdaExpression lambda = (LambdaExpression) node;
 
             if (lambda.getBody() instanceof Statement) {
-                @SuppressWarnings("unchecked")
-                final List<? extends DefiniteAssignmentNode> nodes = (List<? extends DefiniteAssignmentNode>) builder.buildControlFlowGraph(
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                final List<? extends DefiniteAssignmentNode> nodes = (List) builder.buildControlFlowGraph(
                     (Statement) lambda.getBody(),
                     resolver
                 );
