@@ -1503,7 +1503,7 @@ public class CodeGenerator {
                     return true;
                 }
                 if (unboxedType.isEnum()) {
-                    getField(unboxedType.getField(value.toString()));
+                    getField(unboxedType.getField(((Enum<?>)value).name()));
                     return true;
                 }
                 return false;
