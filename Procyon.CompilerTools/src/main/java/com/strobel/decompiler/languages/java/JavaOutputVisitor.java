@@ -958,10 +958,19 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             closeBrace(style);
         }
 
-        if (!(parent instanceof Expression || parent instanceof DoWhileStatement)) {
+        if (!(parent instanceof Expression || parent instanceof DoWhileStatement || parent instanceof TryCatchStatement || parent instanceof CatchClause)) {
             newLine();
         }
 
+        if (parent instanceof TryCatchStatement || parent instanceof CatchClause) {
+            if (node.getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE) {
+                newLine();
+            } else {
+                space();
+            }
+        }
+
+        
         endNode(node);
 
         return null;
