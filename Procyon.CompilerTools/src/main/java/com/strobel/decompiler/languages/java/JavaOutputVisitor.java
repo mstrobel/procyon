@@ -19,7 +19,6 @@ package com.strobel.decompiler.languages.java;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
 import com.strobel.assembler.ir.attributes.ModuleAttribute;
-import com.strobel.assembler.ir.attributes.PermittedSubclassesAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
@@ -958,19 +957,30 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             closeBrace(style);
         }
 
-        if (!(parent instanceof Expression || parent instanceof DoWhileStatement || parent instanceof TryCatchStatement || parent instanceof CatchClause)) {
-            newLine();
-        }
-
-        if (parent instanceof TryCatchStatement || parent instanceof CatchClause) {
-            if (node.getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE) {
-                newLine();
+        if (!(parent instanceof Expression || parent instanceof DoWhileStatement)) {
+            if (parent.getNextSibling() != null && parent.getNextSibling().getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE) {
+                if (policy.PlaceFinallyOnNewLine) {
+                    newLine();
+                } else {
+                    space();
+                }
+            } else if (parent.getNextSibling() instanceof CatchClause || (parent instanceof TryCatchStatement && node.getNextSibling() instanceof CatchClause)) {
+                if (policy.PlaceCatchOnNewLine) {
+                    newLine();
+                } else {
+                    space();
+                }
+            } else if (parent instanceof IfElseStatement && node.getRole() == IfElseStatement.TRUE_ROLE  && node != parent.getLastChild()) {
+                if (policy.PlaceElseOnNewLine) {
+                    newLine();
+                } else {
+                    space();
+                }
             } else {
-                space();
+                newLine();
             }
         }
 
-        
         endNode(node);
 
         return null;
@@ -2704,7 +2714,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         boolean needType = true;
 
-        //noinspection RedundantIfStatement
+        // noinspection RedundantIfStatement
         if (node.getDimensions().isEmpty() &&
             node.getType() != null &&
             (node.getParent() instanceof ArrayInitializerExpression ||
