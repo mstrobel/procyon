@@ -4,12 +4,20 @@ import com.beust.jcommander.JCommander;
 import com.strobel.Procyon;
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.InputTypeLoader;
-import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.CompositeTypeLoader;
+import com.strobel.assembler.metadata.DeobfuscationUtilities;
+import com.strobel.assembler.metadata.IMetadataResolver;
+import com.strobel.assembler.metadata.ITypeLoader;
+import com.strobel.assembler.metadata.JarTypeLoader;
+import com.strobel.assembler.metadata.MetadataParser;
+import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.LineNumberFormatter.LineNumberOption;
-import com.strobel.decompiler.languages.BytecodeOutputOptions;
 import com.strobel.decompiler.languages.BytecodeLanguage;
+import com.strobel.decompiler.languages.BytecodeOutputOptions;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TypeDecompilationResults;
@@ -24,14 +32,13 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.ConsoleHandler;
@@ -295,7 +302,7 @@ public class DecompilerDriver {
         final TypeDefinition resolvedType;
 
         if (type == null || (resolvedType = type.resolve()) == null) {
-            System.err.printf("!!! ERROR: Failed to load class %s.\n", typeName);
+            System.err.printf("!!! ERROR: Failed to load class %s.%n", typeName);
             return;
         }
 
@@ -327,7 +334,7 @@ public class DecompilerDriver {
         }
 
         if (writeToFile) {
-            System.out.printf("Decompiling %s...\n", typeName);
+            System.out.printf("Decompiling %s...%n", typeName);
         }
 
         final TypeDecompilationResults results = settings.getLanguage().decompileType(resolvedType, output, options);
@@ -353,13 +360,17 @@ public class DecompilerDriver {
                 lineNumberOptions.add(LineNumberOption.STRETCHED);
             }
 
+            final File outputFile = ((FileOutputWriter) writer).getFile();
             final LineNumberFormatter lineFormatter = new LineNumberFormatter(
-                ((FileOutputWriter) writer).getFile(),
+                outputFile,
                 lineNumberPositions,
                 lineNumberOptions
             );
 
-            lineFormatter.reformatFile();
+            final String reformattedFile = lineFormatter.reformatFile();
+            final Charset charset = settings.isUnicodeOutputEnabled() ? StandardCharsets.UTF_8
+                                                                      : Charset.defaultCharset();
+            Files.write(outputFile.toPath(), reformattedFile.getBytes(charset));
         }
     }
 
@@ -453,31 +464,5 @@ final class BriefLogFormatter extends Formatter {
         return format.format(new Date(record.getMillis())) +
                " [" + record.getLevel() + "] " +
                loggerName + ": " + record.getMessage() + ' ' + lineSep;
-    }
-}
-
-final class NoRetryMetadataSystem extends MetadataSystem {
-    private final Set<String> _failedTypes = new HashSet<>();
-
-    NoRetryMetadataSystem() {
-    }
-
-    NoRetryMetadataSystem(final ITypeLoader typeLoader) {
-        super(typeLoader);
-    }
-
-    @Override
-    protected TypeDefinition resolveType(final String descriptor, final boolean mightBePrimitive) {
-        if (_failedTypes.contains(descriptor)) {
-            return null;
-        }
-
-        final TypeDefinition result = super.resolveType(descriptor, mightBePrimitive);
-
-        if (result == null) {
-            _failedTypes.add(descriptor);
-        }
-
-        return result;
     }
 }
