@@ -124,7 +124,7 @@ public class CompilationUnit extends AstNode {
                             }
                         }
 
-                        return null;
+                        return next;
                     }
 
                     @Override
