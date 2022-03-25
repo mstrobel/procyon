@@ -958,7 +958,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (!(parent instanceof Expression || parent instanceof DoWhileStatement)) {
-            if (parent.getNextSibling() != null && parent.getNextSibling().getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE) {
+            if ((parent.getNextSibling() != null && parent.getNextSibling().getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE) || (node.getRole() == TryCatchStatement.TRY_BLOCK_ROLE && node.getNextSibling().getRole() == TryCatchStatement.FINALLY_BLOCK_ROLE)) {
                 if (policy.PlaceFinallyOnNewLine) {
                     newLine();
                 } else {
@@ -970,7 +970,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 } else {
                     space();
                 }
-            } else if (parent instanceof IfElseStatement && node.getRole() == IfElseStatement.TRUE_ROLE  && node != parent.getLastChild()) {
+            } else if (parent instanceof IfElseStatement && node.getRole() == IfElseStatement.TRUE_ROLE && node != parent.getLastChild()) {
                 if (policy.PlaceElseOnNewLine) {
                     newLine();
                 } else {
