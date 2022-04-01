@@ -58,7 +58,13 @@ public class InvertIfStatementsTransform extends ContextTrackingVisitor<Void> {
                     && nextLineNumbervisitor.getMaxLineNumber() < trueLineNumberVisitor.getMinLineNumber()) {
                 final Expression condition = node.getCondition();
                 condition.remove();
-                node.setCondition(new UnaryOperatorExpression(UnaryOperatorType.NOT, condition));
+                if (condition instanceof UnaryOperatorExpression && ((UnaryOperatorExpression) condition).getOperator() == UnaryOperatorType.NOT) {
+                    Expression expression = ((UnaryOperatorExpression) condition).getExpression();
+                    expression.remove();
+                    node.setCondition(expression);
+                } else {
+                    node.setCondition(new UnaryOperatorExpression(UnaryOperatorType.NOT, condition));
+                }
                 trueStatement.remove();
                 node.setFalseStatement(trueStatement);
                 BlockStatement blockStatement = new BlockStatement();
