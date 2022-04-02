@@ -48,17 +48,17 @@ public class InvertIfTests extends DecompilerTest {
     public void testInvertIfTest() {
         verifyOutput(
             T.class,
-            defaultSettings(),
+            lineNumberSettings(),
             "private class T\n" +
             "{\n" +
             "    void main(final String[] args) {\n" +
-            "        if (args.length == 0) {\n" +
-            "            System.out.println(\"no arg\");\n" +
+            "        /*SL:21*/if (args.length == 0) {\n" +
+            "            System.out.println(/*EL:22*/\"no arg\");\n" +
             "        } else {\n" +
-            "            if (args.length == 1) {\n" +
-            "                System.out.println(\"1 arg\");\n" +
+            "            /*SL:24*/if (args.length == 1) {\n" +
+            "                System.out.println(/*EL:25*/\"1 arg\");\n" +
             "            } else {\n" +
-            "                throw new RuntimeException(\"too many args\");\n" +
+            "                /*SL:27*/throw new RuntimeException(\"too many args\");\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +
@@ -70,21 +70,28 @@ public class InvertIfTests extends DecompilerTest {
     public void testInvertIfDoubleNegationTest() {
         verifyOutput(
             U.class,
-            defaultSettings(),
+            lineNumberSettings(),
             "private class U\n" +
             "{\n" +
             "    void test(final Object o) {\n" +
-            "        if (o instanceof String) {\n" +
-            "            System.out.println(o);\n" +
+            "        /*SL:35*/if (o instanceof String) {\n" +
+            "            System.out.println(/*EL:36*/o);\n" +
             "        } else {\n" +
-            "            if (o instanceof CharSequence) {\n" +
-            "                System.out.println(o);\n" +
+            "            /*SL:38*/if (o instanceof CharSequence) {\n" +
+            "                System.out.println(/*EL:39*/o);\n" +
             "            } else {\n" +
-            "                throw new RuntimeException();\n" +
+            "                /*SL:41*/throw new RuntimeException();\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +
             "}"
         );
+    }
+
+    
+    private DecompilerSettings lineNumberSettings() {
+        DecompilerSettings lineNumberSettings = defaultSettings();
+        lineNumberSettings.setShowDebugLineNumbers(true);
+        return lineNumberSettings;
     }
 }
