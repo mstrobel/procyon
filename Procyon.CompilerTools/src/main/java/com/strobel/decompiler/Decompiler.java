@@ -19,14 +19,21 @@ package com.strobel.decompiler;
 import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.languages.TypeDecompilationResults;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
+import java.util.Collections;
+
 public final class Decompiler {
-    public static void decompile(final String internalName, final ITextOutput output) {
-        decompile(internalName, output, new DecompilerSettings());
+
+    private Decompiler() {
+    }
+    
+    public static TypeDecompilationResults decompile(final String internalName, final ITextOutput output) {
+        return decompile(internalName, output, new DecompilerSettings());
     }
 
-    public static void decompile(final String internalName, final ITextOutput output, final DecompilerSettings settings) {
+    public static TypeDecompilationResults decompile(final String internalName, final ITextOutput output, final DecompilerSettings settings) {
         VerifyArgument.notNull(internalName, "internalName");
         VerifyArgument.notNull(settings, "settings");
 
@@ -53,7 +60,7 @@ public final class Decompiler {
 
         if (type == null || (resolvedType = type.resolve()) == null) {
             output.writeLine("!!! ERROR: Failed to load class %s.", internalName);
-            return;
+            return new TypeDecompilationResults(null);
         }
 
         DeobfuscationUtilities.processType(resolvedType);
@@ -67,6 +74,6 @@ public final class Decompiler {
             settings.setJavaFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
-        settings.getLanguage().decompileType(resolvedType, output, options);
+        return settings.getLanguage().decompileType(resolvedType, output, options);
     }
 }
