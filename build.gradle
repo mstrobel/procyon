@@ -124,6 +124,8 @@ subprojects {
     if (project.name == "Procyon.Decompiler") {
         artifacts {
             archives jar
+            archives javadocJar
+            archives sourcesJar
         }
     }
     else {
