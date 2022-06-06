@@ -43,6 +43,13 @@ public class PrimitiveTests extends DecompilerTest {
             "    static double x;\n" +
             "    static double y;\n" +
             "    static float z;\n" +
+            "    static {\n" +
+            "        A.d = 2.7182818459;\n" +
+            "        A.w = Double.POSITIVE_INFINITY;\n" +
+            "        A.x = Double.NEGATIVE_INFINITY;\n" +
+            "        A.y = -4.9E-324;\n" +
+            "        A.z = Float.MIN_VALUE;\n" +
+            "    }\n" +
             "    public static strictfp void test() {\n" +
             "        final double t = 9.007199254740992E15;\n" +
             "        final double x = t * t;\n" +
@@ -56,13 +63,6 @@ public class PrimitiveTests extends DecompilerTest {
             "        System.out.println(A.y);\n" +
             "        System.out.println(A.z);\n" +
             "        System.out.println((double)A.z);\n" +
-            "    }\n" +
-            "    static {\n" +
-            "        A.d = 2.7182818459;\n" +
-            "        A.w = Double.POSITIVE_INFINITY;\n" +
-            "        A.x = Double.NEGATIVE_INFINITY;\n" +
-            "        A.y = -4.9E-324;\n" +
-            "        A.z = Float.MIN_VALUE;\n" +
             "    }\n" +
             "}"
         );

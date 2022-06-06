@@ -30,6 +30,8 @@ public class MethodDeclaration extends EntityDeclaration {
     public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
     public final static TokenRole THROWS_KEYWORD = new TokenRole("throws", TokenRole.FLAG_KEYWORD);
 
+    private int firstKnownLineNumber;
+
     public final AstType getPrivateImplementationType() {
         return getChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE);
     }
@@ -110,6 +112,18 @@ public class MethodDeclaration extends EntityDeclaration {
         }
 
         return false;
+    }
+    
+    @Override
+    public int getFirstKnownLineNumber() {
+        if (firstKnownLineNumber > 0) {
+            return firstKnownLineNumber;
+        }
+        return super.getFirstKnownLineNumber();
+    }
+
+    public void setFirstKnownLineNumber(int firstKnownLineNumber) {
+        this.firstKnownLineNumber = firstKnownLineNumber;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Pattern Placeholder">

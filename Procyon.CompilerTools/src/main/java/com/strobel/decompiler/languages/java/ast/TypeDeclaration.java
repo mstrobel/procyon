@@ -123,6 +123,19 @@ public class TypeDeclaration extends EntityDeclaration {
         return false;
     }
 
+    @Override
+    public int getFirstKnownLineNumber() {
+        for (EntityDeclaration entityDeclaration : getMembers()) {
+            if (entityDeclaration != null) {
+                int firstKnownLineNumber = entityDeclaration.getFirstKnownLineNumber();
+                if (firstKnownLineNumber > 0) {
+                    return firstKnownLineNumber;
+                }
+            }
+        }
+        return 0;
+    }
+    
     // <editor-fold defaultstate="collapsed" desc="Null TypeDeclaration">
 
     public final static TypeDeclaration NULL = new NullTypeDeclaration();
