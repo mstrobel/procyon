@@ -22,11 +22,11 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.LineNumberTableConverter;
 import com.strobel.decompiler.languages.java.MinMaxLineNumberVisitor;
 import com.strobel.decompiler.languages.java.ast.AssignmentExpression;
+import com.strobel.decompiler.languages.java.ast.AssignmentOperatorType;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BlockStatement;
 import com.strobel.decompiler.languages.java.ast.ConstructorDeclaration;
@@ -71,6 +71,9 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
                         MinMaxLineNumberVisitor minMaxLineNumberVisitor = new MinMaxLineNumberVisitor(lineNumberTableConverter);
                         child.acceptVisitor(minMaxLineNumberVisitor, null);
                         int currentLineNumber = minMaxLineNumberVisitor.getMinLineNumber();
+                        if (!methodDeclaration.isFirstLineNumberKnown()) {
+                            methodDeclaration.setFirstKnownLineNumber(currentLineNumber);
+                        }
                         if (previousLineNumber > 0 && currentLineNumber > previousLineNumber + 3) {
                             newMethodDeclaration = (MethodDeclaration) methodDeclaration.clone();
                             newMethodDeclaration.setFirstKnownLineNumber(currentLineNumber);
@@ -113,8 +116,11 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
     @Override
     public Void visitAssignmentExpression(AssignmentExpression node, Void data) {
         AstNode parent = node.getParent();
-        if (parent instanceof ExpressionStatement && parent.getParent() instanceof BlockStatement && parent.getParent().getParent() instanceof ConstructorDeclaration
-                && node.getLeft() instanceof MemberReferenceExpression) {
+        if (parent instanceof ExpressionStatement 
+                && parent.getParent() instanceof BlockStatement 
+                && parent.getParent().getParent() instanceof ConstructorDeclaration
+                && node.getLeft() instanceof MemberReferenceExpression 
+                && node.getOperator() == AssignmentOperatorType.ASSIGN) {
             ConstructorDeclaration constructorDeclaration = (ConstructorDeclaration) parent.getParent().getParent();
             MethodDefinition constructor = constructorDeclaration.getUserData(Keys.METHOD_DEFINITION);
             final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(AttributeNames.LineNumberTable,
