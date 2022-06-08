@@ -31,6 +31,7 @@ import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BlockStatement;
 import com.strobel.decompiler.languages.java.ast.ConstructorDeclaration;
 import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
+import com.strobel.decompiler.languages.java.ast.EntityDeclaration;
 import com.strobel.decompiler.languages.java.ast.Expression;
 import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
 import com.strobel.decompiler.languages.java.ast.FieldDeclaration;
@@ -41,7 +42,6 @@ import com.strobel.decompiler.languages.java.ast.Roles;
 import com.strobel.decompiler.languages.java.ast.VariableInitializer;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,27 +118,29 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
         AstNode parent = node.getParent();
         if (parent instanceof ExpressionStatement 
                 && parent.getParent() instanceof BlockStatement 
-                && parent.getParent().getParent() instanceof ConstructorDeclaration
+                && parent.getParent().getParent() instanceof EntityDeclaration
                 && node.getLeft() instanceof MemberReferenceExpression 
                 && node.getOperator() == AssignmentOperatorType.ASSIGN) {
-            ConstructorDeclaration constructorDeclaration = (ConstructorDeclaration) parent.getParent().getParent();
-            MethodDefinition constructor = constructorDeclaration.getUserData(Keys.METHOD_DEFINITION);
-            final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(AttributeNames.LineNumberTable,
-                    constructor != null ? constructor.getSourceAttributes() : Collections.<SourceAttribute>emptyList());
-            LineNumberTableConverter lineNumberTableConverter = new LineNumberTableConverter(lineNumberTable);
-            MemberReferenceExpression memberReferenceExpression = (MemberReferenceExpression) node.getFirstChild();
-            MemberReference memberReference = memberReferenceExpression.getUserData(Keys.MEMBER_REFERENCE);
-            FieldInit fieldInit = fieldDeclarations.get(memberReference.getFullName());
-            if (fieldInit != null && (constructor == null || !constructor.hasParameter(memberReference.getName()))) {
-                Expression initializer = node.getRight();
-                int fieldInitLineNo = lineNumberTableConverter.getLineForOffset(initializer.getOffset());
-                if (fieldInitLineNo > 0) {
-                    FieldDeclaration fieldDeclaration = fieldInit.declaration;
-                    int fieldDeclLineNo = fieldDeclaration.getLineNumber();
-                    if (fieldInitLineNo == fieldDeclLineNo || (fieldInit.initializers.isEmpty() && fieldDeclLineNo == 0)) {
-                        fieldDeclaration.setLineNumber(fieldInitLineNo);
-                        fieldInit.initializers.add(initializer);
-                        fieldInit.statements.add((ExpressionStatement) node.getParent());
+            EntityDeclaration entityDeclaration = (EntityDeclaration) parent.getParent().getParent();
+            MethodDefinition methodDefinition = entityDeclaration.getUserData(Keys.METHOD_DEFINITION);
+            if (methodDefinition != null && (methodDefinition.isConstructor() || methodDefinition.isTypeInitializer())) {
+                LineNumberTableAttribute lineNumberTable = SourceAttribute.find(AttributeNames.LineNumberTable, methodDefinition.getSourceAttributes());
+                LineNumberTableConverter lineNumberTableConverter = new LineNumberTableConverter(lineNumberTable);
+                MemberReferenceExpression memberReferenceExpression = (MemberReferenceExpression) node.getFirstChild();
+                MemberReference memberReference = memberReferenceExpression.getUserData(Keys.MEMBER_REFERENCE);
+                FieldInit fieldInit = fieldDeclarations.get(memberReference.getFullName());
+                if (fieldInit != null && !methodDefinition.hasParameter(memberReference.getName())) {
+                    Expression initializer = node.getRight();
+                    int fieldInitLineNo = lineNumberTableConverter.getLineForOffset(initializer.getOffset());
+                    if (fieldInitLineNo > 0) {
+                        FieldDeclaration fieldDeclaration = fieldInit.declaration;
+                        int fieldDeclLineNo = fieldDeclaration.getLineNumber();
+                        if (fieldInitLineNo == fieldDeclLineNo || (fieldInit.initializers.isEmpty() && fieldDeclLineNo == 0)) {
+                            fieldDeclaration.setLineNumber(fieldInitLineNo);
+                            fieldInit.initializers.add(initializer);
+                            fieldInit.statements.add((ExpressionStatement) node.getParent());
+                            fieldInit.initMethod = methodDefinition;
+                        }
                     }
                 }
             }
@@ -164,30 +166,34 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
     @Override
     public void run(AstNode compilationUnit) {
         super.run(compilationUnit);
-        if (constructorCount > 0) {
-            for (FieldInit fieldInit : fieldDeclarations.values()) {
-                if (fieldInit.initializers.size() == constructorCount) {
-                    fieldInit.removeInitializers();
-                    fieldInit.removeStatements();
-                    fieldInit.declaration.getVariables().clear();
-                    fieldInit.declaration.getVariables().add(new VariableInitializer(fieldInit.declaration.getName(), fieldInit.initializers.get(0)));
-                }
+        for (FieldInit fieldInit : fieldDeclarations.values()) {
+            if (fieldInit.isInAllConstructors() || fieldInit.isInStaticBlock()) {
+                fieldInit.removeInitializers();
+                fieldInit.removeStatements();
+                fieldInit.declaration.getVariables().clear();
+                fieldInit.declaration.getVariables().add(new VariableInitializer(fieldInit.declaration.getName(), fieldInit.initializers.get(0)));
             }
         }
     }
 
-    private static class FieldInit {
+    private class FieldInit {
         private final FieldDeclaration declaration;
         private final List<Expression> initializers = new ArrayList<>();
         private final List<ExpressionStatement> statements = new ArrayList<>();
+        private MethodDefinition initMethod;
 
         public FieldInit(FieldDeclaration declaration) {
             this.declaration = declaration;
         }
 
         public void removeStatements() {
+            AstNode parent = null;
             for (ExpressionStatement expressionStatement : statements) {
+                parent = expressionStatement.getParent();
                 expressionStatement.remove();
+            }
+            if (isInStaticBlock() && parent != null && !parent.hasChildren() && parent.getParent() instanceof MethodDeclaration) {
+                parent.getParent().remove();
             }
         }
 
@@ -195,6 +201,14 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
             for (Expression initializer : initializers) {
                 initializer.remove();
             }
+        }
+        
+        public boolean isInAllConstructors() {
+            return initMethod != null && initMethod.isConstructor() && constructorCount > 0 && initializers.size() == constructorCount;
+        }
+
+        public boolean isInStaticBlock() {
+            return initMethod != null && initMethod.isTypeInitializer();
         }
     }
 }

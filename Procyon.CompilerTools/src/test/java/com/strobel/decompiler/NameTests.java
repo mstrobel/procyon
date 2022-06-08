@@ -196,10 +196,7 @@ public class NameTests extends DecompilerTest {
             C.class,
             defaultSettings(),
             "static final class C {\n" +
-            "    static float Float;\n" +
-            "    static {\n" +
-            "        C.Float = java.lang.Float.NaN;\n" +
-            "    }\n" +
+            "    static float Float = java.lang.Float.NaN;\n" +
             "    void f() {\n" +
             "        System.out.println(C.Float);\n" +
             "        System.out.println(java.lang.Float.NaN);\n" +

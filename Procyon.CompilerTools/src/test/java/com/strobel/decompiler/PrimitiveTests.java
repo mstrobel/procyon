@@ -38,18 +38,11 @@ public class PrimitiveTests extends DecompilerTest {
             defaultSettings(),
             "private static final class A {\n" +
             "    static final float e = 2.7182817f;\n" +
-            "    static double d;\n" +
-            "    static double w;\n" +
-            "    static double x;\n" +
-            "    static double y;\n" +
-            "    static float z;\n" +
-            "    static {\n" +
-            "        A.d = 2.7182818459;\n" +
-            "        A.w = Double.POSITIVE_INFINITY;\n" +
-            "        A.x = Double.NEGATIVE_INFINITY;\n" +
-            "        A.y = -4.9E-324;\n" +
-            "        A.z = Float.MIN_VALUE;\n" +
-            "    }\n" +
+            "    static double d = 2.7182818459;\n" +
+            "    static double w = Double.POSITIVE_INFINITY;\n" +
+            "    static double x = Double.NEGATIVE_INFINITY;\n" +
+            "    static double y = -4.9E-324;\n" +
+            "    static float z = Float.MIN_VALUE;\n" +
             "    public static strictfp void test() {\n" +
             "        final double t = 9.007199254740992E15;\n" +
             "        final double x = t * t;\n" +

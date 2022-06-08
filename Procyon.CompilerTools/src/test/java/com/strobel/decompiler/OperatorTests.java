@@ -255,10 +255,7 @@ public class OperatorTests extends DecompilerTest {
             "private static class G {\n" +
             "    private int x;\n" +
             "    private static int y;\n" +
-            "    private static int[] b;\n" +
-            "    static {\n" +
-            "        G.b = new int[] { 1 };\n" +
-            "    }\n" +
+            "    private static int[] b = { 1 };\n" +
             "    private G() {\n" +
             "    }\n" +
             "    private int[] a = { 1 };\n" +
