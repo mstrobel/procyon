@@ -81,6 +81,10 @@ import com.strobel.decompiler.languages.java.ast.WhileStatement;
 import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.patterns.Pattern;
 
+/**
+ * @deprecated use MinMaxLineNumberVisitor instead
+ */
+@Deprecated
 public class LineNumberVisitor implements IAstVisitor<Void, Void> {
 
     private final LineNumberTableConverter lineNumberTableConverter;
