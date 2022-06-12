@@ -219,15 +219,17 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof MethodDefinition) {
-            final MethodDefinition other = (MethodDefinition) obj;
-
-            return StringUtilities.equals(getName(), other.getName()) &&
-                   StringUtilities.equals(getErasedSignature(), other.getErasedSignature()) &&
-                   typeNamesMatch(getDeclaringType(), other.getDeclaringType());
+        if (obj == this) {
+            return true;
         }
+        if (obj == null || obj.getClass() != getClass()) {
+            return false;
+        }
+        final MethodDefinition other = (MethodDefinition) obj;
 
-        return false;
+        return StringUtilities.equals(getName(), other.getName()) &&
+               StringUtilities.equals(getErasedSignature(), other.getErasedSignature()) &&
+               typeNamesMatch(getDeclaringType(), other.getDeclaringType());
     }
 
     @Override
@@ -236,7 +238,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         _erasedSignature = null;
     }
 
-    private boolean typeNamesMatch(final TypeReference t1, final TypeReference t2) {
+    private static boolean typeNamesMatch(final TypeReference t1, final TypeReference t2) {
         return t1 != null &&
                t2 != null &&
                StringUtilities.equals(t1.getFullName(), t2.getFullName());

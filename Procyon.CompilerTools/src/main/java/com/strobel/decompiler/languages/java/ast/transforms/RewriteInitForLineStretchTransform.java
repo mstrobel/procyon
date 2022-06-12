@@ -35,10 +35,12 @@ import com.strobel.decompiler.languages.java.ast.EntityDeclaration;
 import com.strobel.decompiler.languages.java.ast.Expression;
 import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
 import com.strobel.decompiler.languages.java.ast.FieldDeclaration;
+import com.strobel.decompiler.languages.java.ast.InvocationExpression;
 import com.strobel.decompiler.languages.java.ast.Keys;
 import com.strobel.decompiler.languages.java.ast.MemberReferenceExpression;
 import com.strobel.decompiler.languages.java.ast.MethodDeclaration;
 import com.strobel.decompiler.languages.java.ast.Roles;
+import com.strobel.decompiler.languages.java.ast.ThisReferenceExpression;
 import com.strobel.decompiler.languages.java.ast.VariableInitializer;
 
 import java.util.ArrayList;
@@ -50,8 +52,8 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
 
     private ConcurrentHashMap<String, FieldDeclaration> fieldDeclarations = new ConcurrentHashMap<>();
     private ConcurrentHashMap<FieldLocation, FieldInit> fieldInitLocations = new ConcurrentHashMap<>();
-    private int constructorCount;
-
+    private ConcurrentHashMap<MethodDefinition, ConstructorDeclaration> constructionDefinitionToDeclaration = new ConcurrentHashMap<>();
+    
     public RewriteInitForLineStretchTransform(DecompilerContext context) {
         super(context);
     }
@@ -154,13 +156,30 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
     }
 
     @Override
-    public Void visitConstructorDeclaration(ConstructorDeclaration node, Void p) {
-        constructorCount++;
-        return super.visitConstructorDeclaration(node, p);
+    public Void visitThisReferenceExpression(ThisReferenceExpression node, Void data) {
+        if (node.getParent() instanceof InvocationExpression) {
+            MemberReference memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+            if (memberReference instanceof MethodDefinition) {
+                MethodDefinition methodDefinition = (MethodDefinition) memberReference;
+                ConstructorDeclaration constructorDeclaration = constructionDefinitionToDeclaration.get(methodDefinition);
+                if (constructorDeclaration != null) {
+                    MethodDefinition currentMethodDefinition = context.getCurrentMethod();
+                    try {
+                        context.setCurrentMethod(null);
+                        visitConstructorDeclaration(constructorDeclaration, data);
+                    }
+                    finally {
+                        context.setCurrentMethod(currentMethodDefinition);
+                    }
+                }
+            }
+        }
+        return super.visitThisReferenceExpression(node, data);
     }
-
+    
     @Override
     public void run(AstNode compilationUnit) {
+        new ConstructorGatherer(context).run(compilationUnit);
         super.run(compilationUnit);
         for (FieldInit fieldInit : fieldInitLocations.values()) {
             if (fieldInit.isInAllConstructors() || fieldInit.isInTypeInitializer()) {
@@ -198,7 +217,7 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
         }
 
         public boolean isInAllConstructors() {
-            return inConstructor && constructorCount > 0 && fieldInitStatements.size() == constructorCount;
+            return inConstructor && !constructionDefinitionToDeclaration.isEmpty() && fieldInitStatements.size() == constructionDefinitionToDeclaration.size();
         }
 
         public boolean isInTypeInitializer() {
@@ -251,6 +270,21 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
             FieldLocation other = (FieldLocation) obj;
             return Objects.equals(fieldName, other.fieldName) && fieldOffset == other.fieldOffset;
         }
+    }
 
+    private class ConstructorGatherer extends ContextTrackingVisitor<Void> {
+
+        protected ConstructorGatherer(DecompilerContext context) {
+            super(context);
+        }
+        
+        @Override
+        public Void visitConstructorDeclaration(ConstructorDeclaration node, Void p) {
+            MethodDefinition methodDefinition = node.getUserData(Keys.METHOD_DEFINITION);
+            if (methodDefinition != null) {
+                constructionDefinitionToDeclaration.put(methodDefinition, node);
+            }
+            return super.visitConstructorDeclaration(node, p);
+        }
     }
 }

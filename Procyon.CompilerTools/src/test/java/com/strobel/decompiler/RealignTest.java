@@ -101,7 +101,7 @@ public class RealignTest extends DecompilerTest {
 
         public Test2(boolean flag) {
             System.out.println(flag);
-            test = new Test2(0);
+            test = new Test2(0); // must not be moved to declaration
         }
 
         static {
@@ -110,6 +110,38 @@ public class RealignTest extends DecompilerTest {
 
         private Test2 bottom = new Test2(true);
 
+        static {
+            System.out.println("clinit3");
+        }
+    } 
+    
+    static class Test3 {
+        
+        private Test3 top = new Test3(0);
+        private Test3 test;
+        
+        static {
+            System.out.println("clinit1");
+        }
+        
+        public Test3(int i) {
+            this(false);
+            System.out.println(i);
+        }
+        
+        private Test3 middle = new Test3(false);
+        
+        public Test3(boolean flag) {
+            System.out.println(flag);
+            test = new Test3(0); // can be moved to declaration (because of this(...) call)
+        }
+        
+        static {
+            System.out.println("clinit2");
+        }
+        
+        private Test3 bottom = new Test3(true);
+        
         static {
             System.out.println("clinit3");
         }
@@ -229,6 +261,39 @@ public class RealignTest extends DecompilerTest {
             "    }\n" +
             "}"
         );
+    }
+    
+    @Test
+    public void testRewriteInit2() throws Throwable {
+        verifyOutput(
+                Test3.class,
+                lineNumberSettings(),
+                "static class Test3 {\n" +
+                        "    /*SL:120*/private Test3 top = new Test3(0);\n" +
+                        "    static {\n" +
+                        "        System.out.println(/*EL:124*/\"clinit1\");\n" +
+                        "    }\n" +
+                        "    \n" +
+                        "    public Test3(final int i) {\n" +
+                        "        /*SL:128*/this(false);\n" +
+                        "        System.out.println(/*EL:129*/i);\n" +
+                        "    }\n" +
+                        "    \n" +
+                        "    /*SL:132*/private Test3 middle = new Test3(false);\n" +
+                        "    \n" +
+                        "    public Test3(final boolean flag) {\n" +
+                        "        System.out.println(/*EL:135*/flag);\n" +
+                        "    }\n" +
+                        "    /*SL:136*/private Test3 test = new Test3(0);\n" +
+                        "    static {\n" +
+                        "        System.out.println(/*EL:140*/\"clinit2\");\n" +
+                        "    }\n" +
+                        "    /*SL:143*/private Test3 bottom = new Test3(true);\n" +
+                        "    static {\n" +
+                        "        System.out.println(/*EL:146*/\"clinit3\");\n" +
+                        "    }\n" +
+                        "}"
+                );
     }
     
     private static DecompilerSettings lineNumberSettings() {
