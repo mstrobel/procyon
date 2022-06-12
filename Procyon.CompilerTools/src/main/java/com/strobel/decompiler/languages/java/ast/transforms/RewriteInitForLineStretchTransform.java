@@ -117,8 +117,11 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
     @Override
     public Void visitAssignmentExpression(AssignmentExpression node, Void data) {
         AstNode parent = node.getParent();
-        if (parent instanceof ExpressionStatement && parent.getParent() instanceof BlockStatement && parent.getParent().getParent() instanceof EntityDeclaration
-                && node.getLeft() instanceof MemberReferenceExpression && node.getOperator() == AssignmentOperatorType.ASSIGN) {
+        if (parent instanceof ExpressionStatement 
+                && parent.getParent() instanceof BlockStatement 
+                && parent.getParent().getParent() instanceof EntityDeclaration
+                && node.getLeft() instanceof MemberReferenceExpression 
+                && node.getOperator() == AssignmentOperatorType.ASSIGN) {
             EntityDeclaration entityDeclaration = (EntityDeclaration) parent.getParent().getParent();
             MethodDefinition methodDefinition = entityDeclaration.getUserData(Keys.METHOD_DEFINITION);
             if (methodDefinition != null && (methodDefinition.isConstructor() || methodDefinition.isTypeInitializer())) {
