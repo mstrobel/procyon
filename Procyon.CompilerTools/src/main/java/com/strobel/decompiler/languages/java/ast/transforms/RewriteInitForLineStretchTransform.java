@@ -22,7 +22,6 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.LineNumberTableConverter;
 import com.strobel.decompiler.languages.java.MinMaxLineNumberVisitor;
