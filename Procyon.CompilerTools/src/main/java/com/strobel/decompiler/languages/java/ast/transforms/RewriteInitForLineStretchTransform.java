@@ -22,6 +22,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.LineNumberTableConverter;
 import com.strobel.decompiler.languages.java.MinMaxLineNumberVisitor;
@@ -217,7 +218,21 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
         }
 
         public boolean isInAllConstructors() {
-            return inConstructor && !constructionDefinitionToDeclaration.isEmpty() && fieldInitStatements.size() == constructionDefinitionToDeclaration.size();
+            int constructorCount = countConstructors();
+            return inConstructor && constructorCount > 0 && fieldInitStatements.size() == constructorCount;
+        }
+
+        private int countConstructors() {
+            int constructorCount = 0;
+            FieldDefinition fieldDefinition = declaration.getUserData(Keys.FIELD_DEFINITION);
+            if (fieldDefinition != null) {
+                for (MethodDefinition methodDefinition : constructionDefinitionToDeclaration.keySet()) {
+                    if (methodDefinition.getDeclaringType() == fieldDefinition.getDeclaringType()) {
+                        constructorCount++;
+                    }
+                }
+            }
+            return constructorCount;
         }
 
         public boolean isInTypeInitializer() {

@@ -4,7 +4,7 @@ import org.junit.Test;
 
 public class RealignTest extends DecompilerTest {
 
-    static class Test1 {
+    static class ReOrderMembers {
         
         public void method1() {
             System.out.println("Test.method1");
@@ -84,75 +84,81 @@ public class RealignTest extends DecompilerTest {
         }
     }
     
-    static class Test2 {
+    static class RewriteInit {
 
-        private Test2 top = new Test2(0);
-        private Test2 test;
+        private RewriteInit top = new RewriteInit(0);
+        private RewriteInit test;
 
         static {
             System.out.println("clinit1");
         }
 
-        public Test2(int i) {
+        public RewriteInit(int i) {
             System.out.println(i);
         }
 
-        private Test2 middle = new Test2(false);
+        private RewriteInit middle = new RewriteInit(false);
 
-        public Test2(boolean flag) {
+        public RewriteInit(boolean flag) {
             System.out.println(flag);
-            test = new Test2(0); // must not be moved to declaration
+            test = new RewriteInit(0); // must not be moved to declaration
         }
 
         static {
             System.out.println("clinit2");
         }
 
-        private Test2 bottom = new Test2(true);
+        private RewriteInit bottom = new RewriteInit(true);
 
         static {
             System.out.println("clinit3");
         }
     } 
     
-    static class Test3 {
+    static class RewriteInit2 {
         
-        private Test3 top = new Test3(0);
-        private Test3 test;
+        private RewriteInit2 top = new RewriteInit2(0);
+        private RewriteInit2 test;
         
         static {
             System.out.println("clinit1");
         }
         
-        public Test3(int i) {
+        public RewriteInit2(int i) {
             this(false);
             System.out.println(i);
         }
         
-        private Test3 middle = new Test3(false);
+        private RewriteInit2 middle = new RewriteInit2(false);
         
-        public Test3(boolean flag) {
+        public RewriteInit2(boolean flag) {
             System.out.println(flag);
-            test = new Test3(0); // can be moved to declaration (because of this(...) call)
+            test = new RewriteInit2(0); // can be moved to declaration (because of this(...) call)
         }
         
         static {
             System.out.println("clinit2");
         }
         
-        private Test3 bottom = new Test3(true);
+        private RewriteInit2 bottom = new RewriteInit2(true);
         
         static {
             System.out.println("clinit3");
+        }
+        
+        class Inner {
+            Inner() {
+                System.out.println("Inner");
+            }
         }
     } 
     
     @Test
     public void testReOrderMembers() throws Throwable {
         verifyOutput(
-            Test1.class,
+            ReOrderMembers.class,
             lineNumberSettings(),
-            "static class Test1 {\n" +
+            "static class ReOrderMembers {\n" +
             "    public void method1() {\n" +
             "        System.out.println(/*EL:10*/\"Test.method1\");\n" +
             "    }\n" +
@@ -232,30 +238,30 @@ public class RealignTest extends DecompilerTest {
     @Test
     public void testRewriteInit() throws Throwable {
         verifyOutput(
-            Test2.class,
+            RewriteInit.class,
             lineNumberSettings(),
-            "static class Test2 {\n" +
-            "    /*SL:89*/private Test2 top = new Test2(0);\n" +
+            "static class RewriteInit {\n" +
+            "    /*SL:89*/private RewriteInit top = new RewriteInit(0);\n" +
             "    static {\n" +
             "        System.out.println(/*EL:93*/\"clinit1\");\n" +
             "    }\n" +
             "    \n" +
-            "    public Test2(final int i) {\n" +
+            "    public RewriteInit(final int i) {\n" +
             "        System.out.println(/*EL:97*/i);\n" +
             "    }\n" +
             "    \n" +
-            "    /*SL:100*/private Test2 middle = new Test2(false);\n" +
+            "    /*SL:100*/private RewriteInit middle = new RewriteInit(false);\n" +
             "    \n" +
-            "    public Test2(final boolean flag) {\n" +
+            "    public RewriteInit(final boolean flag) {\n" +
             "        System.out.println(/*EL:103*/flag);\n" +
-            "        /*SL:104*/this.test = new Test2(0);\n" +
+            "        /*SL:104*/this.test = new RewriteInit(0);\n" +
             "    }\n" +
             "    \n" +
-            "    private Test2 test;\n" +
+            "    private RewriteInit test;\n" +
             "    static {\n" +
             "        System.out.println(/*EL:108*/\"clinit2\");\n" +
             "    }\n" +
-            "    /*SL:111*/private Test2 bottom = new Test2(true);\n" +
+            "    /*SL:111*/private RewriteInit bottom = new RewriteInit(true);\n" +
             "    static {\n" +
             "        System.out.println(/*EL:114*/\"clinit3\");\n" +
             "    }\n" +
@@ -266,32 +272,37 @@ public class RealignTest extends DecompilerTest {
     @Test
     public void testRewriteInit2() throws Throwable {
         verifyOutput(
-                Test3.class,
+                RewriteInit2.class,
                 lineNumberSettings(),
-                "static class Test3 {\n" +
-                        "    /*SL:120*/private Test3 top = new Test3(0);\n" +
+                "static class RewriteInit2 {\n" +
+                        "    /*SL:120*/private RewriteInit2 top = new RewriteInit2(0);\n" +
                         "    static {\n" +
                         "        System.out.println(/*EL:124*/\"clinit1\");\n" +
                         "    }\n" +
                         "    \n" +
-                        "    public Test3(final int i) {\n" +
+                        "    public RewriteInit2(final int i) {\n" +
                         "        /*SL:128*/this(false);\n" +
                         "        System.out.println(/*EL:129*/i);\n" +
                         "    }\n" +
                         "    \n" +
-                        "    /*SL:132*/private Test3 middle = new Test3(false);\n" +
+                        "    /*SL:132*/private RewriteInit2 middle = new RewriteInit2(false);\n" +
                         "    \n" +
-                        "    public Test3(final boolean flag) {\n" +
+                        "    public RewriteInit2(final boolean flag) {\n" +
                         "        System.out.println(/*EL:135*/flag);\n" +
                         "    }\n" +
-                        "    /*SL:136*/private Test3 test = new Test3(0);\n" +
+                        "    /*SL:136*/private RewriteInit2 test = new RewriteInit2(0);\n" +
                         "    static {\n" +
                         "        System.out.println(/*EL:140*/\"clinit2\");\n" +
                         "    }\n" +
-                        "    /*SL:143*/private Test3 bottom = new Test3(true);\n" +
+                        "    /*SL:143*/private RewriteInit2 bottom = new RewriteInit2(true);\n" +
                         "    static {\n" +
                         "        System.out.println(/*EL:146*/\"clinit3\");\n" +
                         "    }\n" +
+                        "   class Inner {\n" +
+                        "       Inner() {\n" +
+                        "           System.out.println(/*EL:151*/\"Inner\");\n" +
+                        "       }\n" +
+                        "   }\n" +
                         "}"
                 );
     }
