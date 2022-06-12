@@ -80,11 +80,6 @@ subprojects {
         from 'build/docs/javadoc'
     }
 
-    task sourcesJar(type: Jar, dependsOn: classes) {
-        classifier = 'sources'
-        from sourceSets.main.allSource
-    }
-
     tasks.withType(Test) {
         testLogging {
             // set options for log level LIFECYCLE
@@ -122,6 +117,14 @@ subprojects {
     }
 
     if (project.name == "Procyon.Decompiler") {
+
+	    task sourcesJar(type: Jar, dependsOn: classes) {
+	        classifier = 'sources'
+	        from sourceSets.main.allSource
+	        from project(':Procyon.Core').collect { it.sourceSets.main.allSource }
+	        from project(':Procyon.CompilerTools').collect { it.sourceSets.main.allSource }
+	    }
+
         artifacts {
             archives jar
             archives javadocJar
@@ -129,6 +132,11 @@ subprojects {
         }
     }
     else {
+	    task sourcesJar(type: Jar, dependsOn: classes) {
+	        classifier = 'sources'
+	        from sourceSets.main.allSource
+	    }
+
         javadoc {
             options.encoding = 'UTF-8'
         }
