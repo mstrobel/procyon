@@ -21,6 +21,9 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class FieldDeclaration extends EntityDeclaration {
+
+    private int lineNumber;
+
     public final AstNodeCollection<VariableInitializer> getVariables() {
         return getChildrenByRole(Roles.VARIABLE);
     }
@@ -47,5 +50,18 @@ public class FieldDeclaration extends EntityDeclaration {
         }
 
         return false;
+    }
+
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
+    @Override
+    public int getFirstKnownLineNumber() {
+        return lineNumber;
     }
 }

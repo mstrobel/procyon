@@ -72,11 +72,11 @@ public class OperatorTests extends DecompilerTest {
         private int x;
         private static int y;
         private int[] a;
-        private static int[] b = new int[] { 0 };
+        private static int[] b = new int[] { 1 };
 
         private G() {
             super();
-            this.a = new int[] { 0 };
+            this.a = new int[] { 1 };
         }
 
         public int f() {
@@ -255,11 +255,10 @@ public class OperatorTests extends DecompilerTest {
             "private static class G {\n" +
             "    private int x;\n" +
             "    private static int y;\n" +
-            "    private int[] a;\n" +
-            "    private static int[] b;\n" +
+            "    private static int[] b = { 1 };\n" +
             "    private G() {\n" +
-            "        this.a = new int[] { 0 };\n" +
             "    }\n" +
+            "    private int[] a = { 1 };\n" +
             "    public int f() {\n" +
             "        return this.x++;\n" +
             "    }\n" +
@@ -268,9 +267,6 @@ public class OperatorTests extends DecompilerTest {
             "    }\n" +
             "    public int h(int n) {\n" +
             "        return (++this.x + this.a[n++]) / (this.a[++n] + ++this.a[n]) * ++G.b[++G.y];\n" +
-            "    }\n" +
-            "    static {\n" +
-            "        G.b = new int[] { 0 };\n" +
             "    }\n" +
             "}\n"
         );

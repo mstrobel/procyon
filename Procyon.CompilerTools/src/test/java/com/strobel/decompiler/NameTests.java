@@ -149,6 +149,9 @@ public class NameTests extends DecompilerTest {
             A.class,
             defaultSettings(),
             "static final class A {\n" +
+            "    static class x {\n" +
+            "        static int y;\n" +
+            "    }\n" +
             "    static final class Inner {\n" +
             "        void f(final int x, final Object Integer) {\n" +
             "            final x z = new x();\n" +
@@ -157,9 +160,6 @@ public class NameTests extends DecompilerTest {
             "            System.out.println(A.x.y);\n" +
             "            System.out.println(Integer instanceof Integer);\n" +
             "        }\n" +
-            "    }\n" +
-            "    static class x {\n" +
-            "        static int y;\n" +
             "    }\n" +
             "}\n"
         );
@@ -171,6 +171,8 @@ public class NameTests extends DecompilerTest {
             B.class,
             defaultSettings(),
             "static final class B {\n" +
+            "    static class Integer {\n" +
+            "    }\n" +
             "    void f(final Object o) {\n" +
             "        class Integer {\n" +
             "        }\n" +
@@ -184,8 +186,6 @@ public class NameTests extends DecompilerTest {
             "            System.out.println(java.lang.Integer.class);\n" +
             "        }\n" +
             "    }\n" +
-            "    static class Integer {\n" +
-            "    }\n" +
             "}\n"
         );
     }
@@ -196,13 +196,10 @@ public class NameTests extends DecompilerTest {
             C.class,
             defaultSettings(),
             "static final class C {\n" +
-            "    static float Float;\n" +
+            "    static float Float = java.lang.Float.NaN;\n" +
             "    void f() {\n" +
             "        System.out.println(C.Float);\n" +
             "        System.out.println(java.lang.Float.NaN);\n" +
-            "    }\n" +
-            "    static {\n" +
-            "        C.Float = java.lang.Float.NaN;\n" +
             "    }\n" +
             "}\n"
         );
@@ -214,12 +211,12 @@ public class NameTests extends DecompilerTest {
             D.class,
             defaultSettings(),
             "static final class D {\n" +
+            "    static class x {\n" +
+            "        static int y;\n" +
+            "    }\n" +
             "    void f(final int x) {\n" +
             "        System.out.println(x * 2);\n" +
             "        System.out.println(D.x.y);\n" +
-            "    }\n" +
-            "    static class x {\n" +
-            "        static int y;\n" +
             "    }\n" +
             "}\n"
         );
@@ -247,14 +244,14 @@ public class NameTests extends DecompilerTest {
             F.class,
             defaultSettings(),
             "static final class F {\n" +
+            "    static class x {\n" +
+            "        static int y;\n" +
+            "    }\n" +
             "    <x> void f(final x z) {\n" +
             "        System.out.println(z);\n" +
             "        System.out.println(F.x.y);\n" +
             "    }\n" +
             "    \n" +
-            "    static class x {\n" +
-            "        static int y;\n" +
-            "    }\n" +
             "}\n"
         );
     }
@@ -265,14 +262,14 @@ public class NameTests extends DecompilerTest {
             G.class,
             defaultSettings(),
             "static final class G<x> {\n" +
+            "    static class x {\n" +
+            "        static int y;\n" +
+            "    }\n" +
             "    void f(final x z) {\n" +
             "        System.out.println(z);\n" +
             "        System.out.println(G.x.y);\n" +
             "    }\n" +
             "    \n" +
-            "    static class x {\n" +
-            "        static int y;\n" +
-            "    }\n" +
             "}\n"
         );
     }
@@ -284,11 +281,11 @@ public class NameTests extends DecompilerTest {
             defaultSettings(),
             "static final class H extends DeclaresX {\n" +
             "    X z;\n" +
+            "    static class X {\n" +
+            "    }\n" +
             "    void f(final DeclaresX.X x) {\n" +
             "        System.out.println(x);\n" +
             "        System.out.println(this.z);\n" +
-            "    }\n" +
-            "    static class X {\n" +
             "    }\n" +
             "}\n"
         );
@@ -316,12 +313,12 @@ public class NameTests extends DecompilerTest {
             defaultSettings(),
             "static final class J extends DeclaresX implements IDeclaresX {\n" +
             "    X z;\n" +
+            "    static class X {\n" +
+            "    }\n" +
             "    void f(final DeclaresX.X x, final IDeclaresX.X y) {\n" +
             "        System.out.println(x);\n" +
             "        System.out.println(y);\n" +
             "        System.out.println(this.z);\n" +
-            "    }\n" +
-            "    static class X {\n" +
             "    }\n" +
             "}\n"
         );

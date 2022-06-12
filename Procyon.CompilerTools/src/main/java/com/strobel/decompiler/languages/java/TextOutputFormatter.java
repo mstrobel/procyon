@@ -99,10 +99,16 @@ public class TextOutputFormatter implements IOutputFormatter {
         else if (node instanceof Statement) {
             offset = ((Statement) node).getOffset();
             prefix = "/*SL:";
+        } else if (node instanceof FieldDeclaration 
+                && node.getLastChild() instanceof VariableInitializer 
+                && node.getLastChild().getLastChild() instanceof Expression) {
+            offset = ((Expression) node.getLastChild().getLastChild()).getOffset();
+            prefix = "/*SL:";
         }
         if (offset != Expression.MYSTERY_OFFSET) {
             // Convert to a line number.
-            final int lineNumber = offset2LineNumber.getLineForOffset(offset);
+            final int lineNumber = node instanceof FieldDeclaration ? ((FieldDeclaration) node).getLineNumber()
+                                                                    : offset2LineNumber.getLineForOffset(offset);
             if (lineNumber > lastObservedLineNumber) {
                 // Record a data structure mapping original to actual line numbers.
                 final int lineOfComment = output.getRow();
