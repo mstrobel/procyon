@@ -18,6 +18,8 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
@@ -29,12 +31,15 @@ import com.strobel.decompiler.languages.java.ast.AssignmentExpression;
 import com.strobel.decompiler.languages.java.ast.AssignmentOperatorType;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BlockStatement;
+import com.strobel.decompiler.languages.java.ast.CompilationUnit;
 import com.strobel.decompiler.languages.java.ast.ConstructorDeclaration;
 import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
+import com.strobel.decompiler.languages.java.ast.DepthFirstAstVisitor;
 import com.strobel.decompiler.languages.java.ast.EntityDeclaration;
 import com.strobel.decompiler.languages.java.ast.Expression;
 import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
 import com.strobel.decompiler.languages.java.ast.FieldDeclaration;
+import com.strobel.decompiler.languages.java.ast.Identifier;
 import com.strobel.decompiler.languages.java.ast.InvocationExpression;
 import com.strobel.decompiler.languages.java.ast.Keys;
 import com.strobel.decompiler.languages.java.ast.MemberReferenceExpression;
@@ -44,20 +49,18 @@ import com.strobel.decompiler.languages.java.ast.ThisReferenceExpression;
 import com.strobel.decompiler.languages.java.ast.VariableInitializer;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<Void> {
+public class RewriteInitForLineStretchTransform extends DepthFirstAstVisitor<Void, Void> implements IAstTransform {
 
     private ConcurrentHashMap<String, FieldDeclaration> fieldDeclarations = new ConcurrentHashMap<>();
     private ConcurrentHashMap<FieldLocation, FieldInit> fieldInitLocations = new ConcurrentHashMap<>();
     private ConcurrentHashMap<MethodDefinition, ConstructorDeclaration> constructionDefinitionToDeclaration = new ConcurrentHashMap<>();
     
-    public RewriteInitForLineStretchTransform(DecompilerContext context) {
-        super(context);
-    }
-
     @Override
     public Void visitBlockStatement(BlockStatement node, Void data) {
         if (node.getParent() instanceof MethodDeclaration) {
@@ -136,10 +139,15 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
                 int offset = initializer.getOffset();
                 int lineNumber = lineNumberTableConverter.getLineForOffset(offset);
                 if (lineNumber > 0 && fieldDeclaration != null && !methodDefinition.hasParameter(memberReference.getName())) {
-                    fieldDeclaration.setLineNumber(lineNumber);
-                    FieldLocation fieldLocation = new FieldLocation(memberReference.getFullName(), offset);
-                    fieldInitLocations.putIfAbsent(fieldLocation, new FieldInit(fieldDeclaration));
-                    fieldInitLocations.get(fieldLocation).init(initializer, (ExpressionStatement) node.getParent(), methodDefinition);
+                    LocalVariableTableAttribute localVariableTable = SourceAttribute.find(AttributeNames.LocalVariableTable, methodDefinition.getSourceAttributes());
+                    IdentifierGatherer identifierGatherer = new IdentifierGatherer();
+                    initializer.acceptVisitor(identifierGatherer, null);
+                    if (localVariableTable == null || identifierGatherer.containsNoneOf(localVariableTable.getEntries())) {
+                        fieldDeclaration.setLineNumber(lineNumber);
+                        FieldLocation fieldLocation = new FieldLocation(memberReference.getFullName(), offset);
+                        fieldInitLocations.putIfAbsent(fieldLocation, new FieldInit(fieldDeclaration));
+                        fieldInitLocations.get(fieldLocation).init(initializer, (ExpressionStatement) node.getParent(), methodDefinition);
+                    }
                 }
             }
         }
@@ -163,14 +171,7 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
                 MethodDefinition methodDefinition = (MethodDefinition) memberReference;
                 ConstructorDeclaration constructorDeclaration = constructionDefinitionToDeclaration.get(methodDefinition);
                 if (constructorDeclaration != null) {
-                    MethodDefinition currentMethodDefinition = context.getCurrentMethod();
-                    try {
-                        context.setCurrentMethod(null);
-                        visitConstructorDeclaration(constructorDeclaration, data);
-                    }
-                    finally {
-                        context.setCurrentMethod(currentMethodDefinition);
-                    }
+                    visitConstructorDeclaration(constructorDeclaration, data);
                 }
             }
         }
@@ -179,8 +180,8 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
     
     @Override
     public void run(AstNode compilationUnit) {
-        new ConstructorGatherer(context).run(compilationUnit);
-        super.run(compilationUnit);
+        compilationUnit.acceptVisitor(new ConstructorGatherer(), null);
+        compilationUnit.acceptVisitor(this, null);
         for (FieldInit fieldInit : fieldInitLocations.values()) {
             if (fieldInit.isInAllConstructors() || fieldInit.isInTypeInitializer()) {
                 fieldInit.removeFieldInitStatements();
@@ -286,12 +287,8 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
         }
     }
 
-    private class ConstructorGatherer extends ContextTrackingVisitor<Void> {
+    private class ConstructorGatherer extends DepthFirstAstVisitor<Void, Void> {
 
-        protected ConstructorGatherer(DecompilerContext context) {
-            super(context);
-        }
-        
         @Override
         public Void visitConstructorDeclaration(ConstructorDeclaration node, Void p) {
             MethodDefinition methodDefinition = node.getUserData(Keys.METHOD_DEFINITION);
@@ -299,6 +296,26 @@ public class RewriteInitForLineStretchTransform extends ContextTrackingVisitor<V
                 constructionDefinitionToDeclaration.put(methodDefinition, node);
             }
             return super.visitConstructorDeclaration(node, p);
+        }
+    }
+
+    private static class IdentifierGatherer extends DepthFirstAstVisitor<Void, Void> {
+        
+        private Set<String> identifiers = new HashSet<>();
+
+        public boolean containsNoneOf(List<LocalVariableTableEntry> entries) {
+            for (LocalVariableTableEntry entry : entries) {
+                if (identifiers.contains(entry.getName())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public Void visitIdentifier(Identifier node, Void data) {
+            identifiers.add(node.getName());
+            return super.visitIdentifier(node, data);
         }
     }
 }

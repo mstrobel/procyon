@@ -153,6 +153,18 @@ public class RealignTest extends DecompilerTest {
         }
     } 
     
+    static class RewriteInit3 {
+        
+        private int _a, _b;
+        
+        public RewriteInit3(int a) {
+            _a = a;
+            double b = Math.random();
+            _b = b < 0.5 ? 1 : 0;
+        }
+    }
+    
+    
     @Test
     public void testReOrderMembers() throws Throwable {
         verifyOutput(
@@ -305,6 +317,23 @@ public class RealignTest extends DecompilerTest {
                         "   }\n" +
                         "}"
                 );
+    }
+    
+    @Test
+    public void testRewriteInit3() throws Throwable {
+        verifyOutput(
+                RewriteInit3.class,
+                lineNumberSettings(),
+                "static class RewriteInit3 {\n" +
+                "    private int _a;\n" +
+                "    private int _b;\n" +
+                "    public RewriteInit3(final int a) {\n" +
+                "        /*SL:161*/this._a = a;\n" +
+                "        final double b = /*EL:162*/Math.random();\n" +
+                "        /*SL:163*/this._b = ((b < 0.5) ? 1 : 0);\n" +
+                "    }\n" +
+                "}"
+        );
     }
     
     private static DecompilerSettings lineNumberSettings() {
