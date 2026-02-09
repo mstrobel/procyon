@@ -25,10 +25,12 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public class MethodDeclaration extends EntityDeclaration {
-    public final static Role<Expression> DEFAULT_VALUE_ROLE = new Role<>("DefaultValue", Expression.class, Expression.NULL);
+    public static final Role<Expression> DEFAULT_VALUE_ROLE = new Role<>("DefaultValue", Expression.class, Expression.NULL);
 
-    public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
-    public final static TokenRole THROWS_KEYWORD = new TokenRole("throws", TokenRole.FLAG_KEYWORD);
+    public static final TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
+    public static final TokenRole THROWS_KEYWORD = new TokenRole("throws", TokenRole.FLAG_KEYWORD);
+
+    private int firstKnownLineNumber;
 
     public final AstType getPrivateImplementationType() {
         return getChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE);
@@ -111,6 +113,22 @@ public class MethodDeclaration extends EntityDeclaration {
 
         return false;
     }
+    
+    public boolean isFirstLineNumberKnown() {
+        return firstKnownLineNumber > 0;
+    }
+
+    @Override
+    public int getFirstKnownLineNumber() {
+        if (isFirstLineNumberKnown()) {
+            return firstKnownLineNumber;
+        }
+        return super.getFirstKnownLineNumber();
+    }
+
+    public void setFirstKnownLineNumber(int firstKnownLineNumber) {
+        this.firstKnownLineNumber = firstKnownLineNumber;
+    }
 
     // <editor-fold defaultstate="collapsed" desc="Pattern Placeholder">
 
@@ -118,7 +136,7 @@ public class MethodDeclaration extends EntityDeclaration {
         return new MethodDeclaration.PatternPlaceholder(VerifyArgument.notNull(pattern, "pattern"));
     }
 
-    private final static class PatternPlaceholder extends MethodDeclaration {
+    private static final class PatternPlaceholder extends MethodDeclaration {
         final Pattern child;
 
         PatternPlaceholder(final Pattern child) {

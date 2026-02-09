@@ -17,7 +17,6 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.StringUtilities;
-import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
 import java.util.Collections;
@@ -28,21 +27,24 @@ import java.util.List;
  * Date: 1/6/13
  * Time: 2:29 PM
  */
-public abstract class MethodReference extends MemberReference implements IMethodSignature,
-                                                                         IGenericParameterProvider,
-                                                                         IGenericContext {
-    protected final static String CONSTRUCTOR_NAME = "<init>";
-    protected final static String STATIC_INITIALIZER_NAME = "<clinit>";
+public abstract class MethodReference extends MemberReference implements IMethodSignature {
+    protected static final String CONSTRUCTOR_NAME = "<init>";
+    protected static final String STATIC_INITIALIZER_NAME = "<clinit>";
 
     // <editor-fold defaultstate="collapsed" desc="Signature">
-
-    public abstract TypeReference getReturnType();
 
     public boolean hasParameters() {
         return !getParameters().isEmpty();
     }
 
-    public abstract List<ParameterDefinition> getParameters();
+    public boolean hasParameter(String name) {
+        for (ParameterDefinition parameterDefinition : getParameters()) {
+            if (parameterDefinition.getName().equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public List<TypeReference> getThrownTypes() {
         return Collections.emptyList();
@@ -117,11 +119,11 @@ public abstract class MethodReference extends MemberReference implements IMethod
     }
 
     public boolean isConstructor() {
-        return MethodDefinition.CONSTRUCTOR_NAME.equals(getName());
+        return CONSTRUCTOR_NAME.equals(getName());
     }
 
     public boolean isTypeInitializer() {
-        return MethodDefinition.STATIC_INITIALIZER_NAME.equals(getName());
+        return STATIC_INITIALIZER_NAME.equals(getName());
     }
 
     // </editor-fold>
@@ -171,9 +173,9 @@ public abstract class MethodReference extends MemberReference implements IMethod
     public MethodDefinition resolve() {
         final TypeReference declaringType = getDeclaringType();
 
-        if (declaringType == null)
+        if (declaringType == null) {
             throw ContractUtils.unsupported();
-
+        }
         return declaringType.resolve(this);
     }
 

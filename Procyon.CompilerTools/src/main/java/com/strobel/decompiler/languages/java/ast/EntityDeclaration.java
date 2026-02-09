@@ -16,7 +16,12 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.LineNumberTableEntry;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.Flags;
+import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.decompiler.languages.EntityType;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.Match;
@@ -178,5 +183,23 @@ public abstract class EntityDeclaration extends AstNode {
         }
 
         return false;
+    }
+
+    public int getFirstKnownLineNumber() {
+        MethodDefinition methodDefinition = getUserData(Keys.METHOD_DEFINITION);
+        if (methodDefinition != null) {
+            final LineNumberTableAttribute lineNumberTableAttribute = SourceAttribute.find(AttributeNames.LineNumberTable, methodDefinition.getSourceAttributes());
+            if (lineNumberTableAttribute != null) {
+                List<LineNumberTableEntry> entries = lineNumberTableAttribute.getEntries();
+                if (entries != null) {
+                    for (LineNumberTableEntry entry : entries) {
+                        if (entry != null) {
+                            return entry.getLineNumber();
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
     }
 }

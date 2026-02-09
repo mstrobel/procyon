@@ -1,7 +1,7 @@
 /*
  * TransformationPipeline.java
  *
- * Copyright (c) 2013 Mike Strobel
+ * Copyright (c) 2013-2022 Mike Strobel and other contributors
  *
  * This source code is based on Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
  * and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
@@ -76,7 +76,9 @@ public final class TransformationPipeline {
             new AddStandardAnnotationsTransform(context),
             new AddReferenceQualifiersTransform(context),
             new RemoveHiddenMembersTransform(context),
-            new CollapseImportsTransform(context)
+            new CollapseImportsTransform(context),
+            new RewriteInitForLineStretchTransform(),
+            new ReOrderMembersForLineStretchTransform(context)
         };
     }
 

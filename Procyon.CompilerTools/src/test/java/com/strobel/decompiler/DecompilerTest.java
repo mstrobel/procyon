@@ -113,6 +113,7 @@ public abstract class DecompilerTest {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
+
     protected void verifyOutput(final String internalName, final DecompilerSettings settings, final String expectedOutput) {
         final PlainTextOutput writer = new PlainTextOutput();
 

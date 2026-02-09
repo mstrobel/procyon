@@ -61,7 +61,6 @@ public class EncodingTests extends DecompilerTest {
             A.class,
             defaultSettings(),
             "private static final class A {\n" +
-            "    static String \\ufe4f\\u2167;\n" +
             "    static final transient short x\\u03a7x = 5;\n" +
             "    private static String __\\u0130\\u00dfI(final A x) {\n" +
             "        return A.\\ufe4f\\u2167;\n" +
@@ -70,9 +69,7 @@ public class EncodingTests extends DecompilerTest {
             "        System.out.println(__\\u0130\\u00dfI(null));\n" +
             "        System.out.println(\"\\\"\\u0000\\u000fu\\\\\\\"\\ff'\\rr'\\nn \\u0123\\u1234O\\uffffF\");\n" +
             "    }\n" +
-            "    static {\n" +
-            "        A.\\ufe4f\\u2167 = \"\\ufeff\\ud800\\ud8d8\\udffd\";\n" +
-            "    }\n" +
+            "    static String \\ufe4f\\u2167 = \"\\ufeff\\ud800\\ud8d8\\udffd\";\n" +
             "}"
         );
     }
