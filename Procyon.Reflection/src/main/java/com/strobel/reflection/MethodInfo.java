@@ -727,7 +727,7 @@ class ReflectedMethod extends MethodInfo {
                 final GenericParameter<?> gp = (GenericParameter<?>) p;
                 final TypeVariable<?> typeVariable = gp.getRawTypeVariable();
 
-                if (typeVariable.getGenericDeclaration() == rawMethod) {
+                if (typeVariable.getGenericDeclaration().equals(rawMethod)) {
                     gp.setDeclaringMethod(this);
 
                     if (genericParameters == null) {
