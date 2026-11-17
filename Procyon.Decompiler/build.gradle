@@ -1,17 +1,15 @@
-uploadArchives.enabled = false
-
 jar {
     manifest {
-        attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
+        attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': archiveVersion, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
     }
 
     from {
-        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
 
 dependencies {
-    compile 'com.beust:jcommander:1.78'
-    compile project(':Procyon.Core')
-    compile project(':Procyon.CompilerTools')
+    implementation 'com.beust:jcommander:1.78'
+    implementation project(':Procyon.Core')
+    implementation project(':Procyon.CompilerTools')
 }

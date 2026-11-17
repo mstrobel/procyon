@@ -1,6 +1,6 @@
 dependencies {
-    compile project(':Procyon.Core')
-    compile project(':Procyon.Reflection')
+    implementation project(':Procyon.Core')
+    implementation project(':Procyon.Reflection')
 }
 
 /*

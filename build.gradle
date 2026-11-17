@@ -2,8 +2,8 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 apply plugin: 'java'
-apply plugin: 'maven'
 apply plugin: 'idea'
+apply plugin: 'maven-publish'
 
 archivesBaseName = 'procyon'
 
@@ -35,7 +35,7 @@ final def procyonVersion = getProcyonVersion()
 allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
-    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
 
     buildDir = rootDir.canonicalPath + "/build/" + rootProject.relativePath(projectDir.canonicalPath)
 
@@ -48,8 +48,13 @@ allprojects {
         mavenCentral()
     }
 
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
+
     dependencies {
-        testCompile 'junit:junit:4.13.2'
+        testImplementation 'junit:junit:4.13.2'
     }
 }
 
@@ -58,10 +63,9 @@ allprojects {
 //
 rootProject.tasks.each { it.enabled = false }
 rootProject.tasks.withType(DefaultTask).each { it.enabled = true }
-rootProject.uploadArchives.enabled = false
 
 subprojects {
-    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
     apply plugin: 'signing'
 
     final boolean shouldSign = "true".equalsIgnoreCase(System.properties.getProperty("procyon.signing.enabled"))
@@ -75,22 +79,12 @@ subprojects {
         }
     }
 
-    task javadocJar(type: Jar, dependsOn: javadoc) {
-        classifier = 'javadoc'
-        from 'build/docs/javadoc'
-    }
-
-    task sourcesJar(type: Jar, dependsOn: classes) {
-        classifier = 'sources'
-        from sourceSets.main.allSource
-    }
-
     tasks.withType(Test) {
         testLogging {
             // set options for log level LIFECYCLE
             events TestLogEvent.FAILED,
-                   TestLogEvent.PASSED,
-                   TestLogEvent.SKIPPED
+                    TestLogEvent.PASSED,
+                    TestLogEvent.SKIPPED
             exceptionFormat TestExceptionFormat.FULL
             showExceptions true
             showCauses true
@@ -99,11 +93,11 @@ subprojects {
             // set options for log level DEBUG and INFO
             debug.with {
                 events TestLogEvent.STARTED,
-                       TestLogEvent.FAILED,
-                       TestLogEvent.PASSED,
-                       TestLogEvent.SKIPPED,
-                       TestLogEvent.STANDARD_ERROR,
-                       TestLogEvent.STANDARD_OUT
+                        TestLogEvent.FAILED,
+                        TestLogEvent.PASSED,
+                        TestLogEvent.SKIPPED,
+                        TestLogEvent.STANDARD_ERROR,
+                        TestLogEvent.STANDARD_OUT
                 exceptionFormat TestExceptionFormat.FULL
             }
 
@@ -125,8 +119,7 @@ subprojects {
         artifacts {
             archives jar
         }
-    }
-    else {
+    } else {
         javadoc {
             options.encoding = 'UTF-8'
         }
@@ -140,77 +133,65 @@ subprojects {
         if (shouldSign) {
             signing {
                 sign configurations.archives
+                sign publishing.publications.mavenJava
             }
         }
 
-        uploadArchives {
-            repositories.mavenDeployer {
-                if (shouldSign) {
-                    beforeDeployment { MavenDeployment deployment ->
-                        signing.signPom(deployment)
+        publishing {
+            repositories {
+                maven {
+                    name 'Snapshots'
+                    url 'https://oss.sonatype.org/content/repositories/snapshots'
+                    credentials {
+                        username = project.properties.get("procyon.sonatype.username")
+                        password = project.properties.get("procyon.sonatype.password")
                     }
                 }
-
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: project.properties.get("procyon.sonatype.username"),
-                                   password: project.properties.get("procyon.sonatype.password"))
+                maven {
+                    name 'Releases'
+                    url 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
+                    credentials {
+                        username = project.properties.get("procyon.sonatype.username")
+                        password = project.properties.get("procyon.sonatype.password")
+                    }
                 }
-
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: project.properties.get("procyon.sonatype.username"),
-                                   password: project.properties.get("procyon.sonatype.password"))
-                }
-
-                pom {
+            }
+            publications {
+                mavenJava(MavenPublication) {
+                    from components.java
                     groupId = project.group
                     version = project.version
                     artifactId = project.archivesBaseName
-
-                    project {
-                        name project.archivesBaseName
-                        packaging 'jar'
-                        description 'Procyon'
-                        url 'https://github.com/mstrobel/procyon'
-
-                        scm {
-                            url 'https://github.com/mstrobel/procyon'
-                            connection 'scm:git:https://github.com/mstrobel/procyon.git'
-                            developerConnection 'scm:git:https://mstrobel@github.com/mstrobel/procyon.git'
-                        }
-
-                        issueManagement {
-                            system 'github'
-                            url 'https://github.com/mstrobel/procyon/issues'
-                        }
+                    pom {
+                        name = project.archivesBaseName
+                        description = 'Procyon'
+                        url = 'https://github.com/mstrobel/procyon'
 
                         licenses {
                             license {
-                                name 'The Apache Software License, Version 2.0'
-                                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                                distribution 'repo'
+                                name = 'The Apache Software License, Version 2.0'
+                                url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                                distribution = 'repo'
                             }
                         }
 
                         developers {
                             developer {
-                                id 'mstrobel'
-                                name 'Mike Strobel'
-                                roles {
-                                    role 'owner'
-                                    role 'packager'
-                                    role 'developer'
-                                }
+                                id = 'mstrobel'
+                                name = 'Mike Strobel'
+                                roles = ['owner', 'packager', 'developer']
                             }
                         }
 
-                        dependencies {
-                            dependency {
-                                groupId 'junit'
-                                artifactId 'junit'
-                                version '4.11'
-                                scope 'test'
-//                                optional = true
-                            }
+                        scm {
+                            connection = 'scm:git:https://github.com/mstrobel/procyon.git'
+                            developerConnection = 'scm:git:https://mstrobel@github.com/mstrobel/procyon.git'
+                            url = 'https://github.com/mstrobel/procyon'
+                        }
+
+                        issueManagement {
+                            system = 'github'
+                            url = 'https://github.com/mstrobel/procyon/issues'
                         }
                     }
                 }
